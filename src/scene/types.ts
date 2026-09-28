@@ -1,0 +1,93 @@
+import type { DiagramKind, EdgeStroke, NodeShape, SemanticType, SeqBlockType } from '../ir/types';
+
+/** Scene — the IR plus absolute geometry. The viewer consumes only this. */
+
+export interface Pt {
+  x: number;
+  y: number;
+}
+
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface SceneNode extends Box {
+  id: string;
+  label: string;
+  /** Label wrapped into display lines. */
+  lines: string[];
+  type: SemanticType;
+  shape: NodeShape;
+  parent?: string;
+}
+
+export interface SceneGroup extends Box {
+  id: string;
+  label: string;
+  parent?: string;
+  depth: number;
+}
+
+export interface SceneEdge {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+  points: Pt[];
+  labelBox?: Box;
+  stroke: EdgeStroke;
+  arrowEnd: boolean;
+  arrowStart: boolean;
+  arrowStyle?: 'arrow' | 'open' | 'cross' | 'async';
+  /** Order for trace playback (sequence message index, else topological-ish). */
+  order: number;
+}
+
+export interface SceneLifeline {
+  actor: string;
+  x: number;
+  y1: number;
+  y2: number;
+}
+
+export interface SceneActivation extends Box {
+  actor: string;
+}
+
+export interface SceneNote extends Box {
+  id: string;
+  text: string;
+  lines: string[];
+}
+
+export interface SceneBlock extends Box {
+  id: string;
+  type: SeqBlockType;
+  label: string;
+  /** Section dividers (y) with their labels, e.g. `else`. */
+  sections: { y: number; label: string }[];
+}
+
+export interface SceneSequence {
+  lifelines: SceneLifeline[];
+  activations: SceneActivation[];
+  notes: SceneNote[];
+  blocks: SceneBlock[];
+  /** Participant boxes duplicated at the bottom. */
+  footers: SceneNode[];
+}
+
+export interface Scene {
+  version: 1;
+  kind: DiagramKind;
+  title?: string;
+  width: number;
+  height: number;
+  nodes: SceneNode[];
+  groups: SceneGroup[];
+  edges: SceneEdge[];
+  seq?: SceneSequence;
+}

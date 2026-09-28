@@ -1,0 +1,21 @@
+sequenceDiagram
+  title Cache-miss request
+  actor U as Shopper
+  participant W as Web App
+  participant A as Checkout API
+  participant C as Redis cache
+  participant D as Postgres
+  U->>W: open cart
+  W->>+A: GET /cart
+  A->>C: GET cart:42
+  C-->>A: miss
+  alt cart exists
+    A->>+D: SELECT cart
+    D-->>-A: rows
+    A-)C: SET cart:42 (ttl 60s)
+  else no cart
+    A->>A: create empty cart
+  end
+  Note over A,C: writes are async, reads never block on cache
+  A-->>-W: 200 cart
+  W-->>U: render

@@ -1,0 +1,131 @@
+/* ---------- diagram (these rules are also embedded in SVG/PNG export) ---------- */
+.ma-svg {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.ma-svg text {
+  fill: var(--text);
+}
+.ma-group rect {
+  fill: var(--lane-fill);
+  stroke: var(--lane-stroke);
+  stroke-width: 1.25;
+  stroke-dasharray: 6 4;
+}
+.ma-group text {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ma-node .mask {
+  fill: var(--mask);
+  stroke: none;
+}
+.ma-node .body {
+  stroke-width: 1.5;
+}
+.ma-node .label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ma-node .caption {
+  font-size: 10px;
+}
+.ma-node .icon {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ma-node .solid {
+  fill: var(--text);
+  stroke: none;
+}
+.ma-node .ring {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+.ma-node .junction {
+  fill: var(--arrow);
+}
+.ma-edge path.line {
+  fill: none;
+  stroke: var(--arrow);
+  stroke-width: 1.5;
+}
+.ma-edge.dotted path.line {
+  stroke-dasharray: 5 5;
+}
+.ma-edge.thick path.line {
+  stroke-width: 2.75;
+}
+.ma-edge path.hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+}
+.ma-edge .label-bg {
+  fill: var(--mask);
+  opacity: 0.92;
+  stroke: var(--panel-border);
+  stroke-width: 1;
+}
+.ma-edge .label-text {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+.ma-marker {
+  fill: context-stroke;
+  stroke: context-stroke;
+}
+.ma-marker.open {
+  fill: none;
+  stroke-width: 1.5;
+}
+.ma-lifeline {
+  stroke: var(--lane-stroke);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 5;
+}
+.ma-activation {
+  fill: var(--panel-solid);
+  stroke: var(--arrow);
+  stroke-width: 1.25;
+}
+.ma-note rect {
+  fill: var(--note-fill);
+  stroke: var(--note-stroke);
+  stroke-width: 1.25;
+}
+.ma-note text {
+  fill: var(--text);
+  font-size: 11.5px;
+}
+.ma-block > rect.frame {
+  fill: none;
+  stroke: var(--lane-stroke);
+  stroke-width: 1.25;
+}
+.ma-block .tab {
+  fill: var(--lane-stroke);
+}
+.ma-block .kw {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.ma-block .cond {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+.ma-block .cond-bg {
+  fill: var(--mask);
+}
+.ma-block line {
+  stroke: var(--lane-stroke);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 4;
+}

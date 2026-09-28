@@ -1,0 +1,38 @@
+{
+  "name": "mermaid-archify",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Archify-style interactive diagrams from Mermaid source.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/lint": "6.9.7",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13",
+    "@lezer/highlight": "1.2.5",
+    "codemirror": "6.0.2",
+    "elkjs": "0.12.0",
+    "lz-string": "1.5.0",
+    "mermaid": "12.0.0",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@preact/preset-vite": "2.10.6",
+    "@types/node": "26.6.3",
+    "happy-dom": "20.14.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

@@ -1,0 +1,31 @@
+---
+title: Checkout Platform
+---
+flowchart LR
+  user([Shopper]):::frontend
+  subgraph edge[Edge]
+    cdn[CloudFront CDN]
+    waf[WAF]
+  end
+  subgraph platform[Platform · us-east-1]
+    web[Web App]
+    api[[Checkout API]]
+    auth[Auth Service]
+    subgraph data[Data]
+      db[(Postgres)]
+      cache[(Redis cache)]
+    end
+    queue{{Order events · Kafka}}
+    worker[Fulfilment worker]
+  end
+  stripe((Stripe))
+
+  user -->|HTTPS| cdn --> waf --> web
+  web -->|REST| api
+  api -->|verify JWT| auth
+  api --> cache
+  api -->|SQL| db
+  api -.->|publish| queue
+  queue -.->|consume| worker
+  api -->|charge| stripe
+  worker --> db

@@ -1,0 +1,441 @@
+.ma-viewer {
+  --font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg);
+  background-image: linear-gradient(color-mix(in srgb, var(--grid) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--grid) 55%, transparent) 1px, transparent 1px);
+  font-family: var(--font);
+  color: var(--text);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+.ma-viewer.is-panning {
+  cursor: grabbing;
+}
+.ma-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.ma-stage > svg {
+  display: block;
+  overflow: visible;
+}
+
+/* ---------- interaction states (never exported) ---------- */
+.ma-node,
+.ma-edge,
+.ma-group,
+.ma-note,
+.ma-lifeline {
+  transition: opacity 160ms ease;
+}
+.ma-node {
+  cursor: pointer;
+}
+.ma-edge {
+  cursor: pointer;
+}
+.ma-node:focus-visible {
+  outline: none;
+}
+.ma-node:focus-visible .body {
+  stroke-width: 2.5;
+}
+.dimmed .ma-node:not(.lit),
+.dimmed .ma-edge:not(.lit),
+.dimmed .ma-note,
+.dimmed .ma-block {
+  opacity: 0.16;
+}
+.previewing .ma-node:not(.lit),
+.previewing .ma-edge:not(.lit) {
+  opacity: 0.45;
+}
+.ma-edge.lit path.line {
+  stroke: var(--arrow-emphasis);
+  stroke-width: 2;
+}
+.ma-edge.lit .label-text {
+  fill: var(--text);
+}
+.ma-edge.on-route path.line {
+  stroke: var(--route);
+  stroke-width: 2.5;
+}
+.ma-node.focused .body {
+  stroke-width: 3;
+}
+.ma-node.route-end .body {
+  stroke: var(--route);
+  stroke-width: 3;
+}
+.ma-edge.pinned path.line {
+  stroke: var(--arrow-emphasis);
+  stroke-width: 2.5;
+}
+.ma-edge.pinned .label-bg {
+  stroke: var(--arrow-emphasis);
+}
+
+/* trace */
+.tracing .ma-edge path.line {
+  stroke-dasharray: 6 8;
+  animation: ma-flow 900ms linear infinite;
+}
+.tracing .ma-edge.dotted path.line {
+  stroke-dasharray: 2 6;
+}
+.ma-edge.trace-now path.line {
+  stroke: var(--arrow-emphasis);
+  stroke-width: 2.5;
+}
+.ma-edge.trace-now .label-text {
+  fill: var(--text);
+}
+.ma-edge.trace-done path.line {
+  stroke: var(--arrow-emphasis);
+  opacity: 0.55;
+}
+.ma-pulse {
+  fill: var(--arrow-emphasis);
+  filter: drop-shadow(0 0 4px var(--arrow-emphasis));
+}
+@keyframes ma-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tracing .ma-edge path.line {
+    animation: none;
+  }
+  .ma-pulse {
+    display: none;
+  }
+}
+
+/* ---------- chrome ---------- */
+.ma-chrome {
+  position: absolute;
+  z-index: 3;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--toolbar-text);
+  background: var(--toolbar-bg);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+}
+.ma-toolbar {
+  z-index: 5;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+}
+.ma-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ma-btn:hover {
+  background: var(--toolbar-hover);
+}
+.ma-btn:focus-visible {
+  outline: 2px solid var(--arrow-emphasis);
+  outline-offset: -2px;
+}
+.ma-btn[aria-pressed='true'] {
+  color: var(--arrow-emphasis);
+  background: var(--toolbar-hover);
+}
+.ma-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ma-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--toolbar-border);
+  margin: 0 4px;
+}
+.ma-zoom {
+  min-width: 46px;
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ma-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--toolbar-menu-bg);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.ma-menu .ma-btn {
+  justify-content: flex-start;
+}
+.ma-title {
+  top: 12px;
+  left: 12px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ma-title small {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 8px;
+}
+.ma-legend {
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  max-width: calc(100% - 240px);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.ma-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ma-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1.5px solid;
+}
+.ma-minimap {
+  right: 12px;
+  bottom: 12px;
+  padding: 6px;
+  cursor: pointer;
+}
+.ma-minimap svg {
+  display: block;
+}
+.ma-minimap .vp {
+  fill: var(--arrow-emphasis);
+  fill-opacity: 0.08;
+  stroke: var(--arrow-emphasis);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ma-finder {
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  padding: 6px;
+  background: var(--toolbar-menu-bg);
+}
+.ma-finder input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 8px 10px;
+}
+.ma-finder ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0 0;
+  border-top: 1px solid var(--toolbar-border);
+}
+.ma-finder li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.ma-finder li[aria-selected='true'] {
+  background: var(--toolbar-hover);
+}
+.ma-finder li small {
+  margin-left: auto;
+  color: var(--text-faint);
+}
+.ma-finder .empty {
+  color: var(--text-faint);
+  padding: 8px 10px;
+}
+.ma-passport {
+  top: 56px;
+  right: 12px;
+  width: 300px;
+  max-height: calc(100% - 200px);
+  overflow: auto;
+  padding: 14px;
+  background: var(--toolbar-menu-bg);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.ma-passport header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ma-passport h2 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+.ma-passport .kind {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ma-passport .close {
+  margin-left: auto;
+}
+.ma-passport dl {
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 11px;
+}
+.ma-passport dt {
+  color: var(--text-faint);
+}
+.ma-passport dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ma-passport h3 {
+  margin: 14px 0 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+.ma-passport ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ma-passport li button {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.ma-passport li button:hover {
+  background: var(--toolbar-hover);
+}
+.ma-passport li .via {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.ma-passport .none {
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 2px 8px;
+}
+.ma-passport footer {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+.ma-passport footer .ma-btn {
+  border: 1px solid var(--toolbar-border);
+}
+.ma-status {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 7px 12px;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: calc(100% - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ma-status b {
+  color: var(--route);
+}
+.ma-hint {
+  color: var(--text-faint);
+  margin-left: 8px;
+}
+@media (max-width: 640px) {
+  .ma-legend,
+  .ma-minimap {
+    display: none;
+  }
+  .ma-passport {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    top: auto;
+    bottom: 12px;
+    max-height: 45%;
+  }
+  .ma-title {
+    max-width: calc(100% - 200px);
+  }
+}

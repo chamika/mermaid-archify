@@ -1,0 +1,15 @@
+stateDiagram-v2
+  [*] --> Queued
+  Queued --> Running: worker picks up
+  state Running {
+    [*] --> Fetching
+    Fetching --> Building: sources ready
+    Building --> Testing
+    Testing --> [*]
+  }
+  Running --> Succeeded: all checks pass
+  Running --> Failed: step error
+  Failed --> Queued: retry
+  Running --> Cancelled: user cancels
+  Succeeded --> [*]
+  Cancelled --> [*]

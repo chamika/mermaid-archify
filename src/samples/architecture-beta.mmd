@@ -1,0 +1,19 @@
+architecture-beta
+  group edge(internet)[Edge]
+  group api(cloud)[Checkout API]
+  group data(database)[Data tier] in api
+
+  service cdn(internet)[CDN] in edge
+  service lb(server)[Load balancer] in edge
+  service app(server)[API server] in api
+  service worker(server)[Worker] in api
+  service db(database)[Postgres] in data
+  service files(disk)[Object storage] in data
+  junction fanout in api
+
+  cdn:R --> L:lb
+  lb:R --> L:app
+  app:R -- L:fanout
+  fanout:T --> B:worker
+  fanout:B --> T:db
+  worker:R --> L:files
