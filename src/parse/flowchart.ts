@@ -1,5 +1,6 @@
 import { iconKeys, plainText } from '../icons/fa';
 import { classify, typed } from '../ir/classify';
+import { type IRStyle, mergeStyles, parseStyle, safeLink } from '../ir/style';
 import type { DiagramIR, Direction, EdgeStroke, IREdge, IRGroup, IRNode, NodeShape } from '../ir/types';
 import { cleanLabel } from './text';
 
@@ -67,11 +68,15 @@ export function flowchartToIR(db: any): DiagramIR {
     groups.push({ id: sg.id, label: cleanLabel(sg.title, { icons: true }) || sg.id, parent: parentOf.get(sg.id) });
   }
 
+  const classDefs: Map<string, { styles?: string[] }> = db.getClasses?.() ?? new Map();
+  const classStyles = (classes: string[]): (IRStyle | undefined)[] => classes.map((c) => parseStyle(classDefs.get(c)?.styles));
+
   const nodes: IRNode[] = [];
   for (const v of db.getVertices().values()) {
     if (groupIds.has(v.id)) continue;
     const label = cleanLabel(v.text, { icons: true }) || v.id;
-    const classes: string[] = v.classes ?? [];
+    // Mermaid tags every `click` target with `clickable`; it carries no meaning.
+    const classes: string[] = (v.classes ?? []).filter((c: string) => c !== 'clickable');
     const hint = v.type ?? 'square';
     nodes.push({
       id: v.id,
@@ -82,8 +87,16 @@ export function flowchartToIR(db: any): DiagramIR {
       parent: parentOf.get(v.id),
       classes,
       hint,
+      ...optional({
+        // Mermaid's precedence: classDefs in class order, then `style` statements.
+        style: mergeStyles(...classStyles(classes), parseStyle(v.styles)),
+        link: safeLink(v.link),
+        tooltip: tooltipOf(db, v.id),
+      }),
     });
   }
+
+  const defaultEdgeStyle = parseStyle(db.getEdges().defaultStyle);
 
   const edges: IREdge[] = [];
   const seen = new Map<string, number>();
@@ -103,6 +116,7 @@ export function flowchartToIR(db: any): DiagramIR {
       arrowStart: type.startsWith('double_'),
       ...(marker !== 'arrow' && { marker }),
       ...(e.stroke === 'invisible' && { invisible: true }),
+      ...optional({ style: edgeStyle(mergeStyles(defaultEdgeStyle, ...classStyles(e.classes ?? []), parseStyle(e.style))) }),
     });
   }
 
@@ -114,4 +128,25 @@ export function flowchartToIR(db: any): DiagramIR {
     edges,
     groups,
   };
+}
+
+/** Edges keep only line styling: Mermaid appends `fill:none`, and label colours stay themed. */
+function edgeStyle(s: IRStyle | undefined): IRStyle | undefined {
+  if (!s) return undefined;
+  const { stroke, strokeWidth, dash } = s;
+  return optional({ stroke, strokeWidth, dash }) as IRStyle | undefined;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function tooltipOf(db: any, id: string): string | undefined {
+  const raw: unknown = db.getTooltip?.(id);
+  if (typeof raw !== 'string') return undefined;
+  const tip = plainText(cleanLabel(raw)).replace(/\s+/g, ' ').trim();
+  return tip ? (tip.length > 300 ? `${tip.slice(0, 299)}…` : tip) : undefined;
+}
+
+/** Drop undefined fields so IR and Scene JSON stay lean; undefined when nothing is left. */
+function optional<T extends object>(o: T): Partial<T> | undefined {
+  const out = Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+  return Object.keys(out).length ? out : undefined;
 }

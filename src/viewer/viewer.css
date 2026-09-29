@@ -354,6 +354,26 @@
   color: var(--text);
   overflow-wrap: anywhere;
 }
+.ma-passport dd.href {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ma-passport dd.href a {
+  color: var(--arrow-emphasis);
+  text-decoration: none;
+}
+.ma-passport dd.href a:hover,
+.ma-passport dd.href a:focus-visible {
+  text-decoration: underline;
+}
+.ma-passport .tooltip {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
 .ma-passport h3 {
   margin: 14px 0 6px;
   font-size: 10px;

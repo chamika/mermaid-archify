@@ -13,6 +13,7 @@ const CURATED: [string, string][] = [
   ['sample-sequence', readFileSync('src/samples/sequence.mmd', 'utf8')],
   ['sample-state', readFileSync('src/samples/state.mmd', 'utf8')],
   ['sample-architecture', readFileSync('src/samples/architecture-beta.mmd', 'utf8')],
+  ['styled-flowchart', readFileSync('e2e/fixtures/styled-flowchart.mmd', 'utf8')],
   ...(
     [
       'mermaid-demos/flowchart-001', // CJK labels, dense fan-out

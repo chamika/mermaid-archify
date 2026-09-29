@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { plainText } from '../icons/fa';
+import { safeLink } from '../ir/style';
 import type { SemanticType } from '../ir/types';
 import type { Scene, SceneNode } from '../scene/types';
 import { Diagram, type Highlight, pathD } from './Diagram';
@@ -167,6 +168,12 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       if (pz.didPan()) return;
       e.stopPropagation();
       setMenuOpen(false);
+      // Re-checked here: an exported file's embedded Scene could be hand-edited.
+      const link = safeLink(nodeById.get(id)?.link);
+      if (link && (e.metaKey || e.ctrlKey)) {
+        window.open(link, '_blank', 'noopener,noreferrer');
+        return;
+      }
       if (e.shiftKey || routeEnds.length === 1) {
         const start = routeEnds.length === 1 ? routeEnds[0] : focus;
         if (start && start !== id) {
@@ -182,7 +189,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       setPinnedEdge(undefined);
       setFocus(focus === id ? undefined : id);
     },
-    [focus, pz, routeEnds, setFocus],
+    [focus, nodeById, pz, routeEnds, setFocus],
   );
 
   const onEdgeClick = useCallback(
@@ -541,6 +548,7 @@ function Passport({
             ? 'decision'
             : 'step'
         : TYPE_LABEL[node.type];
+  const link = safeLink(node.link);
   const Rel = ({ other, text, dir }: { other: string; text?: string; dir: '→' | '←' }) => (
     <li>
       <button onClick={() => nodeById.has(other) && onPick(other)}>
@@ -568,6 +576,7 @@ function Passport({
           <Icon d={UI_ICON.close} />
         </button>
       </header>
+      {node.tooltip && <p class="tooltip">{node.tooltip}</p>}
       <dl>
         <dt>id</dt>
         <dd>{node.id}</dd>
@@ -581,6 +590,16 @@ function Passport({
         <dd>
           {incoming.length} in · {outgoing.length} out
         </dd>
+        {link && (
+          <>
+            <dt>opens</dt>
+            <dd class="href">
+              <a href={link} target="_blank" rel="noopener noreferrer" title={`${link} (⌘/Ctrl-click the node)`}>
+                {link}
+              </a>
+            </dd>
+          </>
+        )}
       </dl>
       <h3>{scene.kind === 'sequence' ? 'Receives' : 'Upstream'}</h3>
       <ul>
@@ -608,6 +627,12 @@ function Passport({
       </footer>
     </aside>
   );
+}
+
+/** Author colours when present (not `none`/`transparent`), else the type colour. */
+function minimapTint(n: SceneNode): string {
+  const own = [n.style?.fill, n.style?.stroke].find((c) => c && c !== 'none' && c !== 'transparent');
+  return own ?? `var(--${n.type}-stroke)`;
 }
 
 function Minimap({
@@ -651,7 +676,7 @@ function Minimap({
           <polyline key={e.id} points={e.points.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke="var(--arrow)" stroke-width={1 / s} />
         ))}
         {[...scene.nodes, ...(scene.seq?.footers ?? [])].map((n, i) => (
-          <rect key={i} x={n.x} y={n.y} width={n.w} height={n.h} rx={4} fill={`var(--${n.type}-stroke)`} opacity={0.75} />
+          <rect key={i} x={n.x} y={n.y} width={n.w} height={n.h} rx={4} fill={minimapTint(n)} opacity={0.75} />
         ))}
         <rect class="vp" x={-t.x / t.k} y={-t.y / t.k} width={size.w / t.k} height={size.h / t.k} />
       </svg>

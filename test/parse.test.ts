@@ -34,6 +34,62 @@ describe('flowchart', () => {
   });
 });
 
+describe('flowchart styles and clicks', () => {
+  const src = [
+    'flowchart LR',
+    '  classDef hot fill:#f96,stroke:#333,stroke-width:4px',
+    '  classDef database stroke:#a21caf',
+    '  classDef fat stroke-width:5px,color:red',
+    '  A:::hot --> B',
+    '  B --> C[(Orders)]:::database',
+    '  C --> D',
+    '  D e1@--> E',
+    '  class D hot',
+    '  class e1 fat',
+    '  style A fill:#fff,background:red',
+    '  linkStyle default stroke:blue',
+    '  linkStyle 0 stroke:red,stroke-width:2px',
+    '  click A "https://example.com/a" "Go to A" _blank',
+    '  click B href "javascript:alert(1)" "evil"',
+    '  click C cb "callback tip"',
+    '  click D "/docs/runbook"',
+  ].join('\n');
+
+  test('node styles follow Mermaid precedence; unsafe CSS dropped', async () => {
+    const ir = await parseMermaid(src);
+    const byId = Object.fromEntries(ir.nodes.map((n) => [n.id, n]));
+    // classDef first, then `style` overrides fill; `background` is not allowed.
+    expect(byId.A.style).toEqual({ fill: '#fff', stroke: '#333', strokeWidth: 4 });
+    expect(byId.D.style).toEqual({ fill: '#f96', stroke: '#333', strokeWidth: 4 });
+    // A semantic class keeps its meaning and gains the author colours.
+    expect(byId.C).toMatchObject({ type: 'database', style: { stroke: '#a21caf' } });
+    expect(byId.E.style).toBeUndefined();
+    expect(ir.nodes.every((n) => !n.classes.includes('clickable'))).toBe(true);
+  });
+
+  test('edge styles: default, then classes, then linkStyle; line styling only', async () => {
+    const ir = await parseMermaid(src);
+    expect(ir.edges.map((e) => e.style)).toEqual([
+      { stroke: 'red', strokeWidth: 2 },
+      { stroke: 'blue' },
+      { stroke: 'blue' },
+      { stroke: 'blue', strokeWidth: 5 },
+    ]);
+  });
+
+  test('links and tooltips; unsafe links rejected; callbacks keep only the tooltip', async () => {
+    const ir = await parseMermaid(src);
+    const byId = Object.fromEntries(ir.nodes.map((n) => [n.id, n]));
+    expect(byId.A).toMatchObject({ link: 'https://example.com/a', tooltip: 'Go to A' });
+    expect(byId.B.link).toBeUndefined();
+    expect(byId.B.tooltip).toBe('evil');
+    expect(byId.C.link).toBeUndefined();
+    expect(byId.C.tooltip).toBe('callback tip');
+    expect(byId.D).toMatchObject({ link: '/docs/runbook' });
+    expect(byId.D.tooltip).toBeUndefined();
+  });
+});
+
 describe('sequence', () => {
   test('participants, messages, blocks, notes, activations', async () => {
     const ir = await parseMermaid(sample('sequence'));
