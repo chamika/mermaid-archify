@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
+import { describeIcons } from '../src/icons/fa';
 import type { DiagramIR } from '../src/ir/types';
 import { layout } from '../src/layout';
 import { MermaidParseError, parseMermaid } from '../src/parse';
@@ -37,9 +38,10 @@ function summarize(ir: DiagramIR) {
     kind: ir.kind,
     title: ir.title,
     direction: ir.direction,
-    nodes: ir.nodes.map((n) => `${n.id}[${n.shape}${n.parent ? ` in ${n.parent}` : ''}] ${JSON.stringify(n.label)}`),
-    edges: ir.edges.map((e) => `${e.from} ${e.invisible ? "~~~" : "->"} ${e.to}${e.marker ? ` (${e.marker})` : ""}${e.label ? ` ${JSON.stringify(e.label)}` : ''}`),
-    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(g.label)}`),
+    nodes: ir.nodes.map((n) => `${n.id}[${n.shape}${n.parent ? ` in ${n.parent}` : ''}] ${JSON.stringify(describeIcons(n.label))}`),
+    edges: ir.edges.map((e) => `${e.from} ${e.invisible ? "~~~" : "->"} ${e.to}${e.marker ? ` (${e.marker})` : ""}${e.label ? ` ${JSON.stringify(describeIcons(e.label))}` : ''}`),
+    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}`),
+    ...(ir.icons && { icons: Object.keys(ir.icons).sort() }),
     types,
     events: ir.events?.map((e) => e.kind).join(' '),
   };

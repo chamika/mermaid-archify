@@ -1,3 +1,4 @@
+import type { IconSet } from '../icons/fa';
 import type { DiagramKind, EdgeStroke, NodeShape, SemanticType, SeqBlockType } from '../ir/types';
 
 /** Scene — the IR plus absolute geometry. The viewer consumes only this. */
@@ -90,4 +91,6 @@ export interface Scene {
   groups: SceneGroup[];
   edges: SceneEdge[];
   seq?: SceneSequence;
+  /** Icon path data, embedded so exported diagrams are self-contained. */
+  icons?: IconSet;
 }

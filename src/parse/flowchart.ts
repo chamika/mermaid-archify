@@ -1,3 +1,4 @@
+import { iconKeys, plainText } from '../icons/fa';
 import { classify, typed } from '../ir/classify';
 import type { DiagramIR, Direction, EdgeStroke, IREdge, IRGroup, IRNode, NodeShape } from '../ir/types';
 import { cleanLabel } from './text';
@@ -63,20 +64,21 @@ export function flowchartToIR(db: any): DiagramIR {
     }
   }
   for (const sg of db.getSubGraphs()) {
-    groups.push({ id: sg.id, label: cleanLabel(sg.title) || sg.id, parent: parentOf.get(sg.id) });
+    groups.push({ id: sg.id, label: cleanLabel(sg.title, { icons: true }) || sg.id, parent: parentOf.get(sg.id) });
   }
 
   const nodes: IRNode[] = [];
   for (const v of db.getVertices().values()) {
     if (groupIds.has(v.id)) continue;
-    const label = cleanLabel(v.text) || v.id;
+    const label = cleanLabel(v.text, { icons: true }) || v.id;
     const classes: string[] = v.classes ?? [];
     const hint = v.type ?? 'square';
     nodes.push({
       id: v.id,
       label,
       shape: SHAPE_MAP[hint] ?? 'rect',
-      ...typed(classify({ label, id: v.id, classes, shape: STORAGE_SHAPES.has(hint) ? 'cylinder' : hint })),
+      // Icon names (fa-server, fa-database) are keyword evidence, like the label words.
+      ...typed(classify({ label: [plainText(label), ...iconKeys(label).map((k) => k.split(':')[1])].join(' '), id: v.id, classes, shape: STORAGE_SHAPES.has(hint) ? 'cylinder' : hint })),
       parent: parentOf.get(v.id),
       classes,
       hint,
@@ -95,7 +97,7 @@ export function flowchartToIR(db: any): DiagramIR {
       id: n ? `${base}_${n}` : base,
       from: e.start,
       to: e.end,
-      label: cleanLabel(e.text) || undefined,
+      label: cleanLabel(e.text, { icons: true }) || undefined,
       stroke: (e.stroke === 'dotted' || e.stroke === 'thick' ? e.stroke : 'solid') as EdgeStroke,
       arrowEnd: type !== 'arrow_open',
       arrowStart: type.startsWith('double_'),

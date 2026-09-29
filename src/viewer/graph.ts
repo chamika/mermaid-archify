@@ -1,3 +1,4 @@
+import { plainText } from '../icons/fa';
 import type { Scene, SceneEdge } from '../scene/types';
 
 export interface Adjacency {
@@ -83,8 +84,9 @@ export function search(scene: Scene, query: string, limit = 8) {
   if (!q) return [];
   const scored: { id: string; label: string; score: number }[] = [];
   for (const n of scene.nodes) {
-    if (!n.label && n.shape !== 'junction') continue;
-    const label = n.label.toLowerCase().replace(/\n/g, ' ');
+    const text = plainText(n.label);
+    if (!text && n.shape !== 'junction') continue;
+    const label = text.toLowerCase().replace(/\n/g, ' ');
     const id = n.id.toLowerCase();
     let score = 0;
     if (label === q || id === q) score = 100;
@@ -93,7 +95,7 @@ export function search(scene: Scene, query: string, limit = 8) {
     else if (id.startsWith(q)) score = 50;
     else if (label.includes(q)) score = 40;
     else if (id.includes(q)) score = 30;
-    if (score) scored.push({ id: n.id, label: n.label || n.id, score });
+    if (score) scored.push({ id: n.id, label: text || n.id, score });
   }
   return scored.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label)).slice(0, limit);
 }

@@ -37,6 +37,12 @@ export function renderedProblems(): string[] {
     const body = g.querySelector<SVGGraphicsElement>('.body');
     if (!body) continue;
     const bb = body.getBBox();
+    for (const icon of g.querySelectorAll<SVGPathElement>('.ma-icon')) {
+      const ib = icon.getBoundingClientRect();
+      const nb = body.getBoundingClientRect();
+      if (!(ib.width > 0 && ib.left >= nb.left - 1 && ib.right <= nb.right + 1 && ib.top >= nb.top - 1 && ib.bottom <= nb.bottom + 1))
+        problems.push(`icon in node ${g.dataset.id} is empty or outside the node`);
+    }
     for (const t of g.querySelectorAll<SVGTextElement>('text.label, text.caption')) {
       if (!t.textContent?.trim()) continue;
       const tb = t.getBBox();

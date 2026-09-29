@@ -115,3 +115,27 @@ test('a plain process flow renders without type captions or legend', async ({ pa
   await page.locator('.ma-node[data-id="C"]').click();
   await expect(page.locator('.ma-passport .kind')).toHaveText('decision');
 });
+
+test('Font Awesome icons render inline and travel into exported HTML', async ({ page, context }) => {
+  await replaceSource(page, 'flowchart TD\n  A[Christmas] -->|Get money| B(Go shopping)\n  B --> C{Let me think}\n  C -->|Three| F[fa:fa-car Car]');
+  const icon = page.locator('.ma-node[data-id="F"] .ma-icon');
+  await expect(icon).toHaveCount(1);
+  const box = (await icon.boundingBox())!;
+  const text = (await page.locator('.ma-node[data-id="F"] text.label').boundingBox())!;
+  expect(box.width).toBeGreaterThan(4);
+  expect(box.x + box.width).toBeLessThanOrEqual(text.x + 1); // icon sits before "Car"
+  // Details panel shows plain text, not the marker.
+  await page.locator('.ma-node[data-id="F"]').click();
+  await expect(page.locator('.ma-passport h2')).toHaveText('Car');
+
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Export' }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Interactive HTML' }).click()]);
+  const html = readFileSync((await download.path())!, 'utf8');
+  expect(html).toContain('Font Awesome Free');
+  expect(html).not.toContain('virtual:fa-icons');
+  const offline = await context.newPage();
+  await offline.route('**/*', (route) => (route.request().url().includes('fonts.g') ? route.abort() : route.fulfill({ body: html, contentType: 'text/html' })));
+  await offline.goto('http://exported.test/diagram.html');
+  await expect(offline.locator('.ma-node[data-id="F"] .ma-icon')).toHaveCount(1);
+});

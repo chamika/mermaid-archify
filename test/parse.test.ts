@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
+import { describeIcons, iconKeys, plainText } from '../src/icons/fa';
 import { MermaidParseError, parseMermaid } from '../src/parse';
 
 const sample = (name: string) => readFileSync(`${process.cwd()}/src/samples/${name}.mmd`, "utf8");
@@ -122,9 +123,10 @@ describe('label cleanup', () => {
     const ir = await parseMermaid('flowchart LR\n  A["$$\\nu + \\nabla$$"]');
     expect(ir.nodes[0].label).toBe('$$\\nu + \\nabla$$');
   });
-  test('Font Awesome tokens are dropped, text kept', async () => {
+  test('Font Awesome tokens become icons, text kept', async () => {
     const ir = await parseMermaid('flowchart LR\n  A[fa:fa-ban forbidden] --> B["fab:fa-github GitHub"]');
-    expect(ir.nodes.map((n) => n.label)).toEqual(['forbidden', 'GitHub']);
+    expect(ir.nodes.map((n) => plainText(n.label))).toEqual(['forbidden', 'GitHub']);
+    expect(ir.nodes.map((n) => iconKeys(n.label))).toEqual([['fa:ban'], ['fab:github']]);
   });
   test('Mermaid entity codes are decoded', async () => {
     const ir = await parseMermaid('sequenceDiagram\n  A->>B: I #9829; you #infin; times #quot;more#quot;');
@@ -238,4 +240,45 @@ describe('type markers only where the source gives evidence', () => {
       Done: 'backend',
     });
   });
+});
+
+describe('Font Awesome icons', () => {
+  test('flowchart icons become markers with resolved path data', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[fa:fa-car Car] -->|fa:fa-bolt fast| B[fab:fa-github Repo]');
+    expect(plainText(ir.nodes[0].label)).toBe('Car');
+    expect(iconKeys(ir.nodes[0].label)).toEqual(['fa:car']);
+    expect(iconKeys(ir.edges[0].label!)).toEqual(['fa:bolt']);
+    expect(Object.keys(ir.icons!).sort()).toEqual(['fa:bolt', 'fa:car', 'fab:github']);
+    const [w, h, d] = ir.icons!['fa:car'];
+    expect(w).toBeGreaterThan(0);
+    expect(h).toBeGreaterThan(0);
+    expect(d).toMatch(/^M/);
+  });
+
+  test('icons can sit mid-label and on their own', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[A fa:fa-camera-retro perhaps?] --> B[fa:fa-spinner]');
+    expect(describeIcons(ir.nodes[0].label)).toBe('A [fa:camera-retro] perhaps?');
+    expect(describeIcons(ir.nodes[1].label)).toBe('[fa:spinner]');
+  });
+
+  test('old FA4 names resolve through the shims, brands fall back from fa:', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[fa:fa-cogs Build] --> B[fa:fa-twitter Tweet] --> C[fa:fa-area-chart Stats]');
+    expect(Object.keys(ir.icons!).sort()).toEqual(['fa:area-chart', 'fa:cogs', 'fa:twitter']);
+  });
+
+  test('unknown icons are removed from the text, not left as tokens', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[fa:fa-not-a-real-icon Thing] --> B[fak:fa-custom-kit Kit]');
+    expect(ir.nodes.map((n) => n.label)).toEqual(['Thing', 'Kit']);
+    expect(ir.icons).toBeUndefined();
+  });
+
+  test('icons are dropped where Mermaid does not render them (sequence)', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  A->>B: fa:fa-car drive');
+    expect(ir.edges[0].label).toBe('drive');
+  });
+});
+
+test('icon names count as keyword evidence for component types', async () => {
+  const ir = await parseMermaid('flowchart LR\n  A[fa:fa-server Alpha] --> B[fa:fa-database Beta] --> C[fa:fa-server Gamma]');
+  expect(ir.nodes.map((n) => n.type)).toEqual(['backend', 'database', 'backend']);
 });

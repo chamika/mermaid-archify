@@ -1,6 +1,8 @@
-import type { JSX } from 'preact';
+import { type JSX, createContext } from 'preact';
 import { memo } from 'preact/compat';
-import { CAPTION_H, FONT, edgeLabelSize, textWidth } from '../layout/measure';
+import { useContext } from 'preact/hooks';
+import { ICON_CELLS, type IconSet, hasIcons, plainText, runs } from '../icons/fa';
+import { CAPTION_H, FONT, cells, charWidth, edgeLabelSize, textWidth } from '../layout/measure';
 import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { TYPE_ICON, TYPE_LABEL } from './icons';
 
@@ -69,15 +71,89 @@ function Markers() {
   );
 }
 
+const IconContext = createContext<IconSet>({});
+
+/**
+ * Label lines that may contain inline Font Awesome icons. Lines without icons
+ * render as plain tspans; lines with icons are laid out run by run from the
+ * same monospace cell widths the layout used, with icons as filled paths.
+ */
+function RichText({
+  lines,
+  x,
+  y0,
+  lh,
+  size,
+  cls,
+  align = 'middle',
+  track = 0,
+}: {
+  lines: string[];
+  x: number;
+  /** Baseline of the first line. */
+  y0: number;
+  lh: number;
+  size: number;
+  cls?: string;
+  align?: 'middle' | 'start';
+  /** Extra advance per character (CSS letter-spacing), in px. */
+  track?: number;
+}) {
+  const icons = useContext(IconContext);
+  const cw = charWidth(size) + track;
+  const texts: JSX.Element[] = [];
+  const glyphs: JSX.Element[] = [];
+  lines.forEach((line, i) => {
+    const y = y0 + lh * i;
+    if (!hasIcons(line)) {
+      texts.push(
+        <tspan key={i} x={x} y={y}>
+          {line}
+        </tspan>,
+      );
+      return;
+    }
+    let cursor = align === 'middle' ? x - (cells(line) * cw) / 2 : x;
+    runs(line).forEach((r, j) => {
+      if ('icon' in r) {
+        const def = icons[r.icon];
+        const slot = ICON_CELLS * cw;
+        if (def) {
+          const [vw, vh, d] = def;
+          const s = Math.min((size * 0.95) / vh, (slot * 0.92) / vw);
+          const ix = cursor + (slot - vw * s) / 2;
+          const iy = y - size * 0.36 - (vh * s) / 2;
+          glyphs.push(<path key={`${i}-${j}`} class="ma-icon" d={d} transform={`translate(${round(ix)},${round(iy)}) scale(${s.toFixed(5)})`} />);
+        }
+        cursor += slot;
+      } else {
+        const lead = r.text.length - r.text.trimStart().length;
+        const body = r.text.trim();
+        if (body)
+          texts.push(
+            <tspan key={`${i}-${j}`} x={round(cursor + lead * cw)} y={y} text-anchor="start">
+              {body}
+            </tspan>,
+          );
+        cursor += cells(r.text) * cw;
+      }
+    });
+  });
+  return (
+    <>
+      <text class={cls} text-anchor={align}>
+        {texts}
+      </text>
+      {glyphs.length > 0 && <g class="ma-icons">{glyphs}</g>}
+    </>
+  );
+}
+
 function GroupView({ g }: { g: SceneGroup }) {
   return (
     <g class="ma-group" data-id={g.id}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
-      {g.label && (
-        <text x={g.x + 14} y={g.y + 22}>
-          {g.label}
-        </text>
-      )}
+      {g.label && <RichText lines={[g.label]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
     </g>
   );
 }
@@ -89,13 +165,7 @@ function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
   const top = n.y + n.h / 2 - (n.lines.length * lh + caption) / 2 + (n.shape === 'cylinder' ? 5 : 0);
   return (
     <>
-      <text class="label" text-anchor="middle">
-        {n.lines.map((l, i) => (
-          <tspan key={i} x={cx} y={top + lh * (i + 1) - 4}>
-            {l}
-          </tspan>
-        ))}
-      </text>
+      <RichText lines={n.lines} x={cx} y0={top + lh - 4} lh={lh} size={FONT.label} cls="label" />
       {withCaption && (
         <g>
           <g transform={`translate(${cx - (TYPE_LABEL[n.type].length * 6) / 2 - 9},${top + n.lines.length * lh + 1.5}) scale(0.68)`}>
@@ -231,7 +301,7 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
       data-id={n.id}
       tabIndex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
-      aria-label={interactive ? `${n.label || n.id}, ${TYPE_LABEL[n.type]}` : undefined}
+      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type]}` : undefined}
       onClick={(e) => h.onNodeClick?.(n.id, e as unknown as MouseEvent)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -272,13 +342,14 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
       {lb && (
         <g>
           <rect class="label-bg" x={lb.x - 1} y={lb.y} width={lb.w + 2} height={lb.h} rx={4} />
-          <text class="label-text" text-anchor="middle">
-            {lines.map((l, i) => (
-              <tspan key={i} x={lb.x + lb.w / 2} y={lb.y + 3 + FONT.edge * FONT.lineHeight * (i + 1) - 2}>
-                {l}
-              </tspan>
-            ))}
-          </text>
+          <RichText
+            lines={lines}
+            x={lb.x + lb.w / 2}
+            y0={lb.y + 1 + FONT.edge * FONT.lineHeight}
+            lh={FONT.edge * FONT.lineHeight}
+            size={FONT.edge}
+            cls="label-text"
+          />
         </g>
       )}
     </g>
@@ -403,6 +474,7 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
       role="img"
       aria-label={scene.title ?? `${scene.kind} diagram`}
     >
+      <IconContext.Provider value={scene.icons ?? {}}>
       <Markers />
       {groups.map((g) => (
         <GroupView key={g.id} g={g} />
@@ -423,6 +495,7 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
         ))}
       </g>
       {overlay && <g class="ma-overlay">{overlay}</g>}
+      </IconContext.Provider>
     </svg>
   );
 }
