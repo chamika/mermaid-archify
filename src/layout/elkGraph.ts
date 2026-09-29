@@ -341,7 +341,8 @@ export function fromElk(
   }
 
   anchorLabels(edges, nodes);
-  for (const e of edges) placeEndLabels(e);
+  const boxOf = new Map<string, Box>([...groups, ...nodes].map((b) => [b.id, b]));
+  for (const e of edges) placeEndLabels(e, boxOf);
 
   return {
     version: 1,
@@ -412,14 +413,18 @@ function anchorLabels(edges: SceneEdge[], nodes: SceneNode[]) {
  * Class multiplicities sit just outside each end of the route, beside the
  * line: clear of the node the edge meets and of the marker drawn on it.
  */
-function placeEndLabels(e: SceneEdge) {
+function placeEndLabels(e: SceneEdge, boxOf: Map<string, Box>) {
   const out: NonNullable<SceneEdge['endLabels']> = [];
-  const place = (text: string | undefined, tip: Pt, prev: Pt) => {
+  const place = (text: string | undefined, tip: Pt, prev: Pt, node: Box | undefined) => {
     if (!text) return;
     const { w, h } = edgeLabelSize(text);
+    // Direction into the node: across the side the route meets. Orthogonal
+    // routes arrive square to that side anyway; polyline and spline routes can
+    // arrive at a slant, and backing off along the slant can land on the node.
+    const inward = node && sideInward(tip, node);
     const len = Math.hypot(tip.x - prev.x, tip.y - prev.y) || 1;
-    const dx = (tip.x - prev.x) / len;
-    const dy = (tip.y - prev.y) / len;
+    const dx = inward ? inward.x : (tip.x - prev.x) / len;
+    const dy = inward ? inward.y : (tip.y - prev.y) / len;
     // Back off from the node by the label's own extent along the line, then step aside.
     const back = Math.abs(dx) * (w / 2) + Math.abs(dy) * (h / 2) + 16;
     const side = Math.abs(dy) * (w / 2) + Math.abs(dx) * (h / 2) + 4;
@@ -427,9 +432,20 @@ function placeEndLabels(e: SceneEdge) {
   };
   const p = e.points;
   if (p.length < 2) return;
-  place(e.ends?.startLabel, p[0], p[1]);
-  place(e.ends?.endLabel, p.at(-1)!, p.at(-2)!);
+  place(e.ends?.startLabel, p[0], p[1], boxOf.get(e.from));
+  place(e.ends?.endLabel, p.at(-1)!, p.at(-2)!, boxOf.get(e.to));
   if (out.length) e.endLabels = out;
+}
+
+/** Unit vector pointing into `b` across the side `p` lies on (the nearest side). */
+function sideInward(p: Pt, b: Box): Pt {
+  const sides: [number, Pt][] = [
+    [Math.abs(p.x - b.x), { x: 1, y: 0 }],
+    [Math.abs(p.x - (b.x + b.w)), { x: -1, y: 0 }],
+    [Math.abs(p.y - b.y), { x: 0, y: 1 }],
+    [Math.abs(p.y - (b.y + b.h)), { x: 0, y: -1 }],
+  ];
+  return sides.reduce((a, c) => (c[0] < a[0] ? c : a))[1];
 }
 
 /** How far off its route a label may sit before we go looking for a better spot. */
