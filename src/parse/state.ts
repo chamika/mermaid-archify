@@ -70,6 +70,21 @@ export function stateToIR(db: Stmt): DiagramIR {
     });
   };
 
+  /** `note left of X : text` becomes a note node tied to X by a plain dotted connector. */
+  const addNote = (stateId: string, note: { position?: string; text: string }, parent?: string) => {
+    const id = `${stateId}__note${[...nodes.keys()].filter((k) => k.startsWith(`${stateId}__note`)).length || ''}`;
+    nodes.set(id, { id, label: stateText(note.text), shape: 'note', type: 'external', parent, classes: [], hint: 'note' });
+    const left = /left/.test(note.position ?? '');
+    edges.push({
+      id: `t${edges.length}`,
+      from: left ? id : stateId,
+      to: left ? stateId : id,
+      stroke: 'dotted',
+      arrowEnd: false,
+      arrowStart: false,
+    });
+  };
+
   const walk = (doc: Stmt[], parent?: string) => {
     for (const s of doc ?? []) {
       if (s.stmt === 'state') {
@@ -78,6 +93,7 @@ export function stateToIR(db: Stmt): DiagramIR {
         } else if (s.type !== 'divider') {
           addState(s, parent);
         }
+        if (s.note?.text) addNote(s.id, s.note, parent);
       } else if (s.stmt === 'relation') {
         addState(s.state1, parent);
         addState(s.state2, parent);
@@ -85,7 +101,7 @@ export function stateToIR(db: Stmt): DiagramIR {
           id: `t${edges.length}`,
           from: s.state1.id,
           to: s.state2.id,
-          label: cleanLabel(s.description) || undefined,
+          label: stateText(s.description) || undefined,
           stroke: 'solid',
           arrowEnd: true,
           arrowStart: false,
@@ -103,19 +119,63 @@ export function stateToIR(db: Stmt): DiagramIR {
     }
   }
 
+  const regions = renameRegions([...groups.values()], [...nodes.values()], edges);
+
   return {
     kind: 'state',
     title: db.getDiagramTitle?.() || undefined,
     direction: normalizeDirection(direction ?? 'TB'),
     nodes: [...nodes.values()],
     edges,
-    groups: [...groups.values()],
+    groups: regions,
   };
 }
 
+/** Mermaid's ids for concurrent regions (`--`): `divider-id-N`, or random `id-xxxx-N`. */
+const REGION_ID = /^(divider-)?id-[\w]+-\d+$|^divider-id-\d+$/;
+
+/**
+ * Concurrent regions get Mermaid-internal ids, one of them random per parse.
+ * Rename them deterministically (`Parent.region1`, …) everywhere they appear,
+ * and leave them unlabelled: they are separators, not named states.
+ */
+function renameRegions(groups: IRGroup[], nodes: IRNode[], edges: IREdge[]): IRGroup[] {
+  const rename = new Map<string, string>();
+  const counters = new Map<string, number>();
+  for (const g of groups) {
+    if (!REGION_ID.test(g.id)) continue;
+    const n = (counters.get(g.parent ?? '') ?? 0) + 1;
+    counters.set(g.parent ?? '', n);
+    rename.set(g.id, `${g.parent ?? 'root'}.region${n}`);
+  }
+  if (!rename.size) return groups;
+  const fix = (id: string | undefined) => {
+    if (!id) return id;
+    if (rename.has(id)) return rename.get(id)!;
+    const m = /^(.*)_(start|end)$/.exec(id);
+    return m && rename.has(m[1]) ? `${rename.get(m[1])}_${m[2]}` : id;
+  };
+  for (const g of groups) {
+    if (rename.has(g.id)) g.label = '';
+    g.id = fix(g.id)!;
+    g.parent = fix(g.parent);
+  }
+  for (const n of nodes) {
+    n.id = fix(n.id)!;
+    n.parent = fix(n.parent);
+  }
+  for (const e of edges) {
+    e.from = fix(e.from)!;
+    e.to = fix(e.to)!;
+  }
+  return groups;
+}
+
+/** Mermaid's state syntax (unlike flowcharts) treats a literal `\n` as a line break. */
+const stateText = (raw: unknown) => cleanLabel(Array.isArray(raw) ? raw.map((r) => String(r).replace(/\\n/g, '\n')) : String(raw ?? '').replace(/\\n/g, '\n'));
+
 function describe(s: Stmt): string {
-  const d = s.descriptions?.length ? s.descriptions : s.description;
-  return cleanLabel(d);
+  return stateText(s.descriptions?.length ? s.descriptions : s.description);
 }
 
 function tone(label: string, classes: string[]): SemanticType {

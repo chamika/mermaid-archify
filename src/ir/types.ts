@@ -39,7 +39,12 @@ export type NodeShape =
   | 'junction'
   | 'fork'
   | 'actor'
-  | 'participant';
+  | 'participant'
+  | 'document'
+  | 'parallelogram'
+  | 'trapezoid'
+  | 'note'
+  | 'text';
 
 export type Direction = 'LR' | 'RL' | 'TB' | 'BT';
 
@@ -66,6 +71,10 @@ export interface IREdge {
   stroke: EdgeStroke;
   arrowEnd: boolean;
   arrowStart: boolean;
+  /** End marker style (flowchart `--o`, `--x`); default arrow. */
+  marker?: 'arrow' | 'circle' | 'cross';
+  /** Layout-only link (`~~~`): steers placement, never drawn. */
+  invisible?: boolean;
   /** Architecture-beta side hints. */
   fromSide?: Side;
   toSide?: Side;

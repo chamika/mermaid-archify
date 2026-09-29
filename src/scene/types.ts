@@ -41,7 +41,7 @@ export interface SceneEdge {
   stroke: EdgeStroke;
   arrowEnd: boolean;
   arrowStart: boolean;
-  arrowStyle?: 'arrow' | 'open' | 'cross' | 'async';
+  arrowStyle?: 'arrow' | 'open' | 'cross' | 'async' | 'circle';
   /** Order for trace playback (sequence message index, else topological-ish). */
   order: number;
 }

@@ -296,10 +296,6 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       ref={viewportRef}
       class="ma-viewer"
       tabIndex={-1}
-      style={{
-        backgroundSize: `${32 * pz.t.k}px ${32 * pz.t.k}px`,
-        backgroundPosition: `${pz.t.x}px ${pz.t.y}px`,
-      }}
       onClick={(e) => {
         if (pz.didPan() || (e.target as Element).closest('.ma-chrome')) return;
         clearAll();

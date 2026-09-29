@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import { memo } from 'preact/compat';
-import { CAPTION_H, FONT } from '../layout/measure';
+import { CAPTION_H, FONT, edgeLabelSize, textWidth } from '../layout/measure';
 import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { TYPE_ICON, TYPE_LABEL } from './icons';
 
@@ -62,6 +62,9 @@ function Markers() {
       <marker id="ma-cross" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
         <path class="ma-marker open" d="M1,1 L9,9 M9,1 L1,9" />
       </marker>
+      <marker id="ma-circle" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+        <circle class="ma-marker" cx="5" cy="5" r="3.5" />
+      </marker>
     </defs>
   );
 }
@@ -70,9 +73,11 @@ function GroupView({ g }: { g: SceneGroup }) {
   return (
     <g class="ma-group" data-id={g.id}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
-      <text x={g.x + 14} y={g.y + 22}>
-        {g.label}
-      </text>
+      {g.label && (
+        <text x={g.x + 14} y={g.y + 22}>
+          {g.label}
+        </text>
+      )}
     </g>
   );
 }
@@ -143,6 +148,40 @@ function Shape({ n }: { n: SceneNode }) {
         </>
       );
     }
+    case 'parallelogram':
+    case 'trapezoid': {
+      const k = 14;
+      const pts =
+        n.shape === 'parallelogram'
+          ? `${x + k},${y} ${x + w},${y} ${x + w - k},${y + h} ${x},${y + h}`
+          : `${x + k},${y} ${x + w - k},${y} ${x + w},${y + h} ${x},${y + h}`;
+      return (
+        <>
+          <polygon class="mask" points={pts} />
+          <polygon class="body" points={pts} style={st} />
+        </>
+      );
+    }
+    case 'document': {
+      const wave = 8;
+      const d = `M${x},${y + 6} a6,6 0 0 1 6,-6 H${x + w - 6} a6,6 0 0 1 6,6 V${y + h - wave} C${x + w * 0.75},${y + h - wave * 2.2} ${x + w * 0.25},${y + h + wave * 0.6} ${x},${y + h - wave} Z`;
+      return (
+        <>
+          <path class="mask" d={d} />
+          <path class="body" d={d} style={st} />
+        </>
+      );
+    }
+    case 'note':
+      return (
+        <>
+          <rect class="mask" x={x} y={y} width={w} height={h} rx={4} />
+          <rect class="body note" x={x} y={y} width={w} height={h} rx={4} />
+        </>
+      );
+    case 'text':
+      // Borderless text; an invisible body keeps hit-testing and focus rings working.
+      return <rect class="body text-only" x={x} y={y} width={w} height={h} rx={4} />;
     case 'circle':
       return (
         <>
@@ -182,7 +221,7 @@ function Shape({ n }: { n: SceneNode }) {
 }
 
 function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers }) {
-  const withCaption = kind !== 'state' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle'].includes(n.shape);
+  const withCaption = kind !== 'state' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note'].includes(n.shape);
   const interactive = n.shape !== 'fork';
   return (
     <g
@@ -210,10 +249,14 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
 
 function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers }) {
   const d = pathD(e.points);
-  const endMarker =
-    e.arrowStyle === 'cross' ? 'url(#ma-cross)' : e.arrowStyle === 'async' ? 'url(#ma-async)' : e.arrowEnd ? 'url(#ma-arrow)' : undefined;
+  const styled: Record<string, string> = { cross: 'url(#ma-cross)', async: 'url(#ma-async)', circle: 'url(#ma-circle)' };
+  const marker = (e.arrowStyle && styled[e.arrowStyle]) || 'url(#ma-arrow)';
+  const endMarker = e.arrowEnd ? marker : undefined;
+  // Sequence async/cross styles describe the receiving end only.
+  const startMarker = e.arrowStart ? (e.arrowStyle === 'circle' || e.arrowStyle === 'cross' ? marker : 'url(#ma-arrow)') : undefined;
   const lb = e.labelBox;
-  const lines = e.label ? e.label.split('\n') : [];
+  // Same wrapping the layout used to size the label box.
+  const lines = e.label ? edgeLabelSize(e.label).lines : [];
   return (
     <g
       class={`ma-edge ${e.stroke} ${cls}`}
@@ -223,7 +266,7 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
       onPointerLeave={() => h.onEdgeLeave?.(e.id)}
     >
       <path class="hit" d={d} />
-      <path class="line" d={d} marker-end={endMarker} marker-start={e.arrowStart ? 'url(#ma-arrow)' : undefined} />
+      <path class="line" d={d} marker-end={endMarker} marker-start={startMarker} />
       {lb && (
         <g>
           <rect class="label-bg" x={lb.x - 1} y={lb.y} width={lb.w + 2} height={lb.h} rx={4} />
@@ -240,9 +283,15 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
   );
 }
 
+/** Accept only plain CSS colour syntax from diagram source; anything else gets the neutral tint. */
+function safeColor(c: string): string {
+  const v = c.trim();
+  return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\)|[a-z]{3,20})$/i.test(v) ? v : 'var(--lane-stroke)';
+}
+
 /** Block condition text on a mask so lifelines never cross it. */
 function CondLabel({ x, y, text }: { x: number; y: number; text: string }) {
-  const w = (text.length + 2) * FONT.edge * 0.6 + 8;
+  const w = textWidth(`[${text}]`, FONT.edge) + 8;
   return (
     <>
       <rect class="cond-bg" x={x - 4} y={y - 11} width={w} height={15} rx={3} />
@@ -264,7 +313,15 @@ function SequenceBackdrop({ scene }: { scene: Scene }) {
         <rect class="ma-activation" key={i} x={a.x} y={a.y} width={a.w} height={Math.max(a.h, 8)} rx={2} />
       ))}
       {seq.blocks.map((b) => {
-        const kw = b.type === 'rect' ? '' : b.type;
+        if (b.type === 'rect') {
+          // `rect <colour>` is a highlight band in Mermaid: tint it, no title.
+          return (
+            <g class="ma-block ma-highlight" key={b.id}>
+              <rect class="band" x={b.x} y={b.y} width={b.w} height={b.h} rx={6} style={{ fill: safeColor(b.label) }} />
+            </g>
+          );
+        }
+        const kw = b.type;
         const tabW = kw.length * 6.6 + 16;
         return (
           <g class="ma-block" key={b.id}>

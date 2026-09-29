@@ -7,7 +7,7 @@ export type { ElkLike };
 
 export async function layout(ir: DiagramIR, elk: ElkLike): Promise<Scene> {
   if (ir.kind === 'sequence') return layoutSequence(ir);
-  const { graph, lines } = toElkGraph(ir);
+  const { graph, lines, back } = toElkGraph(ir);
   const laid = await elk.layout(graph);
-  return fromElk(ir, laid, lines);
+  return fromElk(ir, laid, lines, back);
 }

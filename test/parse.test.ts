@@ -116,3 +116,74 @@ describe('error lines stay aligned with the source', () => {
     expect((await parseMermaid('---\ntitle: "Hello"\n---\nflowchart LR\n  A-->B')).title).toBe('Hello');
   });
 });
+
+describe('label cleanup', () => {
+  test('LaTeX backslash sequences are not turned into line breaks', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A["$$\\nu + \\nabla$$"]');
+    expect(ir.nodes[0].label).toBe('$$\\nu + \\nabla$$');
+  });
+  test('Font Awesome tokens are dropped, text kept', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[fa:fa-ban forbidden] --> B["fab:fa-github GitHub"]');
+    expect(ir.nodes.map((n) => n.label)).toEqual(['forbidden', 'GitHub']);
+  });
+  test('Mermaid entity codes are decoded', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  A->>B: I #9829; you #infin; times #quot;more#quot;');
+    expect(ir.edges[0].label).toBe('I ♥ you ∞ times "more"');
+  });
+  test('CJK labels wrap by display width', async () => {
+    const { wrap, cells } = await import('../src/layout/measure');
+    expect(cells('负责人审批')).toBe(10);
+    expect(cells('abc')).toBe(3);
+    const lines = wrap('负'.repeat(30), 22);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const l of lines) expect(cells(l)).toBeLessThanOrEqual(22);
+  });
+});
+
+test('concurrent state regions get stable, unlabelled ids', async () => {
+  const src = 'stateDiagram-v2\n  state Active {\n    [*] --> A\n    --\n    [*] --> B\n    --\n    [*] --> C\n  }';
+  const [one, two] = [await parseMermaid(src), await parseMermaid(src)];
+  expect(one.groups.map((g) => g.id)).toEqual(two.groups.map((g) => g.id));
+  expect(one.groups.filter((g) => g.parent === 'Active').map((g) => [g.id, g.label])).toEqual([
+    ['Active.region1', ''],
+    ['Active.region2', ''],
+    ['Active.region3', ''],
+  ]);
+  expect(one.nodes.find((n) => n.id === 'C')!.parent).toBe('Active.region3');
+  expect(one.edges.map((e) => e.from)).toContain('Active.region3_start');
+});
+
+test('Mermaid v11 shape names map to shape families', async () => {
+  const src = [
+    'flowchart LR',
+    '  a@{ shape: cyl, label: "Orders" }',
+    '  b@{ shape: docs, label: "Reports" }',
+    '  c@{ shape: lean-r, label: "Input" }',
+    '  d@{ shape: trap-t, label: "Manual" }',
+    '  e@{ shape: sm-circ }',
+    '  f@{ shape: text, label: "Plain" }',
+    '  g@{ shape: brace-r, label: "Remark" }',
+    '  h@{ shape: datastore, label: "Things" }',
+    '  i@{ shape: bolt, label: "Zap" }',
+  ].join('\n');
+  const ir = await parseMermaid(src);
+  const shape = Object.fromEntries(ir.nodes.map((n) => [n.id, n.shape]));
+  expect(shape).toEqual({ a: 'cylinder', b: 'document', c: 'parallelogram', d: 'trapezoid', e: 'start', f: 'text', g: 'note', h: 'cylinder', i: 'rect' });
+  expect(ir.nodes.find((n) => n.id === 'h')!.type).toBe('database');
+});
+
+test('state transition text honours literal \\n line breaks', async () => {
+  const ir = await parseMermaid('stateDiagram-v2\n  A --> B: first\\nsecond');
+  expect(ir.edges[0].label).toBe('first\nsecond');
+});
+
+test('state notes become note nodes with a plain connector', async () => {
+  const ir = await parseMermaid('stateDiagram-v2\n  A --> B\n  note right of A : check this\n  note left of B\n    multi\n    line\n  end note');
+  const notes = ir.nodes.filter((n) => n.shape === 'note');
+  expect(notes.map((n) => [n.id, n.label])).toEqual([
+    ['A__note', 'check this'],
+    ['B__note', 'multi\nline'],
+  ]);
+  const links = ir.edges.filter((e) => e.from.includes('__note') || e.to.includes('__note'));
+  expect(links.every((e) => e.stroke === 'dotted' && !e.arrowEnd && !e.arrowStart)).toBe(true);
+});

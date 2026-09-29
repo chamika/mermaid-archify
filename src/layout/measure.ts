@@ -14,23 +14,51 @@ export const FONT = {
 };
 
 export const charWidth = (size: number) => size * 0.6;
-export const textWidth = (text: string, size: number) => text.length * charWidth(size);
 
-/** Word-wrap a label to at most `maxChars` per line, honoring explicit breaks. */
-export function wrap(text: string, maxChars: number): string[] {
+/**
+ * Wide characters (CJK, Hangul, fullwidth forms, emoji) fall back to a
+ * proportional font about twice a monospace cell wide; everything else is one
+ * cell.
+ */
+const WIDE =
+  /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]|[\u{1F300}-\u{1FAFF}\u{20000}-\u{3FFFD}]/u;
+
+export function cells(text: string): number {
+  let n = 0;
+  for (const ch of text) n += WIDE.test(ch) ? 2 : 1;
+  return n;
+}
+
+export const textWidth = (text: string, size: number) => cells(text) * charWidth(size);
+
+/** Split a run that is too wide for one line into chunks of at most `max` cells. */
+function chunk(word: string, max: number): string[] {
+  const out: string[] = [];
+  let cur = '';
+  for (const ch of word) {
+    if (cells(cur + ch) > max && cur) {
+      out.push(cur);
+      cur = ch;
+    } else cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** Word-wrap a label to at most `maxCells` per line, honoring explicit breaks. */
+export function wrap(text: string, maxCells: number): string[] {
   const out: string[] = [];
   for (const para of text.split('\n')) {
     let line = '';
     for (const word of para.split(/\s+/).filter(Boolean)) {
-      if (!line) line = word;
-      else if (line.length + 1 + word.length <= maxChars) line += ' ' + word;
-      else {
-        out.push(line);
-        line = word;
-      }
-      while (line.length > maxChars * 1.5) {
-        out.push(line.slice(0, maxChars));
-        line = line.slice(maxChars);
+      const pieces = cells(word) > maxCells * 1.5 ? chunk(word, maxCells) : [word];
+      for (const piece of pieces) {
+        if (!line) line = piece;
+        else if (cells(line) + 1 + cells(piece) <= maxCells) line += ' ' + piece;
+        else {
+          out.push(line);
+          line = piece;
+        }
       }
     }
     if (line) out.push(line);
@@ -68,11 +96,14 @@ export function nodeSize(node: IRNode, direction: Direction, withCaption: boolea
       const d = Math.max(72, Math.max(textW, textH) + 36);
       return { w: d, h: d, lines };
     }
+    case 'text':
+      return { w: Math.ceil(Math.max(40, textW + 16)), h: Math.ceil(textH + 12), lines };
     default: {
-      const caption = withCaption ? CAPTION_H : 0;
-      const pad = node.shape === 'cylinder' ? 18 : 0;
+      const caption = withCaption && node.shape !== 'note' ? CAPTION_H : 0;
+      const pad = node.shape === 'cylinder' || node.shape === 'document' ? 18 : 0;
+      const slant = node.shape === 'parallelogram' || node.shape === 'trapezoid' ? 28 : 0;
       return {
-        w: Math.ceil(Math.max(128, textW + 36)),
+        w: Math.ceil(Math.max(128, textW + 36 + slant)),
         h: Math.ceil(Math.max(52, textH + caption + 24 + pad)),
         lines,
       };

@@ -38,7 +38,7 @@ const SHAPES: Record<string, SemanticType> = {
 const KEYWORDS: [RegExp, SemanticType][] = [
   [/\b(auth\w*|iam|oauth|oidc|sso|waf|firewall|vault|kms|secrets?|identity|idp|keycloak|cognito|okta|guard|policy|login)\b/i, 'security'],
   [/\b(kafka|queues?|sqs|sns|rabbit\w*|pub\/?sub|nats|kinesis|event ?bus|eventbridge|stream\w*|topics?|broker|mq|celery|bull)\b/i, 'messagebus'],
-  [/\b(db|database|postgres\w*|pg|mysql|maria\w*|mongo\w*|redis|cache|dynamo\w*|cassandra|sqlite|sql|warehouse|lake|bigquery|snowflake|s3|bucket|blob|storage|elastic\w*|opensearch|index|store|ledger|disk)\b/i, 'database'],
+  [/\b(db|database|postgres\w*|pg|mysql|maria\w*|mongo\w*|redis|cache|dynamo\w*|cassandra|sqlite|sql|warehouse|lake|bigquery|snowflake|s3|bucket|blob|storage|datastore|data ?store|elastic\w*|opensearch|index|store|ledger|disk)\b/i, 'database'],
   [/\b(ui|web|web ?app|frontend|browser|mobile|ios|android|app|client|spa|react|next\.?js|vue|user|users|customer|admin|portal|dashboard|console)\b/i, 'frontend'],
   [/\b(cdn|cloudfront|aws|gcp|azure|lambda|k8s|kubernetes|cluster|vpc|region|load ?balancer|lb|alb|elb|nginx|gateway|ingress|dns|edge)\b/i, 'cloud'],
   [/\b(stripe|paypal|twilio|sendgrid|github|slack|third[- ]?party|external|partner|vendor|saas|openai|anthropic|claude|llm|email|smtp|webhook)\b/i, 'external'],

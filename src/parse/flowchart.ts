@@ -2,19 +2,40 @@ import { classify } from '../ir/classify';
 import type { DiagramIR, Direction, EdgeStroke, IREdge, IRGroup, IRNode, NodeShape } from '../ir/types';
 import { cleanLabel } from './text';
 
+/**
+ * Mermaid shape names (classic syntax and v11 `@{ shape: … }` names/aliases)
+ * mapped onto the shape families we draw. Unlisted shapes render as rectangles.
+ */
 const SHAPE_MAP: Record<string, NodeShape> = {
-  square: 'rect',
-  rect: 'rect',
-  round: 'rounded',
-  stadium: 'rounded',
-  ellipse: 'rounded',
-  cylinder: 'cylinder',
-  diamond: 'diamond',
-  circle: 'circle',
-  doublecircle: 'circle',
-  hexagon: 'hexagon',
-  subroutine: 'subroutine',
+  square: 'rect', rect: 'rect', proc: 'rect', process: 'rect',
+  round: 'rounded', rounded: 'rounded', event: 'rounded', stadium: 'rounded', pill: 'rounded', terminal: 'rounded', ellipse: 'rounded',
+  cylinder: 'cylinder', cyl: 'cylinder', db: 'cylinder', database: 'cylinder', das: 'cylinder', 'h-cyl': 'cylinder',
+  'horizontal-cylinder': 'cylinder', 'lin-cyl': 'cylinder', disk: 'cylinder', 'lined-cylinder': 'cylinder',
+  datastore: 'cylinder', 'bow-rect': 'cylinder', 'stored-data': 'cylinder',
+  diamond: 'diamond', diam: 'diamond', decision: 'diamond', question: 'diamond',
+  circle: 'circle', circ: 'circle', doublecircle: 'circle', 'dbl-circ': 'circle', 'double-circle': 'circle', 'cross-circ': 'circle',
+  'crossed-circle': 'circle', summary: 'circle',
+  hexagon: 'hexagon', hex: 'hexagon', prepare: 'hexagon',
+  subroutine: 'subroutine', 'fr-rect': 'subroutine', subproc: 'subroutine', subprocess: 'subroutine', 'framed-rectangle': 'subroutine',
+  processes: 'subroutine', procs: 'subroutine', 'st-rect': 'subroutine', 'stacked-rectangle': 'subroutine', 'div-rect': 'subroutine',
+  'divided-rectangle': 'subroutine', 'div-proc': 'subroutine',
+  'sm-circ': 'start', start: 'start', 'small-circle': 'start',
+  'framed-circle': 'end', stop: 'end', 'fr-circ': 'end',
+  'f-circ': 'junction', junction: 'junction', 'filled-circle': 'junction',
+  fork: 'fork', join: 'fork',
+  doc: 'document', document: 'document', docs: 'document', documents: 'document', 'st-doc': 'document', 'stacked-document': 'document',
+  'lin-doc': 'document', 'lined-document': 'document', 'tag-doc': 'document', 'tagged-document': 'document',
+  lean_right: 'parallelogram', lean_left: 'parallelogram', 'lean-r': 'parallelogram', 'lean-l': 'parallelogram',
+  'lean-right': 'parallelogram', 'lean-left': 'parallelogram', 'in-out': 'parallelogram', 'out-in': 'parallelogram',
+  trapezoid: 'trapezoid', inv_trapezoid: 'trapezoid', 'trap-b': 'trapezoid', 'trap-t': 'trapezoid', priority: 'trapezoid',
+  'manual-input': 'trapezoid', 'sl-rect': 'trapezoid', 'sloped-rectangle': 'trapezoid', 'curv-trap': 'trapezoid', display: 'trapezoid',
+  'inv-trapezoid': 'trapezoid', 'trapezoid-bottom': 'trapezoid', 'trapezoid-top': 'trapezoid', 'manual': 'trapezoid',
+  comment: 'note', 'brace-r': 'note', braces: 'note', brace: 'note', 'brace-l': 'note',
+  text: 'text',
 };
+
+/** Shapes whose meaning implies a data store. */
+const STORAGE_SHAPES = new Set(['cylinder', 'cyl', 'db', 'database', 'das', 'h-cyl', 'horizontal-cylinder', 'lin-cyl', 'disk', 'lined-cylinder', 'datastore', 'bow-rect', 'stored-data']);
 
 export function normalizeDirection(d: string | undefined): Direction {
   switch ((d ?? '').toUpperCase()) {
@@ -55,7 +76,7 @@ export function flowchartToIR(db: any): DiagramIR {
       id: v.id,
       label,
       shape: SHAPE_MAP[hint] ?? 'rect',
-      type: classify({ label, id: v.id, classes, shape: hint }),
+      type: classify({ label, id: v.id, classes, shape: STORAGE_SHAPES.has(hint) ? 'cylinder' : hint }),
       parent: parentOf.get(v.id),
       classes,
       hint,
@@ -65,8 +86,8 @@ export function flowchartToIR(db: any): DiagramIR {
   const edges: IREdge[] = [];
   const seen = new Map<string, number>();
   for (const e of db.getEdges()) {
-    if (e.stroke === 'invisible') continue;
     const type: string = e.type ?? 'arrow_point';
+    const marker = type.endsWith('_circle') ? 'circle' : type.endsWith('_cross') ? 'cross' : 'arrow';
     const base = e.id ?? `L_${e.start}_${e.end}`;
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
@@ -78,6 +99,8 @@ export function flowchartToIR(db: any): DiagramIR {
       stroke: (e.stroke === 'dotted' || e.stroke === 'thick' ? e.stroke : 'solid') as EdgeStroke,
       arrowEnd: type !== 'arrow_open',
       arrowStart: type.startsWith('double_'),
+      ...(marker !== 'arrow' && { marker }),
+      ...(e.stroke === 'invisible' && { invisible: true }),
     });
   }
 
