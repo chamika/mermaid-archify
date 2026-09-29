@@ -123,3 +123,10 @@ test('two-state cycles follow the authored entry, even inside concurrent regions
   const back = s.edges.find((e) => e.from === 'On' && e.to === 'Off')!;
   expect(back.points[0].y).toBeGreaterThan(back.points.at(-1)!.y);
 });
+
+test('plain nodes are sized without a caption row', async () => {
+  const plain = await scene('flowchart LR\n  A[Laptop] --> B[iPhone] --> C[Car]');
+  const typed = await scene('flowchart LR\n  A[(Laptop)]:::database');
+  expect(plain.nodes[0].type).toBe('plain');
+  expect(plain.nodes[0].h).toBeLessThan(typed.nodes[0].h);
+});

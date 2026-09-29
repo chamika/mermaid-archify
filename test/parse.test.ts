@@ -187,3 +187,55 @@ test('state notes become note nodes with a plain connector', async () => {
   const links = ir.edges.filter((e) => e.from.includes('__note') || e.to.includes('__note'));
   expect(links.every((e) => e.stroke === 'dotted' && !e.arrowEnd && !e.arrowStart)).toBe(true);
 });
+
+describe('type markers only where the source gives evidence', () => {
+  const types = async (src: string) => Object.fromEntries((await parseMermaid(src)).nodes.map((n) => [n.id, n.type]));
+
+  test('a process flow stays plain (the Mermaid docs "Christmas" example)', async () => {
+    const src = [
+      'flowchart TD',
+      '    A[Christmas] -->|Get money| B(Go shopping)',
+      '    B --> C{Let me think}',
+      '    C -->|One| D[Laptop]',
+      '    C -->|Two| E[iPhone]',
+      '    C -->|Three| F[fa:fa-car Car]',
+    ].join('\n');
+    expect(Object.values(await types(src))).toEqual(Array(6).fill('plain'));
+  });
+
+  test('a stray keyword in a process flow is not promoted to a component type', async () => {
+    expect(await types('flowchart LR\n  A[Login] --> B[Check cart] --> C[Pay] --> D[Done]')).toEqual({
+      A: 'plain',
+      B: 'plain',
+      C: 'plain',
+      D: 'plain',
+    });
+  });
+
+  test('explicit evidence always shows, even in a process flow', async () => {
+    expect(await types('flowchart LR\n  A[Start] --> B[(Orders)] --> C[Ship it]:::external --> D[Done]')).toEqual({
+      A: 'plain',
+      B: 'database',
+      C: 'external',
+      D: 'plain',
+    });
+  });
+
+  test('an architecture-like diagram keeps its keyword types', async () => {
+    expect(await types('flowchart LR\n  W[Web app] --> G[API gateway] --> S[Order service] --> P[Postgres]\n  S --> K[Kafka]')).toEqual({
+      W: 'frontend',
+      G: 'cloud',
+      S: 'backend',
+      P: 'database',
+      K: 'messagebus',
+    });
+  });
+
+  test('states without an outcome word are plain, outcome words keep their tone', async () => {
+    expect(await types('stateDiagram-v2\n  [*] --> Still\n  Still --> Crash\n  Crash --> Done')).toMatchObject({
+      Still: 'plain',
+      Crash: 'security',
+      Done: 'backend',
+    });
+  });
+});

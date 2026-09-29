@@ -221,7 +221,9 @@ function Shape({ n }: { n: SceneNode }) {
 }
 
 function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers }) {
-  const withCaption = kind !== 'state' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note'].includes(n.shape);
+  // A caption names the component type, so only typed nodes get one.
+  const withCaption =
+    kind !== 'state' && n.type !== 'plain' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note'].includes(n.shape);
   const interactive = n.shape !== 'fork';
   return (
     <g

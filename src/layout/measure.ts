@@ -99,7 +99,7 @@ export function nodeSize(node: IRNode, direction: Direction, withCaption: boolea
     case 'text':
       return { w: Math.ceil(Math.max(40, textW + 16)), h: Math.ceil(textH + 12), lines };
     default: {
-      const caption = withCaption && node.shape !== 'note' ? CAPTION_H : 0;
+      const caption = withCaption && node.shape !== 'note' && node.type !== 'plain' ? CAPTION_H : 0;
       const pad = node.shape === 'cylinder' || node.shape === 'document' ? 18 : 0;
       const slant = node.shape === 'parallelogram' || node.shape === 'trapezoid' ? 28 : 0;
       return {

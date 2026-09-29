@@ -72,7 +72,7 @@ exports[`mermaid-demos/architecture-003 > parses, lays out, and satisfies scene 
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -282,7 +282,8 @@ exports[`mermaid-demos/architecture-010 > parses, lays out, and satisfies scene 
   "title": undefined,
   "types": {
     "database": 3,
-    "external": 4,
+    "external": 2,
+    "plain": 2,
   },
 }
 `;
@@ -316,7 +317,8 @@ exports[`mermaid-demos/architecture-011 > parses, lays out, and satisfies scene 
   "title": undefined,
   "types": {
     "database": 3,
-    "external": 4,
+    "external": 2,
+    "plain": 2,
   },
 }
 `;
@@ -336,9 +338,9 @@ exports[`mermaid-demos/architecture-012 > parses, lays out, and satisfies scene 
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "cloud": 2,
     "database": 1,
+    "plain": 1,
   },
 }
 `;
@@ -389,7 +391,7 @@ exports[`mermaid-demos/flowchart-001 > parses, lays out, and satisfies scene inv
   ],
   "title": "This is a complicated flow",
   "types": {
-    "backend": 15,
+    "plain": 15,
   },
 }
 `;
@@ -440,7 +442,7 @@ exports[`mermaid-demos/flowchart-002 > parses, lays out, and satisfies scene inv
   ],
   "title": "This is another complicated flow",
   "types": {
-    "backend": 15,
+    "plain": 15,
   },
 }
 `;
@@ -468,7 +470,7 @@ exports[`mermaid-demos/flowchart-003 > parses, lays out, and satisfies scene inv
   ],
   "title": "What to buy",
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -496,7 +498,7 @@ exports[`mermaid-demos/flowchart-004 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -524,7 +526,7 @@ exports[`mermaid-demos/flowchart-005 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -552,7 +554,7 @@ exports[`mermaid-demos/flowchart-006 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -603,7 +605,7 @@ exports[`mermaid-demos/flowchart-007 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 14,
+    "plain": 14,
   },
 }
 `;
@@ -654,7 +656,7 @@ exports[`mermaid-demos/flowchart-008 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 14,
+    "plain": 14,
   },
 }
 `;
@@ -733,7 +735,7 @@ exports[`mermaid-demos/flowchart-009 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 22,
+    "plain": 22,
   },
 }
 `;
@@ -812,7 +814,7 @@ exports[`mermaid-demos/flowchart-010 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 22,
+    "plain": 22,
   },
 }
 `;
@@ -834,7 +836,7 @@ exports[`mermaid-demos/flowchart-011 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -856,7 +858,7 @@ exports[`mermaid-demos/flowchart-012 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -894,7 +896,7 @@ exports[`mermaid-demos/flowchart-013 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -932,7 +934,7 @@ exports[`mermaid-demos/flowchart-014 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -954,7 +956,7 @@ exports[`mermaid-demos/flowchart-015 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -976,7 +978,7 @@ exports[`mermaid-demos/flowchart-016 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -1004,7 +1006,7 @@ exports[`mermaid-demos/flowchart-017 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1032,7 +1034,7 @@ exports[`mermaid-demos/flowchart-018 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1060,7 +1062,7 @@ exports[`mermaid-demos/flowchart-019 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1088,7 +1090,7 @@ exports[`mermaid-demos/flowchart-020 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1116,7 +1118,7 @@ exports[`mermaid-demos/flowchart-021 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1144,7 +1146,7 @@ exports[`mermaid-demos/flowchart-022 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1247,7 +1249,7 @@ exports[`mermaid-demos/flowchart-025 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 12,
+    "plain": 12,
   },
 }
 `;
@@ -1282,7 +1284,7 @@ exports[`mermaid-demos/flowchart-026 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 12,
+    "plain": 12,
   },
 }
 `;
@@ -1306,7 +1308,7 @@ exports[`mermaid-demos/flowchart-027 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "external": 4,
+    "plain": 4,
   },
 }
 `;
@@ -1330,7 +1332,7 @@ exports[`mermaid-demos/flowchart-028 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "external": 4,
+    "plain": 4,
   },
 }
 `;
@@ -1360,7 +1362,7 @@ exports[`mermaid-demos/flowchart-029 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -1390,7 +1392,7 @@ exports[`mermaid-demos/flowchart-030 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -1416,7 +1418,7 @@ exports[`mermaid-demos/flowchart-031 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1442,7 +1444,7 @@ exports[`mermaid-demos/flowchart-032 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1467,7 +1469,7 @@ exports[`mermaid-demos/flowchart-033 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -1492,7 +1494,7 @@ exports[`mermaid-demos/flowchart-034 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -1551,9 +1553,8 @@ exports[`mermaid-demos/flowchart-035 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 24,
     "database": 2,
-    "external": 2,
+    "plain": 26,
   },
 }
 `;
@@ -1612,9 +1613,8 @@ exports[`mermaid-demos/flowchart-036 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 24,
     "database": 2,
-    "external": 2,
+    "plain": 26,
   },
 }
 `;
@@ -1673,9 +1673,8 @@ exports[`mermaid-demos/flowchart-037 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 24,
     "database": 2,
-    "external": 2,
+    "plain": 26,
   },
 }
 `;
@@ -1737,9 +1736,8 @@ exports[`mermaid-demos/flowchart-038 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 24,
     "database": 2,
-    "external": 4,
+    "plain": 28,
   },
 }
 `;
@@ -1765,7 +1763,7 @@ exports[`mermaid-demos/flowchart-039 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -1791,7 +1789,7 @@ exports[`mermaid-demos/flowchart-040 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -1831,7 +1829,7 @@ exports[`mermaid-demos/flowchart-042 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -1882,7 +1880,7 @@ exports[`mermaid-demos/flowchart-043 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 15,
+    "plain": 15,
   },
 }
 `;
@@ -1910,7 +1908,7 @@ exports[`mermaid-demos/flowchart-044 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1938,7 +1936,7 @@ exports[`mermaid-demos/flowchart-045 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -1960,7 +1958,7 @@ exports[`mermaid-demos/flowchart-046 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -1998,7 +1996,7 @@ exports[`mermaid-demos/flowchart-047 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -2026,7 +2024,7 @@ exports[`mermaid-demos/flowchart-048 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -2054,7 +2052,7 @@ exports[`mermaid-demos/flowchart-049 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -2082,7 +2080,7 @@ exports[`mermaid-demos/flowchart-050 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -2151,7 +2149,7 @@ exports[`mermaid-demos/flowchart-052 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 12,
+    "plain": 12,
   },
 }
 `;
@@ -2177,7 +2175,7 @@ exports[`mermaid-demos/flowchart-053 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -2213,8 +2211,7 @@ exports[`mermaid-demos/flowchart-054 > parses, lays out, and satisfies scene inv
   ],
   "title": undefined,
   "types": {
-    "backend": 8,
-    "external": 1,
+    "plain": 9,
   },
 }
 `;
@@ -2239,7 +2236,7 @@ exports[`mermaid-demos/flowchart-055 > parses, lays out, and satisfies scene inv
   ],
   "title": "Subgraph nodeSpacing and rankSpacing example",
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -2272,7 +2269,7 @@ exports[`mermaid-demos/sequence-001 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -2294,7 +2291,7 @@ exports[`mermaid-demos/sequence-002 > parses, lays out, and satisfies scene inva
   ],
   "title": "With forced menus",
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -2326,7 +2323,7 @@ exports[`mermaid-demos/sequence-003 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -2351,7 +2348,7 @@ exports[`mermaid-demos/sequence-004 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -2374,7 +2371,7 @@ exports[`mermaid-demos/sequence-005 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -2397,7 +2394,7 @@ exports[`mermaid-demos/sequence-006 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -2420,7 +2417,7 @@ exports[`mermaid-demos/sequence-007 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -2466,7 +2463,7 @@ exports[`mermaid-demos/sequence-009 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -2488,7 +2485,7 @@ exports[`mermaid-demos/sequence-011 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -2508,7 +2505,7 @@ exports[`mermaid-demos/state-001 > parses, lays out, and satisfies scene invaria
   ],
   "title": "Very simple diagram",
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -2536,7 +2533,7 @@ exports[`mermaid-demos/state-002 > parses, lays out, and satisfies scene invaria
   ],
   "title": "Very simple diagram",
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -2565,7 +2562,7 @@ exports[`mermaid-demos/state-003 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -2583,7 +2580,7 @@ exports[`mermaid-demos/state-004 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -2610,7 +2607,7 @@ exports[`mermaid-demos/state-005 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -2638,7 +2635,7 @@ exports[`mermaid-demos/state-006 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -2682,7 +2679,7 @@ exports[`mermaid-demos/state-007 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 11,
+    "plain": 11,
   },
 }
 `;
@@ -2730,7 +2727,7 @@ exports[`mermaid-demos/state-009 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -2756,8 +2753,7 @@ exports[`mermaid-demos/state-010 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
-    "external": 3,
+    "plain": 5,
   },
 }
 `;
@@ -2904,7 +2900,8 @@ exports[`mermaid-docs/architecture-005 > parses, lays out, and satisfies scene i
   "title": undefined,
   "types": {
     "database": 3,
-    "external": 4,
+    "external": 2,
+    "plain": 2,
   },
 }
 `;
@@ -2948,7 +2945,7 @@ exports[`mermaid-docs/flowchart-001 > parses, lays out, and satisfies scene inva
   ],
   "title": "Node",
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -2965,7 +2962,7 @@ exports[`mermaid-docs/flowchart-002 > parses, lays out, and satisfies scene inva
   ],
   "title": "Node with text",
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -2982,7 +2979,7 @@ exports[`mermaid-docs/flowchart-003 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3002,7 +2999,7 @@ exports[`mermaid-docs/flowchart-004 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -3022,7 +3019,7 @@ exports[`mermaid-docs/flowchart-005 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -3042,7 +3039,7 @@ exports[`mermaid-docs/flowchart-006 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -3133,7 +3130,7 @@ exports[`mermaid-docs/flowchart-009 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3150,7 +3147,7 @@ exports[`mermaid-docs/flowchart-010 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3167,7 +3164,7 @@ exports[`mermaid-docs/flowchart-011 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3201,7 +3198,7 @@ exports[`mermaid-docs/flowchart-013 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "external": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3218,7 +3215,7 @@ exports[`mermaid-docs/flowchart-014 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3235,7 +3232,7 @@ exports[`mermaid-docs/flowchart-015 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3252,7 +3249,7 @@ exports[`mermaid-docs/flowchart-016 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3269,7 +3266,7 @@ exports[`mermaid-docs/flowchart-017 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3286,7 +3283,7 @@ exports[`mermaid-docs/flowchart-018 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3303,7 +3300,7 @@ exports[`mermaid-docs/flowchart-019 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3320,7 +3317,7 @@ exports[`mermaid-docs/flowchart-020 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3337,7 +3334,7 @@ exports[`mermaid-docs/flowchart-021 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "external": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3358,8 +3355,7 @@ exports[`mermaid-docs/flowchart-022 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
-    "frontend": 1,
+    "plain": 5,
   },
 }
 `;
@@ -3376,7 +3372,7 @@ exports[`mermaid-docs/flowchart-023 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3393,7 +3389,7 @@ exports[`mermaid-docs/flowchart-024 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3410,7 +3406,7 @@ exports[`mermaid-docs/flowchart-025 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3427,7 +3423,7 @@ exports[`mermaid-docs/flowchart-026 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3461,7 +3457,7 @@ exports[`mermaid-docs/flowchart-028 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "external": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3478,7 +3474,7 @@ exports[`mermaid-docs/flowchart-029 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3495,7 +3491,7 @@ exports[`mermaid-docs/flowchart-030 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3512,7 +3508,7 @@ exports[`mermaid-docs/flowchart-031 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3529,7 +3525,7 @@ exports[`mermaid-docs/flowchart-032 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3546,7 +3542,7 @@ exports[`mermaid-docs/flowchart-033 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3580,7 +3576,7 @@ exports[`mermaid-docs/flowchart-035 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3597,7 +3593,7 @@ exports[`mermaid-docs/flowchart-036 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3614,7 +3610,7 @@ exports[`mermaid-docs/flowchart-037 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3631,7 +3627,7 @@ exports[`mermaid-docs/flowchart-038 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3648,7 +3644,7 @@ exports[`mermaid-docs/flowchart-039 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3665,7 +3661,7 @@ exports[`mermaid-docs/flowchart-040 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3682,7 +3678,7 @@ exports[`mermaid-docs/flowchart-041 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3699,7 +3695,7 @@ exports[`mermaid-docs/flowchart-042 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3716,7 +3712,7 @@ exports[`mermaid-docs/flowchart-043 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3733,7 +3729,7 @@ exports[`mermaid-docs/flowchart-044 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3750,7 +3746,7 @@ exports[`mermaid-docs/flowchart-045 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3767,7 +3763,7 @@ exports[`mermaid-docs/flowchart-046 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3784,7 +3780,7 @@ exports[`mermaid-docs/flowchart-047 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3801,7 +3797,7 @@ exports[`mermaid-docs/flowchart-048 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3818,7 +3814,7 @@ exports[`mermaid-docs/flowchart-049 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3835,7 +3831,7 @@ exports[`mermaid-docs/flowchart-050 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3886,7 +3882,7 @@ exports[`mermaid-docs/flowchart-053 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3903,7 +3899,7 @@ exports[`mermaid-docs/flowchart-054 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3920,7 +3916,7 @@ exports[`mermaid-docs/flowchart-055 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3954,7 +3950,7 @@ exports[`mermaid-docs/flowchart-057 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3971,7 +3967,7 @@ exports[`mermaid-docs/flowchart-058 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -3988,7 +3984,7 @@ exports[`mermaid-docs/flowchart-059 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4005,7 +4001,7 @@ exports[`mermaid-docs/flowchart-060 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4022,7 +4018,7 @@ exports[`mermaid-docs/flowchart-061 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4039,7 +4035,7 @@ exports[`mermaid-docs/flowchart-062 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4056,7 +4052,7 @@ exports[`mermaid-docs/flowchart-063 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4073,7 +4069,7 @@ exports[`mermaid-docs/flowchart-064 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4107,7 +4103,7 @@ exports[`mermaid-docs/flowchart-066 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4124,7 +4120,7 @@ exports[`mermaid-docs/flowchart-067 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4141,7 +4137,7 @@ exports[`mermaid-docs/flowchart-068 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4175,7 +4171,7 @@ exports[`mermaid-docs/flowchart-070 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4195,7 +4191,7 @@ exports[`mermaid-docs/flowchart-071 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4215,7 +4211,7 @@ exports[`mermaid-docs/flowchart-072 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4235,7 +4231,7 @@ exports[`mermaid-docs/flowchart-073 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4255,7 +4251,7 @@ exports[`mermaid-docs/flowchart-074 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4275,7 +4271,7 @@ exports[`mermaid-docs/flowchart-075 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4295,7 +4291,7 @@ exports[`mermaid-docs/flowchart-076 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4315,7 +4311,7 @@ exports[`mermaid-docs/flowchart-077 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4335,7 +4331,7 @@ exports[`mermaid-docs/flowchart-078 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4355,7 +4351,7 @@ exports[`mermaid-docs/flowchart-079 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4375,7 +4371,7 @@ exports[`mermaid-docs/flowchart-080 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4395,7 +4391,7 @@ exports[`mermaid-docs/flowchart-081 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4417,7 +4413,7 @@ exports[`mermaid-docs/flowchart-082 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -4442,7 +4438,7 @@ exports[`mermaid-docs/flowchart-083 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -4467,7 +4463,7 @@ exports[`mermaid-docs/flowchart-084 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -4492,7 +4488,7 @@ exports[`mermaid-docs/flowchart-085 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -4512,7 +4508,7 @@ exports[`mermaid-docs/flowchart-086 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4532,7 +4528,7 @@ exports[`mermaid-docs/flowchart-087 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4552,7 +4548,7 @@ exports[`mermaid-docs/flowchart-088 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4572,7 +4568,7 @@ exports[`mermaid-docs/flowchart-089 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4592,7 +4588,7 @@ exports[`mermaid-docs/flowchart-090 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4612,7 +4608,7 @@ exports[`mermaid-docs/flowchart-091 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4636,7 +4632,7 @@ exports[`mermaid-docs/flowchart-092 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -4663,7 +4659,7 @@ exports[`mermaid-docs/flowchart-093 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -4690,7 +4686,7 @@ exports[`mermaid-docs/flowchart-094 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -4707,7 +4703,7 @@ exports[`mermaid-docs/flowchart-095 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -4727,7 +4723,7 @@ exports[`mermaid-docs/flowchart-096 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -4758,7 +4754,7 @@ exports[`mermaid-docs/flowchart-097 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -4782,7 +4778,7 @@ exports[`mermaid-docs/flowchart-098 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -4816,7 +4812,7 @@ exports[`mermaid-docs/flowchart-099 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -4848,7 +4844,7 @@ exports[`mermaid-docs/flowchart-100 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -4877,7 +4873,7 @@ exports[`mermaid-docs/flowchart-101 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -4905,7 +4901,7 @@ exports[`mermaid-docs/flowchart-102 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -4931,7 +4927,7 @@ exports[`mermaid-docs/flowchart-103 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -4955,7 +4951,7 @@ exports[`mermaid-docs/flowchart-104 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -4981,7 +4977,7 @@ exports[`mermaid-docs/flowchart-105 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -5003,7 +4999,7 @@ exports[`mermaid-docs/flowchart-106 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -5025,7 +5021,7 @@ exports[`mermaid-docs/flowchart-107 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -5045,7 +5041,7 @@ exports[`mermaid-docs/flowchart-108 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5065,7 +5061,7 @@ exports[`mermaid-docs/flowchart-109 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5087,7 +5083,7 @@ exports[`mermaid-docs/flowchart-110 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -5107,7 +5103,7 @@ exports[`mermaid-docs/flowchart-111 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5131,7 +5127,7 @@ exports[`mermaid-docs/flowchart-112 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -5151,7 +5147,7 @@ exports[`mermaid-docs/flowchart-113 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5177,8 +5173,7 @@ exports[`mermaid-docs/flowchart-114 > parses, lays out, and satisfies scene inva
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
-    "cloud": 2,
+    "plain": 5,
   },
 }
 `;
@@ -5200,7 +5195,7 @@ exports[`mermaid-docs/sequence-001 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5227,9 +5222,9 @@ exports[`mermaid-docs/sequence-002 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "cloud": 1,
     "frontend": 2,
+    "plain": 1,
   },
 }
 `;
@@ -5256,9 +5251,9 @@ exports[`mermaid-docs/sequence-003 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "cloud": 1,
     "frontend": 2,
+    "plain": 1,
   },
 }
 `;
@@ -5279,7 +5274,7 @@ exports[`mermaid-docs/sequence-004 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5321,7 +5316,7 @@ exports[`mermaid-docs/sequence-006 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
     "security": 1,
   },
 }
@@ -5343,7 +5338,7 @@ exports[`mermaid-docs/sequence-007 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5364,7 +5359,7 @@ exports[`mermaid-docs/sequence-008 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5385,8 +5380,8 @@ exports[`mermaid-docs/sequence-009 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "database": 1,
+    "plain": 1,
   },
 }
 `;
@@ -5407,8 +5402,8 @@ exports[`mermaid-docs/sequence-010 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "database": 1,
+    "plain": 1,
   },
 }
 `;
@@ -5429,8 +5424,8 @@ exports[`mermaid-docs/sequence-011 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "messagebus": 1,
+    "plain": 1,
   },
 }
 `;
@@ -5451,7 +5446,7 @@ exports[`mermaid-docs/sequence-012 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5550,8 +5545,8 @@ exports[`mermaid-docs/sequence-016 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
     "frontend": 1,
+    "plain": 3,
   },
 }
 `;
@@ -5576,7 +5571,7 @@ exports[`mermaid-docs/sequence-017 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -5598,7 +5593,7 @@ exports[`mermaid-docs/sequence-018 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5619,7 +5614,7 @@ exports[`mermaid-docs/sequence-019 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5640,7 +5635,7 @@ exports[`mermaid-docs/sequence-020 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5663,7 +5658,7 @@ exports[`mermaid-docs/sequence-021 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5680,7 +5675,7 @@ exports[`mermaid-docs/sequence-022 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -5700,7 +5695,7 @@ exports[`mermaid-docs/sequence-023 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5720,7 +5715,7 @@ exports[`mermaid-docs/sequence-024 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5740,7 +5735,7 @@ exports[`mermaid-docs/sequence-025 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5761,7 +5756,7 @@ exports[`mermaid-docs/sequence-026 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5784,7 +5779,7 @@ exports[`mermaid-docs/sequence-027 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5808,7 +5803,7 @@ exports[`mermaid-docs/sequence-028 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -5834,7 +5829,7 @@ exports[`mermaid-docs/sequence-029 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -5903,7 +5898,7 @@ exports[`mermaid-docs/sequence-032 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
   },
 }
 `;
@@ -5928,7 +5923,7 @@ exports[`mermaid-docs/sequence-033 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5949,7 +5944,7 @@ exports[`mermaid-docs/sequence-034 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5970,7 +5965,7 @@ exports[`mermaid-docs/sequence-035 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -5995,7 +5990,7 @@ exports[`mermaid-docs/sequence-036 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -6017,7 +6012,7 @@ exports[`mermaid-docs/sequence-037 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -6039,7 +6034,7 @@ exports[`mermaid-docs/sequence-038 > parses, lays out, and satisfies scene invar
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -6067,7 +6062,7 @@ exports[`mermaid-docs/state-001 > parses, lays out, and satisfies scene invarian
   ],
   "title": "Simple sample",
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -6096,7 +6091,7 @@ exports[`mermaid-docs/state-002 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -6132,9 +6127,9 @@ exports[`mermaid-docs/state-003 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
     "external": 1,
     "frontend": 1,
+    "plain": 6,
   },
 }
 `;
@@ -6169,9 +6164,9 @@ exports[`mermaid-docs/state-004 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
     "external": 1,
     "frontend": 1,
+    "plain": 6,
   },
 }
 `;
@@ -6188,7 +6183,7 @@ exports[`mermaid-docs/state-005 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -6205,7 +6200,7 @@ exports[`mermaid-docs/state-006 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -6222,7 +6217,7 @@ exports[`mermaid-docs/state-007 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
+    "plain": 1,
   },
 }
 `;
@@ -6242,7 +6237,7 @@ exports[`mermaid-docs/state-008 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -6262,7 +6257,7 @@ exports[`mermaid-docs/state-009 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
+    "plain": 2,
   },
 }
 `;
@@ -6284,7 +6279,7 @@ exports[`mermaid-docs/state-010 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 3,
+    "plain": 3,
   },
 }
 `;
@@ -6317,7 +6312,7 @@ exports[`mermaid-docs/state-011 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -6351,7 +6346,7 @@ exports[`mermaid-docs/state-012 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -6391,7 +6386,7 @@ exports[`mermaid-docs/state-013 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 10,
+    "plain": 10,
   },
 }
 `;
@@ -6417,7 +6412,7 @@ exports[`mermaid-docs/state-014 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;
@@ -6448,7 +6443,7 @@ exports[`mermaid-docs/state-015 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 7,
+    "plain": 7,
   },
 }
 `;
@@ -6472,8 +6467,7 @@ exports[`mermaid-docs/state-016 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 2,
-    "external": 2,
+    "plain": 4,
   },
 }
 `;
@@ -6515,7 +6509,7 @@ exports[`mermaid-docs/state-017 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 10,
+    "plain": 10,
   },
 }
 `;
@@ -6545,7 +6539,7 @@ exports[`mermaid-docs/state-018 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 6,
+    "plain": 6,
   },
 }
 `;
@@ -6573,7 +6567,7 @@ exports[`mermaid-docs/state-019 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -6602,7 +6596,7 @@ exports[`mermaid-docs/state-020 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -6631,7 +6625,7 @@ exports[`mermaid-docs/state-021 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 4,
+    "plain": 4,
     "security": 1,
   },
 }
@@ -6659,7 +6653,7 @@ exports[`mermaid-docs/state-022 > parses, lays out, and satisfies scene invarian
   ],
   "title": undefined,
   "types": {
-    "backend": 5,
+    "plain": 5,
   },
 }
 `;

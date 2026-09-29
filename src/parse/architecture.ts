@@ -1,4 +1,4 @@
-import { classify } from '../ir/classify';
+import { classify, typed } from '../ir/classify';
 import type { DiagramIR, IREdge, IRGroup, IRNode, Side } from '../ir/types';
 import { cleanLabel } from './text';
 
@@ -18,14 +18,14 @@ export function architectureToIR(db: any): DiagramIR {
       id: s.id,
       label,
       shape: 'rect',
-      type: classify({ label, id: s.id, icon: s.icon ?? s.iconText }),
+      ...typed(classify({ label, id: s.id, icon: s.icon ?? s.iconText })),
       parent: s.in,
       classes: [],
       hint: s.icon,
     });
   }
   for (const j of db.getJunctions()) {
-    nodes.push({ id: j.id, label: '', shape: 'junction', type: 'external', parent: j.in, classes: [] });
+    nodes.push({ id: j.id, label: '', shape: 'junction', type: 'plain', parent: j.in, classes: [] });
   }
 
   const parentOf = new Map(nodes.map((n) => [n.id, n.parent]));

@@ -6,8 +6,13 @@
 
 export type DiagramKind = 'flowchart' | 'sequence' | 'state' | 'architecture';
 
-/** Archify's semantic component palette. */
+/**
+ * Archify's semantic component palette, plus `plain` for nodes the source
+ * gives no evidence about (process steps, generic states): neutral styling,
+ * no type caption.
+ */
 export type SemanticType =
+  | 'plain'
   | 'frontend'
   | 'backend'
   | 'database'
@@ -16,6 +21,7 @@ export type SemanticType =
   | 'messagebus'
   | 'external';
 
+/** Types a user can name explicitly (`A:::database`). `plain` is the absence of one. */
 export const SEMANTIC_TYPES: readonly SemanticType[] = [
   'frontend',
   'backend',
@@ -58,7 +64,11 @@ export interface IRNode {
   classes: string[];
   /** Raw hint used for classification (flowchart shape, architecture icon). */
   hint?: string;
+  /** How `type` was decided; `guess` types survive only in architecture-like diagrams. */
+  certainty?: Certainty;
 }
+
+export type Certainty = 'explicit' | 'guess' | 'none';
 
 export type EdgeStroke = 'solid' | 'dotted' | 'thick';
 export type Side = 'L' | 'R' | 'T' | 'B';

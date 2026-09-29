@@ -1,4 +1,4 @@
-import { classify } from '../ir/classify';
+import { classify, typed } from '../ir/classify';
 import type { DiagramIR, Direction, EdgeStroke, IREdge, IRGroup, IRNode, NodeShape } from '../ir/types';
 import { cleanLabel } from './text';
 
@@ -76,7 +76,7 @@ export function flowchartToIR(db: any): DiagramIR {
       id: v.id,
       label,
       shape: SHAPE_MAP[hint] ?? 'rect',
-      type: classify({ label, id: v.id, classes, shape: STORAGE_SHAPES.has(hint) ? 'cylinder' : hint }),
+      ...typed(classify({ label, id: v.id, classes, shape: STORAGE_SHAPES.has(hint) ? 'cylinder' : hint })),
       parent: parentOf.get(v.id),
       classes,
       hint,

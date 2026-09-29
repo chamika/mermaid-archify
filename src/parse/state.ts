@@ -73,7 +73,7 @@ export function stateToIR(db: Stmt): DiagramIR {
   /** `note left of X : text` becomes a note node tied to X by a plain dotted connector. */
   const addNote = (stateId: string, note: { position?: string; text: string }, parent?: string) => {
     const id = `${stateId}__note${[...nodes.keys()].filter((k) => k.startsWith(`${stateId}__note`)).length || ''}`;
-    nodes.set(id, { id, label: stateText(note.text), shape: 'note', type: 'external', parent, classes: [], hint: 'note' });
+    nodes.set(id, { id, label: stateText(note.text), shape: 'note', type: 'plain', parent, classes: [], hint: 'note' });
     const left = /left/.test(note.position ?? '');
     edges.push({
       id: `t${edges.length}`,
@@ -178,11 +178,10 @@ function describe(s: Stmt): string {
   return stateText(s.descriptions?.length ? s.descriptions : s.description);
 }
 
+/** Lifecycle tone: an explicit class wins, then outcome words; otherwise a plain state. */
 function tone(label: string, classes: string[]): SemanticType {
-  if (classes.length) {
-    const explicit = classify({ label: '', id: '', classes });
-    if (explicit !== 'backend' || classes.some((c) => /backend|service|api/i.test(c))) return explicit;
-  }
+  const explicit = classify({ label: '', id: '', classes });
+  if (explicit.certainty === 'explicit') return explicit.type;
   for (const [re, t] of STATE_TONES) if (re.test(label)) return t;
-  return 'backend';
+  return 'plain';
 }
