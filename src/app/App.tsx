@@ -4,11 +4,13 @@ import { download, slug } from '../export/download';
 import { buildStandaloneHtml } from '../export/html';
 import { layout } from '../layout';
 import { browserElk } from '../layout/elk';
+import { type LayoutSettings, readLayoutSettings, writeLayoutSettings } from '../layout/settings';
 import { MermaidParseError, parseMermaid } from '../parse';
 import { SAMPLES } from '../samples';
 import type { Scene } from '../scene/types';
 import { type ExportAction, Viewer } from '../viewer/Viewer';
 import { Editor } from './Editor';
+import { LayoutControls } from './LayoutControls';
 import { loadSaved, readHash, save, shareUrl } from './share';
 
 interface Problem {
@@ -36,7 +38,7 @@ export function App() {
       setBusy(true);
       try {
         const ir = await parseMermaid(source);
-        const next = await layout(ir, browserElk());
+        const next = await layout(ir, browserElk(), readLayoutSettings(source));
         if (ticket !== run.current) return;
         setScene(next);
         setProblem(undefined);
@@ -91,6 +93,13 @@ export function App() {
     ],
     [source],
   );
+
+  const layoutSettings = useMemo(() => readLayoutSettings(source), [source]);
+  const changeLayout = (next: LayoutSettings) => {
+    const written = writeLayoutSettings(source, next);
+    if (written === undefined) flash('Front-matter uses {…} style; edit config.archify by hand');
+    else setSource(written);
+  };
 
   const onFocusChange = useCallback((id: string | undefined) => {
     focusRef.current = id;
@@ -191,6 +200,7 @@ export function App() {
               onFocusChange={onFocusChange}
               linkFor={(id) => shareUrl(source, id)}
               exports={exportsList}
+              toolbarExtra={<LayoutControls settings={layoutSettings} onChange={changeLayout} disabled={scene.kind === 'sequence'} />}
             />
           ) : (
             <div class="empty">{problem ? 'Fix the error to render the diagram.' : 'Rendering…'}</div>

@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { describeIcons } from '../src/icons/fa';
 import type { DiagramIR } from '../src/ir/types';
 import { layout } from '../src/layout';
+import type { Routing } from '../src/layout/settings';
 import { MermaidParseError, parseMermaid } from '../src/parse';
 import { checkScene } from './helpers/invariants';
 
@@ -82,5 +83,21 @@ describe.each(fixtures)('%s', (name) => {
     expect(scene.nodes).toHaveLength(ir.nodes.length);
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
     checkScene(scene, name);
+  });
+});
+
+/**
+ * The same invariants under the other edge routers (the snapshot above covers
+ * the default, orthogonal). Sequence diagrams have their own layout.
+ */
+const ROUTINGS: Routing[] = ['polyline', 'splines'];
+const graphs = fixtures.filter((f) => !INVALID[f] && !f.split('/')[1].startsWith('sequence'));
+
+describe.each(ROUTINGS)('routing: %s', (routing) => {
+  test.each(graphs)('%s satisfies scene invariants', async (name) => {
+    const ir = await parseMermaid(read(name));
+    const scene = await layout(ir, elk, { routing });
+    expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
+    checkScene(scene, `${name} (${routing})`);
   });
 });

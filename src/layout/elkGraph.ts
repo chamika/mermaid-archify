@@ -3,6 +3,7 @@ import { settleInk } from '../ir/style';
 import type { DiagramIR, Direction, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { edgeLabelSize, nodeSize } from './measure';
+import { DEFAULTS, type LayoutSettings } from './settings';
 
 export interface ElkLike {
   layout(graph: ElkNode): Promise<ElkNode>;
@@ -12,19 +13,28 @@ const ELK_DIR: Record<Direction, string> = { LR: 'RIGHT', RL: 'LEFT', TB: 'DOWN'
 const PORT_SIDE: Record<Side, string> = { L: 'WEST', R: 'EAST', T: 'NORTH', B: 'SOUTH' };
 const MARGIN = 32;
 
-function baseOptions(direction: Direction): LayoutOptions {
+/** ELK constant for a settings value: `brandes-koepf` → `BRANDES_KOEPF`. */
+const elkConst = (v: string) => v.toUpperCase().replace(/-/g, '_');
+
+function baseOptions(direction: Direction, settings: LayoutSettings): LayoutOptions {
+  const nodeNode = settings.nodeSpacing ?? DEFAULTS.nodeSpacing;
+  const ranks = settings.rankSpacing ?? DEFAULTS.rankSpacing;
+  // Edge clearances follow node spacing, so "compact" really is compact.
+  const edgeNode = Math.round((24 * nodeNode) / DEFAULTS.nodeSpacing);
+  const edgeEdge = Math.round((14 * nodeNode) / DEFAULTS.nodeSpacing);
   return {
     'elk.algorithm': 'layered',
+    'elk.randomSeed': '1',
     'elk.direction': ELK_DIR[direction],
-    'elk.edgeRouting': 'ORTHOGONAL',
-    'elk.layered.spacing.nodeNodeBetweenLayers': '72',
-    'elk.spacing.nodeNode': '44',
-    'elk.spacing.edgeNode': '24',
-    'elk.spacing.edgeEdge': '14',
+    'elk.edgeRouting': elkConst(settings.routing ?? DEFAULTS.routing),
+    'elk.layered.spacing.nodeNodeBetweenLayers': String(ranks),
+    'elk.spacing.nodeNode': String(nodeNode),
+    'elk.spacing.edgeNode': String(edgeNode),
+    'elk.spacing.edgeEdge': String(edgeEdge),
     'elk.spacing.edgeLabel': '6',
-    'elk.layered.spacing.edgeNodeBetweenLayers': '24',
-    'elk.layered.spacing.edgeEdgeBetweenLayers': '14',
-    'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+    'elk.layered.spacing.edgeNodeBetweenLayers': String(edgeNode),
+    'elk.layered.spacing.edgeEdgeBetweenLayers': String(edgeEdge),
+    'elk.layered.nodePlacement.strategy': elkConst(settings.placement ?? DEFAULTS.placement),
     'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
     // Break cycles by source order: an edge written "backwards" (retry, loop)
     // is the one reversed, so the main path keeps its authored direction.
@@ -35,8 +45,30 @@ function baseOptions(direction: Direction): LayoutOptions {
   };
 }
 
+/** ELK's own in-layer spacings, which groups use unless told otherwise. */
+const ELK_GROUP_SPACING = { nodeNode: 20, edgeNode: 10, edgeEdge: 10 };
+
+/**
+ * In-layer spacing is per parent in ELK (rank spacing is global), so groups
+ * keep ELK's defaults unless node spacing is set; then they scale with it.
+ */
+function groupSpacing(settings: LayoutSettings): LayoutOptions {
+  if (settings.nodeSpacing === undefined) return {};
+  const k = settings.nodeSpacing / DEFAULTS.nodeSpacing;
+  const px = (v: number) => String(Math.max(4, Math.round(v * k)));
+  return {
+    'elk.spacing.nodeNode': px(ELK_GROUP_SPACING.nodeNode),
+    'elk.spacing.edgeNode': px(ELK_GROUP_SPACING.edgeNode),
+    'elk.spacing.edgeEdge': px(ELK_GROUP_SPACING.edgeEdge),
+  };
+}
+
 /** Build the ELK input graph. Group ids become compound nodes. */
-export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, string[]>; flipped: Set<string> } {
+export function toElkGraph(
+  ir: DiagramIR,
+  settings: LayoutSettings = {},
+): { graph: ElkNode; lines: Map<string, string[]>; flipped: Set<string> } {
+  const direction = settings.direction ?? ir.direction;
   const withCaption = ir.kind !== 'state';
   const lines = new Map<string, string[]>();
   const elkNodes = new Map<string, ElkNode>();
@@ -48,12 +80,12 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
       children: [],
       // With INCLUDE_CHILDREN the root's options apply inside groups too; repeating
       // considerModelOrder on nested compounds crashes ELK, so set padding only.
-      layoutOptions: { 'elk.padding': '[top=42,left=22,bottom=22,right=22]' },
+      layoutOptions: { 'elk.padding': '[top=42,left=22,bottom=22,right=22]', ...groupSpacing(settings) },
     });
   }
 
   for (const n of ir.nodes) {
-    const size = nodeSize(n, ir.direction, withCaption);
+    const size = nodeSize(n, direction, withCaption);
     lines.set(n.id, size.lines);
     const layoutOptions: LayoutOptions = {};
     if (n.shape === 'start') layoutOptions['elk.layered.layering.layerConstraint'] = 'FIRST';
@@ -67,7 +99,7 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
     children: [],
     edges: [],
     layoutOptions: {
-      ...baseOptions(ir.direction),
+      ...baseOptions(direction, settings),
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.json.edgeCoords': 'ROOT',
       'elk.json.shapeCoords': 'ROOT',
@@ -222,7 +254,14 @@ function addPort(node: ElkNode, id: string, side: Side | undefined): string {
 }
 
 /** Convert ELK output (ROOT coordinates) into a Scene. */
-export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[]>, flipped = new Set<string>()): Scene {
+export function fromElk(
+  ir: DiagramIR,
+  laid: ElkNode,
+  lines: Map<string, string[]>,
+  flipped = new Set<string>(),
+  settings: LayoutSettings = {},
+): Scene {
+  const splines = settings.routing === 'splines';
   const boxes = new Map<string, { x: number; y: number; w: number; h: number }>();
   const visit = (n: ElkNode) => {
     for (const c of n.children ?? []) {
@@ -279,8 +318,9 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
     if (!le?.sections?.length) continue;
     const points: Pt[] = [];
     for (const s of le.sections) {
-      if (!points.length) points.push(s.startPoint);
-      points.push(...(s.bendPoints ?? []), s.endPoint);
+      const raw = [s.startPoint, ...(s.bendPoints ?? []), s.endPoint];
+      const pts = splines ? flattenBeziers(raw) : raw;
+      points.push(...(points.length ? pts.slice(1) : pts));
     }
     const lab = le.labels?.[0];
     edges.push({
@@ -352,8 +392,18 @@ function anchorLabels(edges: SceneEdge[], nodes: SceneNode[]) {
     const on = nearestOnPath(e.points, { x: box.x + box.w / 2, y: box.y + box.h / 2 });
     const moved = { x: on.x - box.w / 2, y: on.y - box.h / 2, w: box.w, h: box.h };
     const others = labelled.filter((o) => o !== e && !placed.includes(o.labelBox!)).map((o) => o.labelBox!);
-    const clear = !nodes.some((n) => hit(moved, n)) && !placed.some((b) => hit(moved, b)) && !others.some((b) => hit(moved, b));
-    if (clear) e.labelBox = moved;
+    const clear = (b: Box) => !nodes.some((n) => hit(b, n)) && !placed.some((p) => hit(b, p)) && !others.some((o) => hit(b, o));
+    if (clear(moved)) e.labelBox = moved;
+    else if (gapTo(e.points, box) > LABEL_SLACK) {
+      // ELK's spot is off the route (splines: it placed against the control
+      // polygon). Slide along the route to the clear spot nearest the original.
+      const c = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+      const spot = samplePath(e.points, 6)
+        .map((p) => ({ x: p.x - box.w / 2, y: p.y - box.h / 2, w: box.w, h: box.h }))
+        .filter(clear)
+        .sort((a, b) => dist2(a, c, box) - dist2(b, c, box))[0];
+      if (spot) e.labelBox = spot;
+    }
     placed.push(e.labelBox!);
   }
 }
@@ -380,6 +430,53 @@ function placeEndLabels(e: SceneEdge) {
   place(e.ends?.startLabel, p[0], p[1]);
   place(e.ends?.endLabel, p.at(-1)!, p.at(-2)!);
   if (out.length) e.endLabels = out;
+}
+
+/** How far off its route a label may sit before we go looking for a better spot. */
+const LABEL_SLACK = 8;
+
+const dist2 = (b: Box, c: Pt, box: Box) => (b.x + box.w / 2 - c.x) ** 2 + (b.y + box.h / 2 - c.y) ** 2;
+
+/** Gap between a label box and the nearest point of its route (0 when the route touches it). */
+function gapTo(points: Pt[], b: Box): number {
+  const c = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+  const q = nearestOnPath(points, c);
+  return Math.max(Math.abs(q.x - c.x) - b.w / 2, Math.abs(q.y - c.y) - b.h / 2, 0);
+}
+
+/** Points every `step` px along a polyline. */
+function samplePath(points: Pt[], step: number): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step));
+    for (let k = 0; k < n; k++) out.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n });
+  }
+  return out;
+}
+
+/**
+ * ELK's spline router returns a chain of cubic Béziers as control points
+ * (start, c1, c2, end, c1, c2, end, …). Sample it into a polyline so the Scene
+ * stays a list of points on the route. Anything not shaped 3k+1 is left as is.
+ */
+export function flattenBeziers(ctrl: Pt[], steps = 8): Pt[] {
+  if (ctrl.length < 4 || (ctrl.length - 1) % 3) return ctrl;
+  const out: Pt[] = [ctrl[0]];
+  for (let i = 0; i + 3 < ctrl.length; i += 3) {
+    const [p0, p1, p2, p3] = ctrl.slice(i, i + 4);
+    for (let k = 1; k <= steps; k++) {
+      const t = k / steps;
+      const u = 1 - t;
+      const a = u * u * u;
+      const b = 3 * u * u * t;
+      const c = 3 * u * t * t;
+      const d = t * t * t;
+      out.push({ x: a * p0.x + b * p1.x + c * p2.x + d * p3.x, y: a * p0.y + b * p1.y + c * p2.y + d * p3.y });
+    }
+  }
+  return out;
 }
 
 function dedupe(points: Pt[]): Pt[] {
