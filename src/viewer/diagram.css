@@ -23,11 +23,14 @@
   stroke: none;
 }
 .ma-node .body {
-  stroke-width: 1.5;
+  stroke-width: var(--u-sw, 1.5);
+  stroke-dasharray: var(--u-dash, none);
 }
 .ma-node .label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--u-fw, 600);
+  font-style: var(--u-fs, normal);
+  fill: var(--u-ink, var(--text));
 }
 .ma-node .caption {
   font-size: 10px;
@@ -64,6 +67,9 @@
 .ma-icon {
   fill: var(--text);
 }
+.ma-node .ma-icon {
+  fill: var(--u-ink, var(--text));
+}
 .ma-edge .ma-icon,
 .ma-group .ma-icon {
   fill: var(--text-muted);
@@ -73,14 +79,15 @@
 }
 .ma-edge path.line {
   fill: none;
-  stroke: var(--arrow);
-  stroke-width: 1.5;
+  stroke: var(--u-stroke, var(--arrow));
+  stroke-width: var(--u-sw, 1.5);
+  stroke-dasharray: var(--u-dash, none);
 }
 .ma-edge.dotted path.line {
-  stroke-dasharray: 5 5;
+  stroke-dasharray: var(--u-dash, 5 5);
 }
 .ma-edge.thick path.line {
-  stroke-width: 2.75;
+  stroke-width: var(--u-sw, 2.75);
 }
 .ma-edge path.hit {
   fill: none;

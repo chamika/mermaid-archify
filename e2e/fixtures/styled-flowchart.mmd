@@ -1,0 +1,20 @@
+---
+title: Styled Flowchart
+---
+flowchart LR
+  classDef hot fill:#f96,stroke:#9a3412,stroke-width:3px
+  classDef cold fill:#1e3a8a,stroke:#93c5fd,color:#fff
+  classDef database stroke:#a21caf,stroke-dasharray:4 3
+
+  web[Web App]:::cold --> api[Orders API]:::hot
+  api --> db[(Orders DB)]:::database
+  api -.-> queue{{Events}}
+  queue --> worker[Worker]
+  worker --> db
+  api --> docs[Runbook]
+
+  style worker fill:lightyellow,stroke:#ca8a04,font-style:italic
+  linkStyle 0 stroke:#16a34a,stroke-width:3px
+  linkStyle 2 stroke:#ea580c,stroke-dasharray:2 4
+  click docs "https://github.com/chamika/mermaid-archify" "Open the runbook"
+  click api href "javascript:alert(1)" "Handles checkout orders"

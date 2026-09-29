@@ -2,6 +2,7 @@ import { type JSX, createContext } from 'preact';
 import { memo } from 'preact/compat';
 import { useContext } from 'preact/hooks';
 import { ICON_CELLS, type IconSet, hasIcons, plainText, runs } from '../icons/fa';
+import { type IRStyle, isSafeColor } from '../ir/style';
 import { CAPTION_H, FONT, cells, charWidth, edgeLabelSize, textWidth } from '../layout/measure';
 import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { TYPE_ICON, TYPE_LABEL } from './icons';
@@ -28,6 +29,24 @@ export interface DiagramHandlers {
 
 const stroke = (t: string) => `var(--${t}-stroke)`;
 const fill = (t: string) => `var(--${t}-fill)`;
+
+/**
+ * Author styles as custom properties on the node/edge group. diagram.css reads
+ * them with the theme palette as fallback, so highlight states (more specific
+ * class rules) still win over author colours.
+ */
+function userVars(s: IRStyle | undefined): Record<string, string> | undefined {
+  if (!s) return undefined;
+  const v: Record<string, string> = {};
+  if (s.fill) v['--u-fill'] = s.fill;
+  if (s.stroke) v['--u-stroke'] = s.stroke;
+  if (s.strokeWidth !== undefined) v['--u-sw'] = `${s.strokeWidth}px`;
+  if (s.dash) v['--u-dash'] = s.dash;
+  if (s.color) v['--u-ink'] = s.color;
+  if (s.fontWeight) v['--u-fw'] = s.fontWeight;
+  if (s.fontStyle) v['--u-fs'] = s.fontStyle;
+  return v;
+}
 
 /** Rounded orthogonal polyline. */
 export function pathD(points: Pt[], radius = 8): string {
@@ -158,6 +177,9 @@ function GroupView({ g }: { g: SceneGroup }) {
   );
 }
 
+/** Caption tint: the type colour, or the label ink over an author fill. */
+const typeInk = (n: SceneNode) => (n.style?.color ? 'var(--u-ink)' : stroke(n.type));
+
 function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
   const lh = FONT.label * FONT.lineHeight;
   const caption = withCaption ? CAPTION_H : 0;
@@ -169,9 +191,9 @@ function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
       {withCaption && (
         <g>
           <g transform={`translate(${cx - (TYPE_LABEL[n.type].length * 6) / 2 - 9},${top + n.lines.length * lh + 1.5}) scale(0.68)`}>
-            <path class="icon" d={TYPE_ICON[n.type]} style={{ stroke: stroke(n.type) }} />
+            <path class="icon" d={TYPE_ICON[n.type]} style={{ stroke: typeInk(n) }} />
           </g>
-          <text class="caption" x={cx + 6} y={top + n.lines.length * lh + 10} text-anchor="middle" style={{ fill: stroke(n.type) }}>
+          <text class="caption" x={cx + 6} y={top + n.lines.length * lh + 10} text-anchor="middle" style={{ fill: typeInk(n) }}>
             {TYPE_LABEL[n.type]}
           </text>
         </g>
@@ -182,7 +204,7 @@ function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
 
 function Shape({ n }: { n: SceneNode }) {
   const { x, y, w, h } = n;
-  const st = { stroke: stroke(n.type), fill: fill(n.type) };
+  const st = { stroke: `var(--u-stroke, ${stroke(n.type)})`, fill: `var(--u-fill, ${fill(n.type)})` };
   const cx = x + w / 2;
   const cy = y + h / 2;
   switch (n.shape) {
@@ -281,7 +303,7 @@ function Shape({ n }: { n: SceneNode }) {
           )}
           {n.shape === 'actor' && (
             <g transform={`translate(${x + 10},${cy - 8})`}>
-              <path class="icon" d="M8 2.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" style={{ stroke: stroke(n.type) }} />
+              <path class="icon" d="M8 2.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" style={{ stroke: typeInk(n) }} />
             </g>
           )}
         </>
@@ -301,7 +323,8 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
       data-id={n.id}
       tabIndex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
-      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type]}` : undefined}
+      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type]}${n.link ? ', has link' : ''}` : undefined}
+      style={userVars(n.style)}
       onClick={(e) => h.onNodeClick?.(n.id, e as unknown as MouseEvent)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -314,7 +337,7 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
     >
       <Shape n={n} />
       {n.lines.length > 0 && <Label n={n} withCaption={withCaption} />}
-      {n.shape === 'end' || n.shape === 'start' ? <title>{n.shape}</title> : null}
+      {n.tooltip ? <title>{n.tooltip}</title> : n.shape === 'end' || n.shape === 'start' ? <title>{n.shape}</title> : null}
     </g>
   );
 }
@@ -333,6 +356,7 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
     <g
       class={`ma-edge ${e.stroke} ${cls}`}
       data-id={e.id}
+      style={userVars(e.style)}
       onClick={(ev) => h.onEdgeClick?.(e.id, ev as unknown as MouseEvent)}
       onPointerEnter={() => h.onEdgeEnter?.(e.id)}
       onPointerLeave={() => h.onEdgeLeave?.(e.id)}
@@ -357,10 +381,7 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
 }
 
 /** Accept only plain CSS colour syntax from diagram source; anything else gets the neutral tint. */
-function safeColor(c: string): string {
-  const v = c.trim();
-  return /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\)|[a-z]{3,20})$/i.test(v) ? v : 'var(--lane-stroke)';
-}
+const safeColor = (c: string): string => (isSafeColor(c) ? c.trim() : 'var(--lane-stroke)');
 
 /** Block condition text on a mask so lifelines never cross it. */
 function CondLabel({ x, y, text }: { x: number; y: number; text: string }) {

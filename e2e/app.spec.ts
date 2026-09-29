@@ -164,3 +164,53 @@ test('Font Awesome icons render inline and travel into exported HTML', async ({ 
   await offline.goto('http://exported.test/diagram.html');
   await expect(offline.locator('.ma-node[data-id="F"] .ma-icon')).toHaveCount(1);
 });
+
+test('author styles render; click links and tooltips appear in the details panel and exports', async ({ page, context }) => {
+  await replaceSource(page, readFileSync('e2e/fixtures/styled-flowchart.mmd', 'utf8'));
+  await expect(page.locator('.ma-node')).toHaveCount(6);
+  const fillOf = (id: string) => page.locator(`.ma-node[data-id="${id}"] .body`).first().evaluate((el) => getComputedStyle(el).fill);
+  expect(await fillOf('api')).toBe('rgb(255, 153, 102)');
+  expect(await fillOf('web')).toBe('rgb(30, 58, 138)');
+  expect(await page.locator('.ma-node[data-id="web"] text.label').evaluate((el) => getComputedStyle(el).fill)).toBe('rgb(255, 255, 255)');
+  expect(await page.locator('.ma-edge path.line').first().evaluate((el) => getComputedStyle(el).stroke)).toBe('rgb(22, 163, 74)');
+
+  // Focus highlight still wins over an author stroke width.
+  await page.locator('.ma-node[data-id="api"]').click();
+  expect(await page.locator('.ma-node[data-id="api"] .body').first().evaluate((el) => getComputedStyle(el).strokeWidth)).toBe('3px');
+  // The javascript: link is dropped; its tooltip is still shown.
+  await expect(page.locator('.ma-passport .tooltip')).toHaveText('Handles checkout orders');
+  await expect(page.locator('.ma-passport dd.href')).toHaveCount(0);
+
+  await page.locator('.ma-node[data-id="docs"]').click();
+  await expect(page.locator('.ma-passport .tooltip')).toHaveText('Open the runbook');
+  const a = page.locator('.ma-passport dd.href a');
+  await expect(a).toHaveAttribute('href', 'https://github.com/chamika/mermaid-archify');
+  await expect(a).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(page.locator('.ma-node[data-id="docs"] title')).toHaveText('Open the runbook');
+
+  // ⌘/Ctrl-click opens the link and leaves focus alone.
+  await page.keyboard.press('Escape');
+  await context.route('https://github.com/**', (route) => route.fulfill({ body: 'ok', contentType: 'text/plain' }));
+  const [popup] = await Promise.all([context.waitForEvent('page'), page.locator('.ma-node[data-id="docs"]').click({ modifiers: ['ControlOrMeta'] })]);
+  await popup.waitForLoadState();
+  expect(popup.url()).toBe('https://github.com/chamika/mermaid-archify');
+  await popup.close();
+  await expect(page.locator('.ma-passport')).toHaveCount(0);
+
+  // Exports carry the styles and never the unsafe link.
+  await page.getByRole('button', { name: 'Export' }).click();
+  const [svgDl] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: /SVG/ }).click()]);
+  const svg = readFileSync((await svgDl.path())!, 'utf8');
+  expect(svg).toContain('--u-fill: #f96');
+  expect(svg.toLowerCase()).not.toContain('javascript:');
+  await page.getByRole('button', { name: 'Export' }).click();
+  const [htmlDl] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Interactive HTML' }).click()]);
+  const html = readFileSync((await htmlDl.path())!, 'utf8');
+  const scene = JSON.parse(/<script type="application\/json" id="ma-scene">([\s\S]*?)<\/script>/.exec(html)![1]);
+  expect(JSON.stringify(scene).toLowerCase()).not.toContain('javascript:');
+  const offline = await context.newPage();
+  await offline.route('http://exported.test/**', (route) => route.fulfill({ body: html, contentType: 'text/html' }));
+  await offline.goto('http://exported.test/diagram.html');
+  await offline.locator('.ma-node[data-id="docs"]').click();
+  await expect(offline.locator('.ma-passport dd.href a')).toHaveAttribute('href', 'https://github.com/chamika/mermaid-archify');
+});

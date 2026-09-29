@@ -1,4 +1,7 @@
 import type { IconSet } from '../icons/fa';
+import type { IRStyle } from './style';
+
+export type { IRStyle };
 
 /**
  * DiagramIR — the syntax-neutral Intermediate Representation every Mermaid
@@ -68,6 +71,12 @@ export interface IRNode {
   hint?: string;
   /** How `type` was decided; `guess` types survive only in architecture-like diagrams. */
   certainty?: Certainty;
+  /** Author styling (`style`, `classDef`), already sanitized. */
+  style?: IRStyle;
+  /** `click` target, http(s) or relative only. */
+  link?: string;
+  /** `click` tooltip, plain text. */
+  tooltip?: string;
 }
 
 export type Certainty = 'explicit' | 'guess' | 'none';
@@ -90,6 +99,8 @@ export interface IREdge {
   /** Architecture-beta side hints. */
   fromSide?: Side;
   toSide?: Side;
+  /** Author styling (`linkStyle`, edge classes), already sanitized. */
+  style?: IRStyle;
 }
 
 export interface IRGroup {

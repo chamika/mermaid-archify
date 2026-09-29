@@ -1,4 +1,5 @@
 import type { ElkExtendedEdge, ElkNode, ElkPort, LayoutOptions } from 'elkjs/lib/elk-api';
+import { settleInk } from '../ir/style';
 import type { DiagramIR, Direction, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { edgeLabelSize, nodeSize } from './measure';
@@ -185,6 +186,9 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
     shape: n.shape,
     parent: n.parent,
     ...boxes.get(n.id)!,
+    ...(n.style && { style: settleInk(n.style) }),
+    ...(n.link && { link: n.link }),
+    ...(n.tooltip && { tooltip: n.tooltip }),
   }));
 
   const depthOf = (id: string | undefined): number => {
@@ -235,6 +239,7 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
       arrowStart: e.arrowStart,
       ...(e.marker && { arrowStyle: e.marker }),
       order: order.get(e.id) ?? 0,
+      ...(e.style && { style: e.style }),
     });
   }
 

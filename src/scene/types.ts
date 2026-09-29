@@ -1,5 +1,5 @@
 import type { IconSet } from '../icons/fa';
-import type { DiagramKind, EdgeStroke, NodeShape, SemanticType, SeqBlockType } from '../ir/types';
+import type { DiagramKind, EdgeStroke, IRStyle, NodeShape, SemanticType, SeqBlockType } from '../ir/types';
 
 /** Scene — the IR plus absolute geometry. The viewer consumes only this. */
 
@@ -23,6 +23,11 @@ export interface SceneNode extends Box {
   type: SemanticType;
   shape: NodeShape;
   parent?: string;
+  /** Author styling; `color` is set only over an opaque fill. */
+  style?: IRStyle;
+  /** `click` target (http(s) or relative). */
+  link?: string;
+  tooltip?: string;
 }
 
 export interface SceneGroup extends Box {
@@ -45,6 +50,8 @@ export interface SceneEdge {
   arrowStyle?: 'arrow' | 'open' | 'cross' | 'async' | 'circle';
   /** Order for trace playback (sequence message index, else topological-ish). */
   order: number;
+  /** Author styling (stroke only; label colours stay themed). */
+  style?: IRStyle;
 }
 
 export interface SceneLifeline {

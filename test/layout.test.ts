@@ -24,6 +24,18 @@ describe('ELK layout', () => {
     expect(s.edges.every((e) => !e.label || e.labelBox)).toBe(true);
   });
 
+  test('author styles, links and tooltips reach the scene', async () => {
+    const s = await scene(
+      'flowchart LR\n  A --> B\n  classDef dark fill:#1e3a8a\n  class A dark\n  style B stroke:red,color:#fff\n  linkStyle 0 stroke:green\n  click A "https://example.com" "Tip"',
+    );
+    const a = s.nodes.find((n) => n.id === 'A')!;
+    // An opaque fill gets contrast-picked ink.
+    expect(a).toMatchObject({ style: { fill: '#1e3a8a', color: '#ffffff' }, link: 'https://example.com/', tooltip: 'Tip' });
+    // Without a fill, a fixed ink would break one theme, so it is dropped.
+    expect(s.nodes.find((n) => n.id === 'B')!.style).toEqual({ stroke: 'red' });
+    expect(s.edges[0].style).toEqual({ stroke: 'green' });
+  });
+
   test('state sample: start first, end last', async () => {
     const s = await scene(sample('state'));
     checkInvariants(s);
