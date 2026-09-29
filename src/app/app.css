@@ -114,6 +114,10 @@ body.resizing {
   grid-template-columns: var(--split) auto 1fr;
   min-height: 0;
 }
+.panes.code-hidden {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
 .editor-pane {
   position: relative;
   min-width: 0;

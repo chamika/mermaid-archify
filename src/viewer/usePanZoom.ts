@@ -90,9 +90,20 @@ export function usePanZoom(viewport: { current: HTMLElement | null }): PanZoom {
   useEffect(() => {
     const el = viewport.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
+    let last = { w: el.clientWidth, h: el.clientHeight };
+    // Keep the view's centre point fixed as the viewport resizes (editor shown/hidden, gutter drag).
+    const ro = new ResizeObserver(() => {
+      const next = { w: el.clientWidth, h: el.clientHeight };
+      if (last.w && last.h && (next.w !== last.w || next.h !== last.h)) {
+        const dx = (next.w - last.w) / 2;
+        const dy = (next.h - last.h) / 2;
+        setT((cur) => ({ ...cur, x: cur.x + dx, y: cur.y + dy }));
+      }
+      last = next;
+      setSize(next);
+    });
     ro.observe(el);
-    setSize({ w: el.clientWidth, h: el.clientHeight });
+    setSize(last);
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
