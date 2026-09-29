@@ -78,6 +78,18 @@ body.resizing {
   border-color: var(--arrow-emphasis);
   color: var(--arrow-emphasis);
 }
+.tb-btn.toggle[aria-pressed='true'] {
+  border-color: var(--arrow-emphasis);
+  color: var(--arrow-emphasis);
+  background: color-mix(in srgb, var(--arrow-emphasis) 14%, transparent);
+}
+.tb-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tb-btn:disabled:hover {
+  background: transparent;
+}
 .sample {
   display: flex;
   align-items: center;

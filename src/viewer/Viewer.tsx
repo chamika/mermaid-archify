@@ -23,6 +23,10 @@ export interface ViewerProps {
   /** Node to focus on first render (deep link). */
   initialFocus?: string;
   onFocusChange?: (id: string | undefined) => void;
+  /** Called when an edge is clicked to pin it (not when it is unpinned). */
+  onEdgePin?: (id: string) => void;
+  /** Elements to highlight from outside (the editor's cursor line); panned into view when off-screen. */
+  linked?: Lit;
   /** Builds the shareable link for a focused node. */
   linkFor?: (id: string) => string;
   exports?: ExportAction[];
@@ -50,7 +54,17 @@ function currentTheme(): Theme {
 const isTyping = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || !!t.closest('.cm-editor'));
 
-export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = [], toolbarExtra, showTitle = true }: ViewerProps) {
+export function Viewer({
+  scene,
+  initialFocus,
+  onFocusChange,
+  onEdgePin,
+  linked,
+  linkFor,
+  exports = [],
+  toolbarExtra,
+  showTitle = true,
+}: ViewerProps) {
   injectCss();
   const viewportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -69,6 +83,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
   const [showMap, setShowMap] = useState(true);
   const [theme, setTheme] = useState<Theme>(currentTheme);
   const [toast, setToast] = useState<string>();
+  const [linkedLit, setLinkedLit] = useState<Lit>();
 
   const setFocus = useCallback(
     (id: string | undefined) => {
@@ -104,6 +119,24 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
     setTraceStep(undefined);
   }, [scene]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // --- linked highlight: replaces any selection, pans only when it is off-screen ---
+  useEffect(() => {
+    if (!linked || (!linked.nodes.size && !linked.edges.size)) {
+      setLinkedLit(undefined);
+      return;
+    }
+    setLinkedLit(linked);
+    if (focus) setFocus(undefined);
+    setPinnedEdge(undefined);
+    setRouteEnds([]);
+    setTraceStep(undefined);
+    const box = litBounds(scene, linked);
+    const { t, size } = pz;
+    if (!box || !size.w) return;
+    const [x0, y0, x1, y1] = [box.x * t.k + t.x, box.y * t.k + t.y, (box.x + box.w) * t.k + t.x, (box.y + box.h) * t.k + t.y];
+    if (x0 < 0 || y0 < 0 || x1 > size.w || y1 > size.h) pz.centerOn(box);
+  }, [linked]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- route probe ---
   const routeLit = useMemo<Lit | undefined | null>(() => {
     if (routeEnds.length < 2) return null;
@@ -122,6 +155,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       const e = scene.edges.find((x) => x.id === pinnedEdge)!;
       return { ...h, lit: { nodes: new Set([e.from, e.to]), edges: new Set([e.id]) }, mode: 'dimmed' };
     }
+    if (linkedLit) return { ...h, lit: linkedLit, mode: 'dimmed' };
     if (traceStep !== undefined) return h;
     if (hoverNode) return { ...h, lit: neighbourhood(adj, hoverNode), mode: 'previewing' };
     if (hoverEdge) {
@@ -129,7 +163,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       if (e) return { ...h, lit: { nodes: new Set([e.from, e.to]), edges: new Set([e.id]) }, mode: 'previewing' };
     }
     return h;
-  }, [adj, focus, hoverNode, hoverEdge, pinnedEdge, routeEnds, routeLit, traceStep, scene]);
+  }, [adj, focus, hoverNode, hoverEdge, pinnedEdge, linkedLit, routeEnds, routeLit, traceStep, scene]);
 
   // --- trace playback: one bounded pass over edge order ---
   const maxOrder = useMemo(() => Math.max(-1, ...scene.edges.map((e) => e.order)), [scene]);
@@ -145,6 +179,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
   }, [traceStep, maxOrder]);
 
   const clearAll = useCallback(() => {
+    setLinkedLit(undefined);
     setFocus(undefined);
     setPinnedEdge(undefined);
     setRouteEnds([]);
@@ -156,6 +191,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
     (id: string, center = false) => {
       setRouteEnds([]);
       setPinnedEdge(undefined);
+      setLinkedLit(undefined);
       setFocus(id);
       const n = nodeById.get(id);
       if (center && n) pz.centerOn(n, { minK: 0.9, offsetX: pz.size.w > 700 ? 320 : 0 });
@@ -168,6 +204,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       if (pz.didPan()) return;
       e.stopPropagation();
       setMenuOpen(false);
+      setLinkedLit(undefined);
       // Re-checked here: an exported file's embedded Scene could be hand-edited.
       const link = safeLink(nodeById.get(id)?.link);
       if (link && (e.metaKey || e.ctrlKey)) {
@@ -198,9 +235,11 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       e.stopPropagation();
       setFocus(undefined);
       setRouteEnds([]);
-      setPinnedEdge((p) => (p === id ? undefined : id));
+      setLinkedLit(undefined);
+      if (pinnedEdge !== id) onEdgePin?.(id);
+      setPinnedEdge(pinnedEdge === id ? undefined : id);
     },
-    [pz, setFocus],
+    [pz, pinnedEdge, setFocus, onEdgePin],
   );
 
   const handlers = useMemo(
@@ -451,6 +490,19 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       {status && <div class="ma-chrome ma-status" role="status">{status}</div>}
     </div>
   );
+}
+
+/** Scene-space bounds of the lit nodes and edges. */
+function litBounds(scene: Scene, lit: Lit) {
+  const pts: { x: number; y: number }[] = [];
+  for (const n of scene.nodes) if (lit.nodes.has(n.id)) pts.push(n, { x: n.x + n.w, y: n.y + n.h });
+  for (const e of scene.edges) if (lit.edges.has(e.id)) pts.push(...e.points);
+  if (!pts.length) return undefined;
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
 }
 
 const label = (n: SceneNode | undefined) => (n ? (plainText(n.label) || n.id).replace(/\n/g, ' ') : '');

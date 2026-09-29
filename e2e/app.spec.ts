@@ -237,3 +237,58 @@ test('author styles render; click links and tooltips appear in the details panel
   await offline.locator('.ma-node[data-id="docs"]').click();
   await expect(offline.locator('.ma-passport dd.href a')).toHaveAttribute('href', 'https://github.com/chamika/mermaid-archify');
 });
+
+test.describe('code ↔ diagram linking', () => {
+  const linkedLine = (page: Page) => page.locator('.cm-linkedLine');
+
+  test('diagram → code and code → diagram, per diagram kind', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Link code' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Flowchart: a node reveals its declaration, an edge its own line.
+    await page.locator('.ma-node[data-id="api"]').click();
+    await expect(linkedLine(page)).toHaveText('  api[[Checkout API]]');
+    await page.locator('.ma-edge[data-id="L_api_db_0"] .label-text').click();
+    await expect(linkedLine(page)).toHaveText('  api -->|SQL| db');
+
+    // Cursor in the code lights the elements that line produces.
+    await page.locator('.cm-line', { hasText: 'queue -.->|consume| worker' }).click();
+    await expect(linkedLine(page)).toHaveCount(0);
+    await expect(page.locator('.ma-svg')).toHaveClass(/dimmed/);
+    await expect(page.locator('.ma-edge[data-id="L_queue_worker_0"]')).toHaveClass(/lit/);
+    await expect(page.locator('.ma-node[data-id="worker"]')).toHaveClass(/lit/);
+    await expect(page.locator('.ma-node[data-id="api"]')).not.toHaveClass(/lit/);
+
+    for (const [sample, node, declaration, codeLine, edge] of [
+      ['sequence', 'C', 'participant C as Redis cache', 'C-->>A: miss', 'm3'],
+      ['state', 'Failed', 'Running --> Failed: step error', 'Failed --> Queued: retry', 't8'],
+      ['architecture', 'db', 'service db(database)[Postgres] in data', 'fanout:B --> T:db', 'e4'],
+    ] as const) {
+      await pickSample(page, sample);
+      await expect(page.locator(`.ma-node[data-id="${node}"]`).first()).toBeVisible();
+      await page.locator(`.ma-node[data-id="${node}"]`).first().click();
+      await expect(linkedLine(page)).toHaveText(`  ${declaration}`);
+      await page.locator('.cm-line', { hasText: codeLine }).click();
+      await expect(page.locator(`.ma-edge[data-id="${edge}"]`)).toHaveClass(/lit/);
+    }
+  });
+
+  test('the toggle turns linking off, and it stays off after a reload', async ({ page }) => {
+    const toggle = page.getByRole('button', { name: 'Link code' });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('.ma-node[data-id="api"]').click();
+    await expect(page.locator('.ma-passport')).toBeVisible();
+    await expect(linkedLine(page)).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await page.locator('.cm-line', { hasText: 'api -->|SQL| db' }).click();
+    await expect(page.locator('.ma-svg')).not.toHaveClass(/dimmed/);
+
+    await page.reload();
+    await expect(page.locator('.ma-svg')).toBeVisible({ timeout: 20_000 });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+    // Hiding the code disables the toggle.
+    await page.getByRole('button', { name: 'Hide code' }).click();
+    await expect(toggle).toBeDisabled();
+  });
+});

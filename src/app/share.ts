@@ -1,6 +1,7 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 
 const STORE_KEY = 'mermaid-archify:source';
+const LINK_KEY = 'mermaid-archify:link';
 
 export function readHash(): { src?: string; focus?: string } {
   const params = new URLSearchParams(location.hash.slice(1));
@@ -30,5 +31,22 @@ export function save(source: string) {
     localStorage.setItem(STORE_KEY, source);
   } catch {
     /* storage unavailable (private mode); autosave is a convenience only */
+  }
+}
+
+/** Code ↔ diagram linking is on unless the user turned it off. */
+export function loadLinking(): boolean {
+  try {
+    return localStorage.getItem(LINK_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveLinking(on: boolean) {
+  try {
+    localStorage.setItem(LINK_KEY, on ? 'on' : 'off');
+  } catch {
+    /* storage unavailable; the toggle still works for this session */
   }
 }

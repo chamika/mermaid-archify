@@ -9,7 +9,8 @@ import { SAMPLES } from '../samples';
 import type { Scene } from '../scene/types';
 import { type ExportAction, Viewer } from '../viewer/Viewer';
 import { Editor } from './Editor';
-import { loadSaved, readHash, save, shareUrl } from './share';
+import { loadLinking, loadSaved, readHash, save, saveLinking, shareUrl } from './share';
+import { buildSourceMap } from './sourceMap';
 
 interface Problem {
   message: string;
@@ -21,11 +22,16 @@ const initial = readHash();
 export function App() {
   const [source, setSource] = useState(() => initial.src ?? loadSaved() ?? SAMPLES[0].source);
   const [scene, setScene] = useState<Scene>();
+  /** The source `scene` was built from; lags `source` while an edit is being laid out. */
+  const [sceneSource, setSceneSource] = useState<string>();
   const [problem, setProblem] = useState<Problem>();
   const [busy, setBusy] = useState(false);
   const [split, setSplit] = useState(36);
   const [editorOpen, setEditorOpen] = useState(true);
   const [notice, setNotice] = useState<string>();
+  const [linking, setLinking] = useState(loadLinking);
+  const [cursorLine, setCursorLine] = useState<number>();
+  const [reveal, setReveal] = useState<{ line: number }>();
   const focusRef = useRef<string | undefined>(initial.focus);
   const run = useRef(0);
 
@@ -39,6 +45,7 @@ export function App() {
         const next = await layout(ir, browserElk());
         if (ticket !== run.current) return;
         setScene(next);
+        setSceneSource(source);
         setProblem(undefined);
       } catch (err) {
         if (ticket !== run.current) return;
@@ -92,9 +99,41 @@ export function App() {
     [source],
   );
 
-  const onFocusChange = useCallback((id: string | undefined) => {
-    focusRef.current = id;
-  }, []);
+  // Two-way linking, only while the map matches the text in the editor.
+  const linkActive = linking && editorOpen;
+  const sourceMap = useMemo(
+    () => (linkActive && scene && sceneSource === source ? buildSourceMap(source, scene) : undefined),
+    [linkActive, scene, sceneSource, source],
+  );
+  const linked = cursorLine === undefined ? undefined : sourceMap?.atLine.get(cursorLine);
+
+  const revealDefinition = useCallback(
+    (id: string) => {
+      const line = sourceMap?.lineOf.get(id);
+      if (!line) return;
+      setCursorLine(undefined);
+      setReveal({ line });
+    },
+    [sourceMap],
+  );
+
+  const onFocusChange = useCallback(
+    (id: string | undefined) => {
+      focusRef.current = id;
+      if (id) revealDefinition(id);
+    },
+    [revealDefinition],
+  );
+
+  const toggleLinking = () => {
+    const next = !linking;
+    setLinking(next);
+    saveLinking(next);
+    if (!next) {
+      setCursorLine(undefined);
+      setReveal(undefined);
+    }
+  };
 
   // Split-pane drag.
   const dragging = useRef(false);
@@ -131,13 +170,30 @@ export function App() {
         <button class="tb-btn" aria-pressed={editorOpen} onClick={() => setEditorOpen((v) => !v)} title="Show or hide the editor">
           {editorOpen ? 'Hide code' : 'Show code'}
         </button>
+        <button
+          class="tb-btn toggle"
+          aria-pressed={linkActive}
+          disabled={!editorOpen}
+          onClick={toggleLinking}
+          title={
+            editorOpen
+              ? 'Link code and diagram: clicking an element reveals its line; the cursor line highlights its elements'
+              : 'Show the code to link it with the diagram'
+          }
+        >
+          Link code
+        </button>
         <label class="sample">
           <span>Sample</span>
           <select
             value={sampleId}
             onChange={(e) => {
               const s = SAMPLES.find((x) => x.id === (e.target as HTMLSelectElement).value);
-              if (s) setSource(s.source);
+              if (s) {
+                setSource(s.source);
+                setCursorLine(undefined);
+                setReveal(undefined);
+              }
             }}
           >
             <option value="" disabled>
@@ -161,7 +217,14 @@ export function App() {
       <main class={editorOpen ? 'panes' : 'panes code-hidden'}>
         {editorOpen && (
           <section class="editor-pane" aria-label="Mermaid editor">
-            <Editor value={source} onChange={setSource} errorLine={problem?.line} errorMessage={problem?.message} />
+            <Editor
+              value={source}
+              onChange={setSource}
+              errorLine={problem?.line}
+              errorMessage={problem?.message}
+              onCursorLine={setCursorLine}
+              reveal={linkActive ? reveal : undefined}
+            />
             {problem && (
               <div class="problem" role="alert">
                 <strong>{problem.line ? `Line ${problem.line}` : 'Error'}</strong>
@@ -189,6 +252,8 @@ export function App() {
               scene={scene}
               initialFocus={initial.focus}
               onFocusChange={onFocusChange}
+              onEdgePin={revealDefinition}
+              linked={linkActive ? linked : undefined}
               linkFor={(id) => shareUrl(source, id)}
               exports={exportsList}
             />
