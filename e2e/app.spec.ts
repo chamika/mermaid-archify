@@ -238,6 +238,50 @@ test('author styles render; click links and tooltips appear in the details panel
   await expect(offline.locator('.ma-passport dd.href a')).toHaveAttribute('href', 'https://github.com/chamika/mermaid-archify');
 });
 
+test('layout settings write front-matter, re-lay out, and travel in the share link', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await replaceSource(page, 'flowchart LR\n  A[Alpha] --> B[Beta] --> C[Gamma]');
+  await expect(page.locator('.ma-node')).toHaveCount(3);
+  const pos = (p: Page, id: string) => p.locator(`.ma-node[data-id="${id}"]`).boundingBox();
+  const lrA = (await pos(page, 'A'))!;
+  const lrC = (await pos(page, 'C'))!;
+  expect(lrC.x).toBeGreaterThan(lrA.x); // flows left to right
+
+  const toggle = page.getByRole('button', { name: 'Layout settings' });
+  await toggle.click();
+  const panel = page.getByRole('dialog', { name: 'Layout settings' });
+  await panel.getByRole('button', { name: 'TB', exact: true }).click();
+  await panel.getByRole('button', { name: 'Splines' }).click();
+  await expect(page.locator('.cm-content')).toContainText('archify:');
+  await expect(page.locator('.cm-content')).toContainText('direction: TB');
+  await expect(page.locator('.cm-content')).toContainText('routing: splines');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(async () => {
+    const [a, c] = [(await pos(page, 'A'))!, (await pos(page, 'C'))!];
+    expect(c.y).toBeGreaterThan(a.y + a.height); // now top to bottom
+  }).toPass({ timeout: 5_000 });
+
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await page.getByRole('button', { name: 'Copy share link' }).click();
+  const fresh = await context.newPage();
+  await fresh.goto(page.url());
+  await expect(fresh.locator('.ma-node[data-id="C"]')).toBeVisible({ timeout: 20_000 });
+  const [a, c] = [(await pos(fresh, 'A'))!, (await pos(fresh, 'C'))!];
+  expect(c.y).toBeGreaterThan(a.y + a.height);
+  await expect(fresh.locator('.cm-content')).toContainText('routing: splines');
+
+  await toggle.click();
+  await panel.getByRole('button', { name: 'Reset' }).click();
+  await expect(page.locator('.cm-content')).not.toContainText('archify');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('layout settings are disabled for sequence diagrams', async ({ page }) => {
+  await pickSample(page, 'sequence');
+  await expect(page.getByRole('button', { name: 'Layout settings' })).toBeDisabled();
+});
+
 test.describe('code ↔ diagram linking', () => {
   const linkedLine = (page: Page) => page.locator('.cm-linkedLine');
 

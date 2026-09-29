@@ -3,13 +3,15 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { layout } from '../src/layout';
 import { textWidth } from '../src/layout/measure';
+import { flattenBeziers, toElkGraph } from '../src/layout/elkGraph';
+import type { LayoutSettings } from '../src/layout/settings';
 import { parseMermaid } from '../src/parse';
 import type { Scene } from '../src/scene/types';
 import { checkScene, overlaps } from './helpers/invariants';
 
 const elk = new ELK();
 const sample = (name: string) => readFileSync(`${process.cwd()}/src/samples/${name}.mmd`, 'utf8');
-const scene = async (src: string) => layout(await parseMermaid(src), elk);
+const scene = async (src: string, settings?: LayoutSettings) => layout(await parseMermaid(src), elk, settings);
 
 const checkInvariants = (s: Scene) => checkScene(s);
 
@@ -199,4 +201,74 @@ test('ER/class layering ignores mention order: only real cycles are reversed', a
   expect(y('Customer')).toBeLessThan(y('Order'));
   expect(y('Order')).toBeLessThan(y('Payment'));
   checkInvariants(s);
+});
+describe('layout settings', () => {
+  const flow = sample('architecture-flowchart');
+  const x = (s: Scene, id: string) => s.nodes.find((n) => n.id === id)!.x;
+
+  test('direction override flips the flow', async () => {
+    const s = await scene(flow, { direction: 'RL' });
+    checkInvariants(s);
+    expect(x(s, 'user')).toBeGreaterThan(x(s, 'db'));
+    const tb = await scene(flow, { direction: 'TB' });
+    const y = (id: string) => tb.nodes.find((n) => n.id === id)!.y;
+    expect(y('user')).toBeLessThan(y('db'));
+  });
+
+  test('spacing grows the scene, inside groups too', async () => {
+    const base = await scene(flow);
+    const roomy = await scene(flow, { nodeSpacing: 120, rankSpacing: 200 });
+    checkInvariants(roomy);
+    expect(roomy.width).toBeGreaterThan(base.width); // ranks run left to right
+    expect(roomy.height).toBeGreaterThan(base.height); // nodes within a rank (here all in groups)
+    const gap = (s: Scene) => {
+      const [a, b] = ['cache', 'db'].map((id) => s.nodes.find((n) => n.id === id)!);
+      return b.y - (a.y + a.h);
+    };
+    expect(gap(roomy)).toBeGreaterThan(gap(base));
+  });
+
+  test('splines are sampled into smooth routes that still attach', async () => {
+    const s = await scene(flow, { routing: 'splines' });
+    checkInvariants(s);
+    expect(s.edges.some((e) => e.points.length > 4)).toBe(true);
+    // A diagonal segment exists: not every step is axis-aligned.
+    const diagonal = s.edges.some((e) => e.points.some((p, i) => i && p.x !== e.points[i - 1].x && p.y !== e.points[i - 1].y));
+    expect(diagonal).toBe(true);
+  });
+
+  test('flattenBeziers keeps endpoints and ignores non-cubic chains', () => {
+    const ctrl = [{ x: 0, y: 0 }, { x: 0, y: 10 }, { x: 10, y: 10 }, { x: 10, y: 20 }];
+    const out = flattenBeziers(ctrl, 4);
+    expect(out).toHaveLength(5);
+    expect(out[0]).toEqual(ctrl[0]);
+    expect(out.at(-1)).toEqual(ctrl[3]);
+    expect(flattenBeziers(ctrl.slice(0, 3))).toEqual(ctrl.slice(0, 3));
+  });
+
+  test('settings reach the ELK graph', async () => {
+    const ir = await parseMermaid(flow);
+    const opts = toElkGraph(ir, { routing: 'polyline', placement: 'brandes-koepf', nodeSpacing: 88 }).graph.layoutOptions!;
+    expect(opts).toMatchObject({
+      'elk.edgeRouting': 'POLYLINE',
+      'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+      'elk.spacing.nodeNode': '88',
+      'elk.spacing.edgeNode': '48',
+    });
+    expect(toElkGraph(ir).graph.layoutOptions).toMatchObject({ 'elk.edgeRouting': 'ORTHOGONAL', 'elk.spacing.nodeNode': '44' });
+  });
+
+  test('layout is deterministic for every placement strategy', async () => {
+    for (const placement of ['network-simplex', 'brandes-koepf', 'linear-segments', 'simple'] as const) {
+      const a = await scene(flow, { placement, routing: 'splines' });
+      const b = await scene(flow, { placement, routing: 'splines' });
+      checkInvariants(a);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+
+  test('sequence diagrams ignore settings', async () => {
+    const src = sample('sequence');
+    expect(await scene(src, { direction: 'TB', nodeSpacing: 160 })).toEqual(await scene(src));
+  });
 });
