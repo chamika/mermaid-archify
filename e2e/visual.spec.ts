@@ -13,6 +13,8 @@ const CURATED: [string, string][] = [
   ['sample-sequence', readFileSync('src/samples/sequence.mmd', 'utf8')],
   ['sample-state', readFileSync('src/samples/state.mmd', 'utf8')],
   ['sample-architecture', readFileSync('src/samples/architecture-beta.mmd', 'utf8')],
+  ['sample-er', readFileSync('src/samples/er.mmd', 'utf8')],
+  ['sample-class', readFileSync('src/samples/class.mmd', 'utf8')],
   ['styled-flowchart', readFileSync('e2e/fixtures/styled-flowchart.mmd', 'utf8')],
   ...(
     [
@@ -28,6 +30,10 @@ const CURATED: [string, string][] = [
       'mermaid-docs/state-017', // concurrent regions
       'mermaid-demos/architecture-008', // many labelled edges
       'mermaid-docs/architecture-004', // groups, junction fan-out
+      'mermaid-docs/er-012', // keys and comments, every column
+      'mermaid-docs/er-015', // nested subgraphs
+      'mermaid-demos/class-004', // generics, multiplicities, every relation type
+      'mermaid-docs/class-017', // lollipop interfaces
     ] as const
   ).map((name): [string, string] => [name.replace('/', '__'), source(name)]),
 ];

@@ -70,3 +70,16 @@ export function cleanLabel(raw: unknown, { icons = false }: CleanOptions = {}): 
     .filter(Boolean)
     .join('\n');
 }
+
+/**
+ * Decode code-like text (ER attribute types, class members) without treating
+ * `<…>` as markup: `List<int>` must survive. Line breaks become spaces.
+ */
+export function decodeText(raw: unknown): string {
+  return decodeMermaidEntities(String(raw ?? ''))
+    .replaceAll(BR, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e: string) => ENTITIES[e])
+    .replace(/\s+/g, ' ')
+    .trim();
+}

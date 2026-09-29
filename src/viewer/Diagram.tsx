@@ -3,7 +3,8 @@ import { memo } from 'preact/compat';
 import { useContext } from 'preact/hooks';
 import { ICON_CELLS, type IconSet, hasIcons, plainText, runs } from '../icons/fa';
 import { type IRStyle, isSafeColor } from '../ir/style';
-import { CAPTION_H, FONT, cells, charWidth, edgeLabelSize, textWidth } from '../layout/measure';
+import type { EndMark } from '../ir/types';
+import { CAPTION_H, FONT, ROW, cells, charWidth, compartmentMetrics, edgeLabelSize, fitCell, textWidth } from '../layout/measure';
 import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { TYPE_ICON, TYPE_LABEL } from './icons';
 
@@ -86,9 +87,43 @@ function Markers() {
       <marker id="ma-circle" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
         <circle class="ma-marker" cx="5" cy="5" r="3.5" />
       </marker>
+      {/* ER crow's feet and UML relation ends: 20×20, tip at x=20 where the line meets the node. */}
+      {Object.entries(END_MARKS).map(([id, body]) => (
+        <marker key={id} id={`ma-${id}`} viewBox="0 0 20 20" refX="20" refY="10" markerWidth="20" markerHeight="20" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+          {body}
+        </marker>
+      ))}
     </defs>
   );
 }
+
+const bar = (x: number) => `M${x},3 V17`;
+const FOOT = 'M9,10 L20,3 M9,10 L20,17 M9,10 H20';
+
+/** Marker bodies. `open` strokes only; `hollow` strokes over the canvas colour so the line stops at the shape. */
+const END_MARKS: Record<EndMark, JSX.Element> = {
+  one: <path class="ma-marker open" d={`${bar(10)} ${bar(15)}`} />,
+  zeroOrOne: (
+    <>
+      <path class="ma-marker open" d={bar(15)} />
+      <circle class="ma-marker hollow" cx="6" cy="10" r="4" />
+    </>
+  ),
+  oneOrMore: <path class="ma-marker open" d={`${FOOT} ${bar(6)}`} />,
+  zeroOrMore: (
+    <>
+      <path class="ma-marker open" d={FOOT} />
+      <circle class="ma-marker hollow" cx="4.5" cy="10" r="4" />
+    </>
+  ),
+  inherit: <path class="ma-marker hollow" d="M19.5,10 L5,3 L5,17 z" />,
+  compose: <path class="ma-marker" d="M19.5,10 L11,5 L2.5,10 L11,15 z" />,
+  aggregate: <path class="ma-marker hollow" d="M19.5,10 L11,5 L2.5,10 L11,15 z" />,
+  open: <path class="ma-marker open" d="M9,4 L19.5,10 L9,16" />,
+  lollipop: <circle class="ma-marker hollow" cx="13" cy="10" r="6" />,
+};
+
+const markerUrl = (m: EndMark | undefined) => (m ? `url(#ma-${m})` : undefined);
 
 const IconContext = createContext<IconSet>({});
 
@@ -202,6 +237,42 @@ function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
   );
 }
 
+/** Title, «annotation» and aligned rows of a compartment box; same metrics the layout used. */
+function CompartmentText({ n }: { n: SceneNode }) {
+  const m = compartmentMetrics(n.label, n.annotation, n.compartments);
+  const lh = FONT.label * FONT.lineHeight;
+  const cx = n.x + n.w / 2;
+  const top = n.y + ROW.headPad + (n.annotation ? ROW.annotationH : 0);
+  const sections = (n.compartments ?? []).filter((c) => c.rows.length);
+  return (
+    <>
+      {n.annotation && (
+        <text class="caption annotation" x={cx} y={n.y + ROW.headPad + 10} text-anchor="middle">
+          «{n.annotation}»
+        </text>
+      )}
+      <RichText lines={m.lines} x={cx} y0={top + lh - 4} lh={lh} size={FONT.label} cls="label" />
+      {sections.map((c, i) =>
+        c.rows.map((row, j) => (
+          <text
+            key={`${i}-${j}`}
+            class={['row', row.style].filter(Boolean).join(' ')}
+            y={n.y + m.sections[i].y + ROW.sectionPad + j * ROW.h + ROW.h * 0.7}
+          >
+            {row.cells.map((cell, k) =>
+              cell ? (
+                <tspan key={k} class={`c-${c.cols[k]}`} x={n.x + m.sections[i].colX[k]}>
+                  {fitCell(cell)}
+                </tspan>
+              ) : null,
+            )}
+          </text>
+        )),
+      )}
+    </>
+  );
+}
+
 function Shape({ n }: { n: SceneNode }) {
   const { x, y, w, h } = n;
   const st = { stroke: `var(--u-stroke, ${stroke(n.type)})`, fill: `var(--u-fill, ${fill(n.type)})` };
@@ -271,6 +342,24 @@ function Shape({ n }: { n: SceneNode }) {
           <rect class="body note" x={x} y={y} width={w} height={h} rx={4} />
         </>
       );
+    case 'compartment': {
+      const m = compartmentMetrics(n.label, n.annotation, n.compartments);
+      const r = 7;
+      // Without rows the title band is the whole box, rounded all round.
+      const head = m.sections.length
+        ? `M${x},${y + m.headH} V${y + r} a${r},${r} 0 0 1 ${r},-${r} H${x + w - r} a${r},${r} 0 0 1 ${r},${r} V${y + m.headH} Z`
+        : `M${x},${y + r} a${r},${r} 0 0 1 ${r},-${r} H${x + w - r} a${r},${r} 0 0 1 ${r},${r} V${y + h - r} a${r},${r} 0 0 1 -${r},${r} H${x + r} a${r},${r} 0 0 1 -${r},-${r} Z`;
+      return (
+        <>
+          <rect class="mask" x={x} y={y} width={w} height={h} rx={r} />
+          <rect class="body" x={x} y={y} width={w} height={h} rx={r} style={st} />
+          <path class="head" d={head} style={{ fill: st.stroke }} />
+          {m.sections.map((sec, i) => (
+            <path key={i} class="body divider" d={`M${x},${y + sec.y} H${x + w}`} style={{ ...st, fill: 'none' }} />
+          ))}
+        </>
+      );
+    }
     case 'text':
       // Borderless text; an invisible body keeps hit-testing and focus rings working.
       return <rect class="body text-only" x={x} y={y} width={w} height={h} rx={4} />;
@@ -315,7 +404,7 @@ function Shape({ n }: { n: SceneNode }) {
 function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers }) {
   // A caption names the component type, so only typed nodes get one.
   const withCaption =
-    kind !== 'state' && n.type !== 'plain' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note'].includes(n.shape);
+    kind !== 'state' && n.type !== 'plain' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note', 'compartment'].includes(n.shape);
   const interactive = n.shape !== 'fork';
   return (
     <g
@@ -336,7 +425,7 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
       onPointerLeave={() => h.onNodeLeave?.(n.id)}
     >
       <Shape n={n} />
-      {n.lines.length > 0 && <Label n={n} withCaption={withCaption} />}
+      {n.shape === 'compartment' ? <CompartmentText n={n} /> : n.lines.length > 0 && <Label n={n} withCaption={withCaption} />}
       {n.tooltip ? <title>{n.tooltip}</title> : n.shape === 'end' || n.shape === 'start' ? <title>{n.shape}</title> : null}
     </g>
   );
@@ -346,9 +435,16 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
   const d = pathD(e.points);
   const styled: Record<string, string> = { cross: 'url(#ma-cross)', async: 'url(#ma-async)', circle: 'url(#ma-circle)' };
   const marker = (e.arrowStyle && styled[e.arrowStyle]) || 'url(#ma-arrow)';
-  const endMarker = e.arrowEnd ? marker : undefined;
+  // ER/class relations name each end's marker; otherwise arrows follow the arrow flags.
+  const endMarker = e.ends ? markerUrl(e.ends.end) : e.arrowEnd ? marker : undefined;
   // Sequence async/cross styles describe the receiving end only.
-  const startMarker = e.arrowStart ? (e.arrowStyle === 'circle' || e.arrowStyle === 'cross' ? marker : 'url(#ma-arrow)') : undefined;
+  const startMarker = e.ends
+    ? markerUrl(e.ends.start)
+    : e.arrowStart
+      ? e.arrowStyle === 'circle' || e.arrowStyle === 'cross'
+        ? marker
+        : 'url(#ma-arrow)'
+      : undefined;
   const lb = e.labelBox;
   // Same wrapping the layout used to size the label box.
   const lines = e.label ? edgeLabelSize(e.label).lines : [];
@@ -376,6 +472,11 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
           />
         </g>
       )}
+      {e.endLabels?.map((l, i) => (
+        <text key={i} class="end-label" x={l.x} y={l.y + FONT.edge * 0.35} text-anchor="middle">
+          {l.text}
+        </text>
+      ))}
     </g>
   );
 }

@@ -43,7 +43,7 @@ export function renderedProblems(): string[] {
       if (!(ib.width > 0 && ib.left >= nb.left - 1 && ib.right <= nb.right + 1 && ib.top >= nb.top - 1 && ib.bottom <= nb.bottom + 1))
         problems.push(`icon in node ${g.dataset.id} is empty or outside the node`);
     }
-    for (const t of g.querySelectorAll<SVGTextElement>('text.label, text.caption')) {
+    for (const t of g.querySelectorAll<SVGTextElement>('text.label, text.caption, text.row')) {
       if (!t.textContent?.trim()) continue;
       const tb = t.getBBox();
       if (!within(tb, bb)) problems.push(`${t.getAttribute('class')} of node ${g.dataset.id} overflows: text ${fmt(tb)} vs box ${fmt(bb)}`);

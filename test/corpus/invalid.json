@@ -1,3 +1,4 @@
 {
-  "mermaid-demos/sequence-010": "uses `&nbsp;`, whose `;` ends a sequence statement, so Mermaid 12 rejects it"
+  "mermaid-demos/sequence-010": "uses `&nbsp;`, whose `;` ends a sequence statement, so Mermaid 12 rejects it",
+  "mermaid-demos/class-008": "nested generics (`List~List~Person~~`) are not supported by Mermaid 12's class grammar"
 }

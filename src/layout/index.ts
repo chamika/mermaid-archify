@@ -12,7 +12,7 @@ export async function layout(ir: DiagramIR, elk: ElkLike): Promise<Scene> {
 }
 
 async function layoutGraph(ir: DiagramIR, elk: ElkLike): Promise<Scene> {
-  const { graph, lines, back } = toElkGraph(ir);
+  const { graph, lines, flipped } = toElkGraph(ir);
   const laid = await elk.layout(graph);
-  return fromElk(ir, laid, lines, back);
+  return fromElk(ir, laid, lines, flipped);
 }

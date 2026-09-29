@@ -1,5 +1,5 @@
 import type { IconSet } from '../icons/fa';
-import type { DiagramKind, EdgeStroke, IRStyle, NodeShape, SemanticType, SeqBlockType } from '../ir/types';
+import type { Compartment, DiagramKind, EdgeEnds, EdgeStroke, IRStyle, NodeShape, SemanticType, SeqBlockType } from '../ir/types';
 
 /** Scene — the IR plus absolute geometry. The viewer consumes only this. */
 
@@ -28,6 +28,8 @@ export interface SceneNode extends Box {
   /** `click` target (http(s) or relative). */
   link?: string;
   tooltip?: string;
+  compartments?: Compartment[];
+  annotation?: string;
 }
 
 export interface SceneGroup extends Box {
@@ -52,6 +54,10 @@ export interface SceneEdge {
   order: number;
   /** Author styling (stroke only; label colours stay themed). */
   style?: IRStyle;
+  /** ER/class relationship markers and end labels. */
+  ends?: EdgeEnds;
+  /** Placed end labels (class multiplicities), centre points. */
+  endLabels?: { text: string; x: number; y: number }[];
 }
 
 export interface SceneLifeline {

@@ -1,0 +1,48 @@
+---
+title: Order data model
+---
+erDiagram
+  CUSTOMER ||--o{ ORDER : places
+  CUSTOMER |o--o| LOYALTY_ACCOUNT : "enrolled in"
+  CUSTOMER }o..o{ ADDRESS : "ships to"
+  ORDER ||--|{ LINE_ITEM : contains
+  PRODUCT ||--o{ LINE_ITEM : "ordered as"
+  ORDER ||--o| PAYMENT : "settled by"
+
+  CUSTOMER {
+    uuid id PK
+    string email UK "login and receipts"
+    string name
+  }
+  ORDER {
+    uuid id PK
+    uuid customer_id FK
+    timestamp placed_at
+    string status "pending, paid, shipped"
+  }
+  LINE_ITEM {
+    uuid order_id PK, FK
+    string sku PK, FK
+    int quantity
+    decimal unit_price
+  }
+  PRODUCT {
+    string sku PK
+    string title
+    decimal price
+  }
+  PAYMENT {
+    uuid id PK
+    uuid order_id FK
+    string provider_ref UK
+    decimal amount
+  }
+  ADDRESS {
+    uuid id PK
+    string line1
+    string postcode
+  }
+  LOYALTY_ACCOUNT {
+    uuid customer_id PK, FK
+    int points
+  }

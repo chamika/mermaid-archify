@@ -6,7 +6,7 @@ upstream/downstream details, a finder, a route probe, trace playback, a
 minimap, dark/light themes, and exports (standalone interactive HTML, SVG, PNG).
 
 Supported input: `flowchart`/`graph`, `sequenceDiagram`, `stateDiagram-v2`,
-`architecture-beta`.
+`erDiagram`, `classDiagram`, `architecture-beta`.
 
 ```bash
 npm install
@@ -18,9 +18,9 @@ npm run build
 
 ## Testing
 
-The suite is built around a **corpus of 268 real Mermaid diagrams** taken
+The suite is built around a **corpus of 358 real Mermaid diagrams** taken
 verbatim from Mermaid's own documentation and demo pages (`test/corpus/`, MIT,
-see `SOURCE.md` there). It covers every example of the four supported types,
+see `SOURCE.md` there). It covers every example of the six supported types,
 including the large, CJK, KaTeX and expanded-shape stress cases.
 
 | Layer | What it proves |
@@ -30,7 +30,7 @@ including the large, CJK, KaTeX and expanded-shape stress cases.
 | `test/invariants.test.ts` | Mutation tests: the invariant checker rejects each kind of defect it claims to catch. |
 | `test/{parse,layout,graph}.test.ts` | Focused unit tests for parsers, layout rules and viewer graph logic. |
 | `e2e/corpus.spec.ts` | Every fixture rendered by the real app in Chrome with real fonts: rendered text fits its shapes and label masks, no `NaN` geometry, no console errors, diagram fits the viewport. |
-| `e2e/visual.spec.ts` | Pixel baselines for 16 curated diagrams in both themes (`e2e/visual.spec.ts-snapshots/`, macOS; skipped on CI). |
+| `e2e/visual.spec.ts` | Pixel baselines for 22 curated diagrams in both themes (`e2e/visual.spec.ts-snapshots/`, macOS; skipped on CI). |
 | `e2e/app.spec.ts` | App flows: editing and errors, focus, finder, theme, share links, HTML/SVG/PNG export, offline export. |
 
 Fixtures Mermaid itself rejects are listed in `test/corpus/invalid.json` and
@@ -59,12 +59,13 @@ Mermaid text ─parse─▶ DiagramIR ─layout─▶ Scene ─render─▶ View
   Rules apply in this order: explicit class (`A:::database`, `class A queue`),
   then architecture icon, then flowchart shape (`[( )]` is a database), then
   label keywords. State diagrams colour states by outcome (failure, success,
-  waiting, in progress).
+  waiting, in progress). ER entities are data stores; class diagrams stay
+  plain unless an explicit class (`class A:::queue`) names a type.
 - **Layout** (`src/layout/`): ELK layered layout in a Web Worker for graphs;
   a deterministic column/row layout for sequence diagrams. Text is measured
   arithmetically (monospace font), so layout is identical in tests and browsers.
 - **Viewer** (`src/viewer/`): consumes only the positioned Scene, so exported
-  HTML embeds the Scene plus a ~70 KB runtime, with no Mermaid or ELK.
+  HTML embeds the Scene plus a ~75 KB runtime, with no Mermaid or ELK.
 
 **Font Awesome icons** (`A[fa:fa-car Car]`, also `fab:`/`far:`/`fas:` and old
 FA4 names like `fa-cogs`) render inline in flowchart node, edge and subgraph

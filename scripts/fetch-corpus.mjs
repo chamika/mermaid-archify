@@ -14,10 +14,15 @@ const SOURCES = [
   { dir: 'mermaid-docs', prefix: 'sequence', url: 'packages/mermaid/src/docs/syntax/sequenceDiagram.md', kind: 'md' },
   { dir: 'mermaid-docs', prefix: 'state', url: 'packages/mermaid/src/docs/syntax/stateDiagram.md', kind: 'md' },
   { dir: 'mermaid-docs', prefix: 'architecture', url: 'packages/mermaid/src/docs/syntax/architecture.md', kind: 'md' },
+  { dir: 'mermaid-docs', prefix: 'er', url: 'packages/mermaid/src/docs/syntax/entityRelationshipDiagram.md', kind: 'md' },
+  { dir: 'mermaid-docs', prefix: 'class', url: 'packages/mermaid/src/docs/syntax/classDiagram.md', kind: 'md' },
   { dir: 'mermaid-demos', prefix: 'flowchart', url: 'demos/flowchart.html', kind: 'html' },
   { dir: 'mermaid-demos', prefix: 'sequence', url: 'demos/sequence.html', kind: 'html' },
   { dir: 'mermaid-demos', prefix: 'state', url: 'demos/state.html', kind: 'html' },
   { dir: 'mermaid-demos', prefix: 'architecture', url: 'demos/architecture.html', kind: 'html' },
+  { dir: 'mermaid-demos', prefix: 'er', url: 'demos/er.html', kind: 'html' },
+  { dir: 'mermaid-demos', prefix: 'er-multiline', url: 'demos/er-multiline.html', kind: 'html' },
+  { dir: 'mermaid-demos', prefix: 'class', url: 'demos/classchart.html', kind: 'html' },
 ];
 
 const unescape = (s) =>

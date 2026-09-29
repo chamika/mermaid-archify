@@ -1,4 +1,5 @@
 import { plainText } from '../icons/fa';
+import type { EndMark } from '../ir/types';
 import type { Scene, SceneEdge } from '../scene/types';
 
 export interface Adjacency {
@@ -98,4 +99,46 @@ export function search(scene: Scene, query: string, limit = 8) {
     if (score) scored.push({ id: n.id, label: text || n.id, score });
   }
   return scored.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label)).slice(0, limit);
+}
+
+const CARDINALITY: Partial<Record<EndMark, string>> = {
+  one: 'exactly one',
+  zeroOrOne: 'zero or one',
+  oneOrMore: 'one or more',
+  zeroOrMore: 'zero or more',
+};
+
+/** UML relation wording, as [read from the edge's source, read from its target]. */
+const UML: Partial<Record<EndMark, [string, string]>> = {
+  inherit: ['extends', 'extended by'],
+  compose: ['part of', 'composed of'],
+  aggregate: ['aggregated in', 'aggregates'],
+  open: ['association to', 'association from'],
+  lollipop: ['provides', 'provided by'],
+};
+
+/**
+ * How an ER or class relationship reads from one of its ends, for the details
+ * panel: "places · zero or more", "extends", "depends on · 1 to *".
+ */
+export function relationPhrase(e: SceneEdge, self: string, kind: Scene['kind']): string {
+  const outgoing = e.from === self;
+  const ends = e.ends ?? {};
+  const parts: string[] = [];
+  if (kind === 'er') {
+    if (e.label) parts.push(plainText(e.label));
+    const card = CARDINALITY[(outgoing ? ends.end : ends.start) as EndMark];
+    if (card) parts.push(card);
+  } else {
+    const mark = ends.end ?? ends.start;
+    const dotted = e.stroke === 'dotted';
+    let words = mark && UML[mark];
+    if (mark === 'inherit' && dotted) words = ['implements', 'implemented by'];
+    if (mark === 'open' && dotted) words = ['depends on', 'dependency of'];
+    parts.push(words ? words[outgoing ? 0 : 1] : dotted ? 'dotted link' : 'link');
+    if (e.label) parts.push(plainText(e.label));
+    const [mine, theirs] = outgoing ? [ends.startLabel, ends.endLabel] : [ends.endLabel, ends.startLabel];
+    if (mine || theirs) parts.push(`${mine ?? '?'} to ${theirs ?? '?'}`);
+  }
+  return parts.join(' · ').replace(/\n/g, ' ');
 }

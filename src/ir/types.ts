@@ -9,7 +9,7 @@ export type { IRStyle };
  * into a positioned Scene.
  */
 
-export type DiagramKind = 'flowchart' | 'sequence' | 'state' | 'architecture';
+export type DiagramKind = 'flowchart' | 'sequence' | 'state' | 'architecture' | 'er' | 'class';
 
 /**
  * Archify's semantic component palette, plus `plain` for nodes the source
@@ -55,7 +55,51 @@ export type NodeShape =
   | 'parallelogram'
   | 'trapezoid'
   | 'note'
-  | 'text';
+  | 'text'
+  | 'compartment';
+
+/**
+ * One section of a compartment box (ER attributes, class members or methods):
+ * rows of cells, aligned into columns. `cols` names each column's role, which
+ * the renderer uses for styling.
+ */
+export interface Compartment {
+  /** What the rows are, for the details panel. */
+  title: 'attributes' | 'members' | 'methods';
+  cols: CompartmentCol[];
+  rows: CompartmentRow[];
+}
+
+export type CompartmentCol = 'type' | 'name' | 'keys' | 'comment' | 'member';
+
+export interface CompartmentRow {
+  cells: string[];
+  /** UML classifiers: `*` abstract (italic), `$` static (underlined). */
+  style?: 'italic' | 'underline';
+}
+
+/**
+ * Relationship end markers: ER cardinalities (crow's foot) and UML class
+ * relations. Drawn at the end of the edge they belong to.
+ */
+export type EndMark =
+  | 'one'
+  | 'zeroOrOne'
+  | 'oneOrMore'
+  | 'zeroOrMore'
+  | 'inherit'
+  | 'compose'
+  | 'aggregate'
+  | 'open'
+  | 'lollipop';
+
+export interface EdgeEnds {
+  start?: EndMark;
+  end?: EndMark;
+  /** Text beside each end (class multiplicities such as `1`, `*`). */
+  startLabel?: string;
+  endLabel?: string;
+}
 
 export type Direction = 'LR' | 'RL' | 'TB' | 'BT';
 
@@ -77,6 +121,10 @@ export interface IRNode {
   link?: string;
   /** `click` tooltip, plain text. */
   tooltip?: string;
+  /** Compartment shape: sections under the title (ER attributes, class members/methods). */
+  compartments?: Compartment[];
+  /** Compartment shape: stereotype shown above the title (`interface` → «interface»). */
+  annotation?: string;
 }
 
 export type Certainty = 'explicit' | 'guess' | 'none';
@@ -101,6 +149,13 @@ export interface IREdge {
   toSide?: Side;
   /** Author styling (`linkStyle`, edge classes), already sanitized. */
   style?: IRStyle;
+  /** ER/class relationship markers; replace the arrow flags when drawing. */
+  ends?: EdgeEnds;
+  /**
+   * Written the other way round (`Animal <|-- Duck` runs Duck → Animal). Layout
+   * follows the written order, as Mermaid's does, so parents sit above children.
+   */
+  authoredReversed?: boolean;
 }
 
 export interface IRGroup {

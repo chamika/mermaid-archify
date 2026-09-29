@@ -21,6 +21,8 @@ for (const [id, nodes, edges] of [
   ['sequence', 10, 10],
   ['state', 11, 12],
   ['architecture', 7, 6],
+  ['er', 7, 6],
+  ['class', 8, 7],
 ] as const) {
   test(`renders the ${id} sample`, async ({ page }) => {
     await pickSample(page, id);
@@ -52,6 +54,27 @@ test('focus opens the passport; finder focuses a node', async ({ page }) => {
   await page.locator('.ma-finder input').fill('stripe');
   await page.keyboard.press('Enter');
   await expect(page.locator('.ma-passport h2')).toHaveText('Stripe');
+});
+
+test('ER and class passports list rows and relationships', async ({ page }) => {
+  await pickSample(page, 'er');
+  await page.locator('.ma-node[data-id="ORDER"]').click();
+  const passport = page.locator('.ma-passport');
+  await expect(passport.locator('.kind')).toHaveText('entity');
+  await expect(passport.locator('ul.rows li')).toHaveCount(4);
+  await expect(passport).toContainText('customer_id');
+  await expect(passport).toContainText('contains · one or more');
+  await expect(passport).toContainText('places · exactly one');
+
+  await pickSample(page, 'class');
+  await page.locator('.ma-node[data-id="Card"]').click();
+  await expect(passport.locator('h2')).toHaveText('Card');
+  await expect(passport.locator('h3').first()).toHaveText('members');
+  await expect(passport).toContainText('implements');
+  await page.keyboard.press('Escape');
+  await page.locator('.ma-node[data-id="PaymentMethod"]').click();
+  await expect(passport.locator('.kind')).toHaveText('interface');
+  await expect(passport).toContainText('implemented by');
 });
 
 async function expectCentred(page: Page) {

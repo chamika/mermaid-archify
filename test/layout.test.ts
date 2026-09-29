@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { layout } from '../src/layout';
+import { textWidth } from '../src/layout/measure';
 import { parseMermaid } from '../src/parse';
 import type { Scene } from '../src/scene/types';
 import { checkScene, overlaps } from './helpers/invariants';
@@ -148,4 +149,54 @@ test('an inline icon reserves room in the node width', async () => {
   const withIcon = await scene('flowchart LR\n  A[fa:fa-book Readme docs for everyone]');
   expect(withIcon.nodes[0].w).toBeGreaterThan(without.nodes[0].w);
   expect(Object.keys(withIcon.icons!)).toEqual(['fa:book']);
+});
+
+describe('ER and class layout', () => {
+  test('ER sample: compartments sized to their rows, markers on both ends', async () => {
+    const s = await scene(sample('er'));
+    checkInvariants(s);
+    const order = s.nodes.find((n) => n.id === 'ORDER')!;
+    expect(order.compartments![0].rows).toHaveLength(4);
+    // Title band plus four rows.
+    expect(order.h).toBeGreaterThanOrEqual(4 * 18 + 30);
+    expect(s.edges.every((e) => e.ends?.start && e.ends?.end)).toBe(true);
+  });
+
+  test('class sample: multiplicities sit beside their own end', async () => {
+    const s = await scene(sample('class'));
+    checkInvariants(s);
+    const e = s.edges.find((x) => x.from === 'LineItem' && x.to === 'Order')!;
+    expect(e.endLabels!.map((l) => l.text)).toEqual(['1..*', '1']);
+    const [start, end] = [e.points[0], e.points.at(-1)!];
+    const d = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y);
+    expect(d(e.endLabels![0], start)).toBeLessThan(d(e.endLabels![0], end));
+    expect(d(e.endLabels![1], end)).toBeLessThan(d(e.endLabels![1], start));
+  });
+
+  test('long attribute comments are cut to fit, not wrapped', async () => {
+    const long = 'x'.repeat(80);
+    const s = await scene(`erDiagram\n  A {\n    string name "${long}"\n  }`);
+    checkInvariants(s);
+    expect(s.nodes[0].w).toBeLessThan(textWidth(long, 12));
+  });
+});
+
+test('class relations keep their written layout order: parents above children', async () => {
+  const s = await scene('classDiagram\n  Animal <|-- Duck\n  Duck --|> Bird');
+  const y = (id: string) => s.nodes.find((n) => n.id === id)!.y;
+  // Edges still point at the marked end (Duck → Animal) ...
+  expect(s.edges[0]).toMatchObject({ from: 'Duck', to: 'Animal' });
+  // ... but lay out as written, like Mermaid: Animal first, then Duck, then Bird.
+  expect(y('Animal')).toBeLessThan(y('Duck'));
+  expect(y('Duck')).toBeLessThan(y('Bird'));
+  checkInvariants(s);
+});
+
+test('ER/class layering ignores mention order: only real cycles are reversed', async () => {
+  // Customer is mentioned after Order, yet Customer o-- Order still puts Customer first.
+  const s = await scene('classDiagram\n  Order ..> Payment\n  Customer o-- Order');
+  const y = (id: string) => s.nodes.find((n) => n.id === id)!.y;
+  expect(y('Customer')).toBeLessThan(y('Order'));
+  expect(y('Order')).toBeLessThan(y('Payment'));
+  checkInvariants(s);
 });

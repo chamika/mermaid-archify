@@ -38,8 +38,17 @@ function summarize(ir: DiagramIR) {
     kind: ir.kind,
     title: ir.title,
     direction: ir.direction,
-    nodes: ir.nodes.map((n) => `${n.id}[${n.shape}${n.parent ? ` in ${n.parent}` : ''}] ${JSON.stringify(describeIcons(n.label))}`),
-    edges: ir.edges.map((e) => `${e.from} ${e.invisible ? "~~~" : "->"} ${e.to}${e.marker ? ` (${e.marker})` : ""}${e.label ? ` ${JSON.stringify(describeIcons(e.label))}` : ''}`),
+    nodes: ir.nodes.map(
+      (n) =>
+        `${n.id}[${n.shape}${n.parent ? ` in ${n.parent}` : ''}] ${JSON.stringify(describeIcons(n.label))}` +
+        (n.annotation ? ` «${n.annotation}»` : '') +
+        (n.compartments?.length ? ` {${n.compartments.map((c) => c.rows.map((r) => r.cells.join(' ')).join('; ')).join(' | ')}}` : ''),
+    ),
+    edges: ir.edges.map(
+      (e) =>
+        `${e.from} ${e.invisible ? '~~~' : '->'} ${e.to}${e.marker ? ` (${e.marker})` : ''}${e.label ? ` ${JSON.stringify(describeIcons(e.label))}` : ''}` +
+        (e.ends ? ` [${e.ends.startLabel ?? ''}${e.ends.start ?? '-'} ${e.stroke} ${e.ends.end ?? '-'}${e.ends.endLabel ?? ''}]` : ''),
+    ),
     groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}`),
     ...(ir.icons && { icons: Object.keys(ir.icons).sort() }),
     types,
@@ -49,7 +58,7 @@ function summarize(ir: DiagramIR) {
 
 test('corpus is present and covers every supported kind', () => {
   expect(fixtures.length).toBeGreaterThan(250);
-  for (const kind of ['flowchart', 'sequence', 'state', 'architecture'])
+  for (const kind of ['flowchart', 'sequence', 'state', 'architecture', 'er', 'class'])
     expect(fixtures.filter((f) => f.split('/')[1].startsWith(kind)).length, kind).toBeGreaterThanOrEqual(10);
 });
 
