@@ -1,9 +1,9 @@
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 
-const HEADERS = /^(flowchart|graph|sequenceDiagram|stateDiagram-v2|stateDiagram|architecture-beta)\b/;
+const HEADERS = /^(flowchart|graph|sequenceDiagram|stateDiagram-v2|stateDiagram|erDiagram|classDiagram-v2|classDiagram|architecture-beta)\b/;
 const KEYWORDS =
-  /^(subgraph|end|direction|class|classDef|style|linkStyle|click|participant|actor|loop|alt|else|opt|par|and|critical|option|break|rect|note|over|left of|right of|activate|deactivate|autonumber|title|state|as|group|service|junction|in|box)\b/i;
+  /^(subgraph|end|direction|class|classDef|style|linkStyle|click|participant|actor|loop|alt|else|opt|par|and|critical|option|break|rect|note|over|left of|right of|activate|deactivate|autonumber|title|state|as|group|service|junction|in|box|namespace|for|PK|FK|UK)\b/i;
 const ARROW = /^(<?[-=.]+(>>|>|x|o|\)|-)?|<-->|--[ox>]|-\)|--\)|-x|--x|->>|-->>|->|-->)/;
 
 /** Small stream tokenizer: enough to colour Mermaid source, not to validate it. */
@@ -24,9 +24,13 @@ export const mermaidLanguage = StreamLanguage.define<{ fm: boolean }>({
       return 'comment';
     }
     if (stream.match(HEADERS)) return 'heading';
+    // ER cardinalities (`||--o{`, `}|..|{`) and class relations (`<|--`, `*--`, `o--`, `..>`).
+    if (stream.match(/^[|}][|o][-.]{2}[o|][|{]/)) return 'operator';
+    if (stream.match(/^(<\||\*|o)?(--|\.\.)(\|>|\*|o|>)?(?=\s|$|")/)) return 'operator';
     if (stream.match(/^"[^"]*"?/)) return 'string';
     if (stream.match(/^\|[^|]*\|?/)) return 'string';
     if (stream.match(/^:::\w+/)) return 'typeName';
+    if (stream.match(/^<<[^>]*>>/)) return 'typeName';
     if (stream.match(/^\[\*\]/)) return 'atom';
     if (stream.match(/^:[LRTB]\b/) || stream.match(/^[LRTB]:/)) return 'atom';
     if (stream.match(/^:.*$/)) return 'string';

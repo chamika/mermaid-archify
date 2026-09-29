@@ -345,6 +345,644 @@ exports[`mermaid-demos/architecture-012 > parses, lays out, and satisfies scene 
 }
 `;
 
+exports[`mermaid-demos/class-001 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Duck -> Animal [- solid inherit]",
+    "Fish -> Animal [- solid inherit]",
+    "Zebra -> Animal [- solid inherit]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal" {+int age; +String gender | +isMammal(); +mate()}",
+    "Duck[compartment] "Duck" {+String beakColor | +swim(); +quack()}",
+    "Fish[compartment] "Fish" {-Listint sizeInFeet | -canEat()}",
+    "Zebra[compartment] "Zebra" {+bool is_wild | +run(List<T>, List<OT>); +run-nested(List<List<OT>>)}",
+  ],
+  "title": "Demo Class Diagram",
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-002 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "AveryLongClass -> Class01 "Cool" [- solid inherit]",
+    "Class04 -> Class03 [0..n- solid compose0]",
+    "Class06 -> Class05 [many- solid aggregate1]",
+    "Class07 -> Class08 [- dotted -]",
+    "Class09 -> C2 "Where am i?" [many- solid open1]",
+    "Class09 -> C3 [0- solid compose1..n]",
+    "Class09 -> Class07 [- solid inherit]",
+    "Class08 -> C2 "Cool label" [open solid open]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Class01[compartment] "Class01" «interface» {-int chimp; +int gorilla | #size()}",
+    "AveryLongClass[compartment] "AveryLongClass"",
+    "Class03[compartment] "Class03"",
+    "Class04[compartment] "Class04"",
+    "Class05[compartment] "Class05"",
+    "Class06[compartment] "Class06"",
+    "Class07[compartment] "Class07" {Object[] elementData | equals()}",
+    "Class08[compartment] "Class08"",
+    "Class09[compartment] "Class09"",
+    "C2[compartment] "C2"",
+    "C3[compartment] "C3"",
+    "Class10[compartment] "Class10" «service» {int id | size()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 12,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-003 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Class01[compartment] "Class01<T>" {-int chimp; +int gorilla; +abstractAttribute string | #size()}",
+    "Class10[compartment] "Class10<T>" «service» {int id | size()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-004 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "AveryLongClass -> Class01 "Cool" [- solid inherit]",
+    "Class04 -> Class03 [0..n- solid compose0]",
+    "Class06 -> Class05 [many- solid aggregate1]",
+    "Class07 -> Class08 [- dotted -]",
+    "Class09 -> C2 "Where am i?" [many- solid open1]",
+    "Class09 -> C3 [0- solid compose1..n]",
+    "Class09 -> Class07 [- solid inherit]",
+    "Class08 -> C2 "Cool label" [open solid open]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Class01[compartment] "Class01<T>" «interface» {-int chimp; +int gorilla | #size()}",
+    "AveryLongClass[compartment] "AveryLongClass"",
+    "Class03[compartment] "Class03<T>"",
+    "Class04[compartment] "Class04"",
+    "Class05[compartment] "Class05"",
+    "Class06[compartment] "Class06"",
+    "Class07[compartment] "Class07<T>" {Object[] elementData | equals()}",
+    "Class08[compartment] "Class08"",
+    "Class09[compartment] "Class09"",
+    "C2[compartment] "C2"",
+    "C3[compartment] "C3"",
+    "Class10[compartment] "Class10" «service» {int id | size()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 12,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-005 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Interface1Impl -> interface0 [- solid lollipop]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Interface1Impl[compartment] "Interface1Impl"",
+    "interface0[text] "Interface1"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-006 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "LR",
+  "edges": [
+    "Dog -> interface0 [- solid lollipop]",
+    "Cat -> interface1 [- solid lollipop]",
+    "Cat__note0 -> Cat",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Dog[compartment] "Dog" {bark(); species()}",
+    "Cat[compartment] "Cat"",
+    "interface0[text] "Animal"",
+    "interface1[text] "Animal"",
+    "Cat__note0[note] "should have no members area"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 5,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-007 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "RL",
+  "edges": [
+    "Apple -> interface0 [- solid lollipop]",
+    "Pineapple -> interface1 [- solid lollipop]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Apple[compartment] "Apple" {color(); -int leafCount()}",
+    "Pineapple[compartment] "Pineapple" {color(); -int leafCount(); -int spikeCount()}",
+    "interface0[text] "Fruit"",
+    "interface1[text] "Fruit"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-009 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Project in Company "Project"",
+    "Company.Project.Module in Company.Project "Module"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "GenericClass[compartment in Company.Project.Module] "GenericClass<T>" {+addItem(item: T); +getItem() : T}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-010 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Admin -> Report "generates" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Project in Company "Project"",
+    "Company.Project.Module in Company.Project "Module"",
+    "Company.Project.Module.SubModule in Company.Project.Module "SubModule"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Report[compartment in Company.Project.Module.SubModule] "Report" {+generatePDF(data: List); +generateCSV(data: List)}",
+    "Admin[compartment in Company.Project.Module] "Admin" {+generateReport()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-011 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Admin -> User "manages" [- solid open]",
+    "Admin -> Report "generates" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Project in Company "Project"",
+    "Company.Project.Module in Company.Project "Module"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "User[compartment in Company.Project.Module] "User" {+login(username: String, password: String); +logout()}",
+    "Admin[compartment in Company.Project.Module] "Admin" {+addUser(user: User); +removeUser(user: User); +generateReport()}",
+    "Report[compartment in Company.Project.Module] "Report" {+generatePDF(reportData: List); +generateCSV(reportData: List)}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-012 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Circle -> Shape [- solid inherit]",
+    "Square -> Shape [- solid inherit]",
+    "Car -> Vehicle [- solid inherit]",
+    "Bike -> Vehicle [- solid inherit]",
+    "Car -> Circle "\\"Logo Shape\\"" [- solid open]",
+    "Bike -> Square "\\"Logo Shape\\"" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Shapes "Shapes"",
+    "Vehicles "Vehicles"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment in Shapes] "Shape" {+calculateArea() : double}",
+    "Circle[compartment in Shapes] "Circle" {+double radius}",
+    "Square[compartment in Shapes] "Square" {+double side}",
+    "Vehicle[compartment in Vehicles] "Vehicle" {+String brand}",
+    "Car[compartment in Vehicles] "Car" {+int horsepower}",
+    "Bike[compartment in Vehicles] "Bike" {+boolean hasGears}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 6,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-013 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Class1__note1 -> Class1",
+    "Class1__note3 -> Class1",
+  ],
+  "events": undefined,
+  "groups": [
+    "ns "ns"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Class1[compartment in ns] "Class1"",
+    "Class2[compartment in ns] "Class2"",
+    "__note0[note] "This is a outer note"",
+    "Class1__note1[note in ns] "This is a outer note for Class1"",
+    "__note2[note in ns] "This is a inner note"",
+    "Class1__note3[note in ns] "This is a inner note for Class1"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 6,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-014 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CEO -> TechLead "oversees" [- solid open]",
+    "TechLead -> Developer "leads" [- solid open]",
+    "TechLead -> Designer "leads" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Engineering in Company "Engineering"",
+    "Company.Engineering.Backend in Company.Engineering "Backend"",
+    "Company.Engineering.Frontend in Company.Engineering "Frontend"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Developer[compartment in Company.Engineering.Backend] "Developer" {+writeCode(); +reviewPR()}",
+    "Designer[compartment in Company.Engineering.Frontend] "Designer" {+createMockup(); +buildUI()}",
+    "TechLead[compartment in Company.Engineering] "TechLead" {+planSprint()}",
+    "CEO[compartment in Company] "CEO" {+makeDecisions()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-015 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "UserService -> TokenManager "uses" [- solid open]",
+    "Gateway -> UserService "delegates" [- solid open]",
+    "Gateway -> Repository "delegates" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Platform "Platform"",
+    "Platform.Auth in Platform "Auth"",
+    "Platform.Data in Platform "Data"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "UserService[compartment in Platform.Auth] "UserService" {+login(); +logout()}",
+    "TokenManager[compartment in Platform.Auth] "TokenManager" {+generateToken(); +validateToken()}",
+    "Repository[compartment in Platform.Data] "Repository" {+find(); +save()}",
+    "Gateway[compartment in Platform] "Gateway" {+route()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-016 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Invoice -> Logger "logs to" [- solid open]",
+    "Invoice -> User "bills" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "App "App"",
+    "App.Services in App "Services"",
+    "App.Services.Billing in App.Services "Billing"",
+    "App.Models in App "Models"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Invoice[compartment in App.Services.Billing] "Invoice" {+calculate()}",
+    "Logger[compartment in App.Services] "Logger" {+log()}",
+    "User[compartment in App.Models] "User" {+String name}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-017 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CEO -> Developer "oversees" [- solid open]",
+    "CEO -> Designer "oversees" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Engineering in Company "Engineering"",
+    "Company.Engineering.Backend in Company.Engineering "Backend"",
+    "Company.Engineering.Frontend in Company.Engineering "Frontend"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Developer[compartment in Company.Engineering.Backend] "Developer" {+writeCode(); +reviewPR()}",
+    "Designer[compartment in Company.Engineering.Frontend] "Designer" {+createMockup(); +buildUI()}",
+    "CEO[compartment in Company] "CEO" {+makeDecisions()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-018 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "UserService -> Repository "reads" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Platform "Platform"",
+    "Platform.Auth in Platform "Auth"",
+    "Platform.Data in Platform "Data"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "UserService[compartment in Platform.Auth] "UserService" {+login()}",
+    "Repository[compartment in Platform.Data] "Repository" {+find()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-demos/class-019 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "UserService -> TokenManager "uses" [- solid open]",
+    "UserService -> Repository "reads from" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Auth "Authentication Service"",
+    "Store "Data Store"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "UserService[compartment in Auth] "UserService" {+login(); +logout()}",
+    "TokenManager[compartment in Auth] "TokenManager" {+generate()}",
+    "Repository[compartment in Store] "Repository" {+find(); +save()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-001 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Person . CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> €£LINE_ITEM ¥ "contains" [one solid oneOrMore]",
+    "Person . CUSTOMER -> Address//StreetAddress::[DELIVERY ADDRESS] "uses" [oneOrMore dotted oneOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "Person . CUSTOMER[compartment] "Person . CUSTOMER"",
+    "ORDER[compartment] "ORDER"",
+    "€£LINE_ITEM ¥[compartment] "€£LINE_ITEM ¥" {int orderID FK; int currencyId FK; number price ; number quantity ; number adjustment ; number final_price }",
+    "Address//StreetAddress::[DELIVERY ADDRESS][compartment] "Address//StreetAddress::[DELIVERY ADDRESS]" {int customerID FK ; string line1  this is the first address line comment; string line2  ; string city  ; string region  ; string state  ; string(5) postal_code  ; string country  }",
+    "a_~\`!@#$^&*()-_=+[]{}|/;:'.?¡⁄™€£‹¢›∞ﬁ§‡•°ª·º‚≠±œŒ∑„®†ˇ¥Á¨ˆˆØπ∏“«»åÅßÍ∂ÎƒÏ©˙Ó∆Ô˚¬Ò…ÚæÆΩ¸≈π˛çÇ√◊∫ı˜µÂ≤¯≥˘÷¿[compartment] "a_~\`!@#$^&*()-_=+[]{}|/;:'.?¡⁄™€£‹¢›∞ﬁ§‡•°ª·º‚≠±œŒ∑„®†ˇ¥Á¨ˆˆØπ∏“«»åÅßÍ∂ÎƒÏ©˙Ó∆Ô˚¬Ò…ÚæÆΩ¸≈π˛çÇ√◊∫ı˜µÂ≤¯≥˘÷¿" {string name this is an entity with an absurd name just to show characters that are now acceptable as long as the name is in double quotes}",
+  ],
+  "title": "This is a title",
+  "types": {
+    "database": 5,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-002 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "HOSPITAL[compartment] "HOSPITAL" {int id PK; int doctor_id FK; string address UK; string name ; string phone_number ; string fax_number }",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-003 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "HOSPITAL[compartment] "HOSPITAL" {int id PK; int doctor_id PK, FK; string address UK; string name ; string phone_number ; string fax_number }",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-004 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CAR -> NAMED-DRIVER "allows" [one solid zeroOrMore]",
+    "PERSON -> NAMED-DRIVER "is" [one solid zeroOrMore]",
+    "MANUFACTURER -> CAR "makes" [one solid zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR" {string registrationNumber PK; string make ; string model ; string[] parts }",
+    "NAMED-DRIVER[compartment] "NAMED-DRIVER" {string carRegistrationNumber PK, FK; string driverLicence PK, FK}",
+    "PERSON[compartment] "PERSON" {string driversLicense PK The license #; string(99) firstName  Only 99 characters are allowed; string lastName  ; string phone UK ; int age  }",
+    "MANUFACTURER[compartment] "MANUFACTURER"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 4,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-005 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "p -> a "has" [one solid zeroOrOne]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "p[compartment] "Person" {string firstName; string lastName}",
+    "a[compartment] "Customer Account" {string email}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 2,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-006 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "p -> a "has\\none" [one solid zeroOrOne]",
+    "p -> b "has\\none\\ntwo" [one solid zeroOrOne]",
+    "p -> c "has\\none\\ntwo\\nthree" [one solid zeroOrOne]",
+    "p -> d "has\\none\\ntwo\\nthree\\n...\\nNth" [one solid zeroOrOne]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "p[compartment] "Person" {string firstName; string lastName}",
+    "a[compartment] "Customer Account" {string email}",
+    "b[compartment] "Customer Account Secondary" {string email}",
+    "c[compartment] "Customer Account Tertiary" {string email}",
+    "d[compartment] "Customer Account Nth" {string email}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 5,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-007 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "_customer_order[compartment] "_customer_order" {bigint id PK; bigint customer_id FK; text shipping_address ; text delivery_method ; timestamp_with_time_zone ordered_at ; numeric total_tax_amount ; numeric total_price ; text payment_method }",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-demos/er-multiline-001 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "_**testẽζ➕Ø😀㌕ぼ**_[compartment] "_testẽζ➕Ø😀㌕ぼ_" {*__List~List~int~~sdfds__* **driversLicense** PK ***The l😀icense #***; string last*Name*  ; string __phone__ UK ; *string(99)~T~~~~~~* firstName  Only __99__ characters are a llowed dsfsdfsdfsdfs; int _age_  }",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
 exports[`mermaid-demos/flowchart-001 > parses, lays out, and satisfies scene invariants 1`] = `
 {
   "direction": "LR",
@@ -2953,6 +3591,1371 @@ exports[`mermaid-docs/architecture-006 > parses, lays out, and satisfies scene i
   "types": {
     "cloud": 3,
     "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-001 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Duck -> Animal [- solid inherit]",
+    "Fish -> Animal [- solid inherit]",
+    "Zebra -> Animal [- solid inherit]",
+    "Duck__note1 -> Duck",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal" {+int age; +String gender | +isMammal(); +mate()}",
+    "Duck[compartment] "Duck" {+String beakColor | +swim(); +quack()}",
+    "Fish[compartment] "Fish" {-int sizeInFeet | -canEat()}",
+    "Zebra[compartment] "Zebra" {+bool is_wild | +run()}",
+    "__note0[note] "From Duck till Zebra"",
+    "Duck__note1[note] "can fly\\ncan swim\\ncan dive\\ncan help in debugging"",
+  ],
+  "title": "Animal example",
+  "types": {
+    "plain": 6,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-002 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Customer -> Order "places" [1- solid open*]",
+    "LineItem -> Order "contains" [*- solid compose1]",
+    "Order -> Payment "settled by" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Customer[compartment] "Customer" {+String name; +String email}",
+    "Order[compartment] "Order" {+String id; +Date placedAt | +total() : Money}",
+    "LineItem[compartment] "LineItem" {+int quantity}",
+    "Payment[compartment] "Payment" «interface» {+authorise() : bool}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-003 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Customer -> Order "places" [1- solid open*]",
+    "LineItem -> Order "contains" [*- solid compose1]",
+    "Order -> Payment "settled by" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Customer[compartment] "Customer" {+String name; +String email}",
+    "Order[compartment] "Order" {+String id; +Date placedAt | +total() : Money}",
+    "LineItem[compartment] "LineItem" {+int quantity}",
+    "Payment[compartment] "Payment" «interface» {+authorise() : bool}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-004 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "BankAccount[compartment] "BankAccount" {+String owner; +Bigdecimal balance | +deposit(amount); +withdrawal(amount)}",
+  ],
+  "title": "Bank example",
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-005 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Car -> Vehicle [- solid inherit]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal"",
+    "Vehicle[compartment] "Vehicle"",
+    "Car[compartment] "Car"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-006 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Animal -> Car [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal with a label"",
+    "Car[compartment] "Car with *! symbols"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-007 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Animal Class! -> Car Class [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal Class![compartment] "Animal Class!"",
+    "Car Class[compartment] "Car Class"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-008 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "BankAccount[compartment] "BankAccount" {+String owner; +BigDecimal balance | +deposit(amount); +withdrawal(amount)}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-009 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "BankAccount[compartment] "BankAccount" {+String owner; +BigDecimal balance | +deposit(amount); +withdrawal(amount)}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-010 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "BankAccount[compartment] "BankAccount" {+String owner; +BigDecimal balance | +deposit(amount) : bool; +withdrawal(amount) : int}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-011 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Square[compartment] "Square<Shape>" {int id; List<int> position; -List<string> messages | setPoints(List<int> points); getPoints() : List<int>; +setMessages(List<string> messages); +getMessages() : List<string>; +getDistanceMatrix() : List<List<int>>}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-012 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "classB -> classA [- solid inherit]",
+    "classD -> classC [- solid compose]",
+    "classF -> classE [- solid aggregate]",
+    "classH -> classG [- solid open]",
+    "classI -> classJ [- solid -]",
+    "classL -> classK [- dotted open]",
+    "classN -> classM [- dotted inherit]",
+    "classO -> classP [- dotted -]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "classA[compartment] "classA"",
+    "classB[compartment] "classB"",
+    "classC[compartment] "classC"",
+    "classD[compartment] "classD"",
+    "classE[compartment] "classE"",
+    "classF[compartment] "classF"",
+    "classG[compartment] "classG"",
+    "classH[compartment] "classH"",
+    "classI[compartment] "classI"",
+    "classJ[compartment] "classJ"",
+    "classK[compartment] "classK"",
+    "classL[compartment] "classL"",
+    "classM[compartment] "classM"",
+    "classN[compartment] "classN"",
+    "classO[compartment] "classO"",
+    "classP[compartment] "classP"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 16,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-013 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "classA -> classB "Inheritance" [- solid inherit]",
+    "classC -> classD "Composition" [- solid compose]",
+    "classE -> classF "Aggregation" [- solid aggregate]",
+    "classG -> classH "Association" [- solid open]",
+    "classI -> classJ "Link(Solid)" [- solid -]",
+    "classK -> classL "Dependency" [- dotted open]",
+    "classM -> classN "Realization" [- dotted inherit]",
+    "classO -> classP "Link(Dashed)" [- dotted -]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "classA[compartment] "classA"",
+    "classB[compartment] "classB"",
+    "classC[compartment] "classC"",
+    "classD[compartment] "classD"",
+    "classE[compartment] "classE"",
+    "classF[compartment] "classF"",
+    "classG[compartment] "classG"",
+    "classH[compartment] "classH"",
+    "classI[compartment] "classI"",
+    "classJ[compartment] "classJ"",
+    "classK[compartment] "classK"",
+    "classL[compartment] "classL"",
+    "classM[compartment] "classM"",
+    "classN[compartment] "classN"",
+    "classO[compartment] "classO"",
+    "classP[compartment] "classP"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 16,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-014 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "classB -> classA "implements" [- solid inherit]",
+    "classD -> classC "composition" [- solid compose]",
+    "classF -> classE "aggregation" [- solid aggregate]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "classA[compartment] "classA"",
+    "classB[compartment] "classB"",
+    "classC[compartment] "classC"",
+    "classD[compartment] "classD"",
+    "classE[compartment] "classE"",
+    "classF[compartment] "classF"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 6,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-015 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Animal -> Zebra [inherit solid inherit]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal"",
+    "Zebra[compartment] "Zebra"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-016 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "foo -> interface0 [- solid lollipop]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "foo[compartment] "foo"",
+    "interface0[text] "bar"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-017 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Class01 -> interface0 [- solid lollipop]",
+    "Class02 -> interface1 [- solid lollipop]",
+    "Class01 -> interface2 [- solid lollipop]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Class01[compartment] "Class01" {int amount | draw()}",
+    "Class02[compartment] "Class02"",
+    "interface0[text] "bar"",
+    "interface1[text] "bar"",
+    "interface2[text] "foo"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 5,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-018 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [
+    "BaseShapes "BaseShapes"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Triangle[compartment in BaseShapes] "Triangle"",
+    "Rectangle[compartment in BaseShapes] "Rectangle" {double width; double height}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-019 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [
+    "Auth "Authentication Service"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "UserService[compartment in Auth] "UserService" {+login(); +logout()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-020 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "TechLead -> Developer "leads" [- solid open]",
+    "TechLead -> Designer "leads" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Engineering in Company "Engineering"",
+    "Company.Engineering.Backend in Company.Engineering "Backend"",
+    "Company.Engineering.Frontend in Company.Engineering "Frontend"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Developer[compartment in Company.Engineering.Backend] "Developer" {+writeCode()}",
+    "Designer[compartment in Company.Engineering.Frontend] "Designer" {+createMockup()}",
+    "TechLead[compartment in Company.Engineering] "TechLead" {+planSprint()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-021 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Gateway -> UserService "delegates" [- solid open]",
+    "Gateway -> Repository "delegates" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Platform "Platform"",
+    "Platform.Auth in Platform "Auth"",
+    "Platform.Data in Platform "Data"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "UserService[compartment in Platform.Auth] "UserService" {+login(); +logout()}",
+    "Repository[compartment in Platform.Data] "Repository" {+find(); +save()}",
+    "Gateway[compartment in Platform] "Gateway" {+route()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-022 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CEO -> Developer "oversees" [- solid open]",
+    "CEO -> Designer "oversees" [- solid open]",
+  ],
+  "events": undefined,
+  "groups": [
+    "Company "Company"",
+    "Company.Engineering in Company "Engineering"",
+    "Company.Engineering.Backend in Company.Engineering "Backend"",
+    "Company.Engineering.Frontend in Company.Engineering "Frontend"",
+  ],
+  "kind": "class",
+  "nodes": [
+    "Developer[compartment in Company.Engineering.Backend] "Developer" {+writeCode()}",
+    "Designer[compartment in Company.Engineering.Frontend] "Designer" {+createMockup()}",
+    "CEO[compartment in Company] "CEO" {+makeDecisions()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-023 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "Customer -> Ticket [1- solid open*]",
+    "Student -> Course [1- solid open1..*]",
+    "Galaxy -> Star "Contains" [- solid openmany]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Customer[compartment] "Customer"",
+    "Ticket[compartment] "Ticket"",
+    "Student[compartment] "Student"",
+    "Course[compartment] "Course"",
+    "Galaxy[compartment] "Galaxy"",
+    "Star[compartment] "Star"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 6,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-024 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment] "Shape" «interface»",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-025 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment] "Shape" «interface» {noOfVertices | draw()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-026 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment] "Shape" «interface» {noOfVertices | draw()}",
+    "Color[compartment] "Color" «enumeration» {RED; BLUE; GREEN; WHITE; BLACK}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-027 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment] "Shape" «interface» {noOfVertices | draw()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-028 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "RL",
+  "edges": [
+    "Student -> IdCard "carries" [1- solid aggregate1]",
+    "Student -> Bike "rides" [1- solid aggregate1]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Student[compartment] "Student" {-idCard : IdCard}",
+    "IdCard[compartment] "IdCard" {-id : int; -name : string}",
+    "Bike[compartment] "Bike" {-id : int; -name : string}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-029 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "MyClass__note1 -> MyClass",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "MyClass[compartment] "MyClass"",
+    "__note0[note] "This is a general note"",
+    "MyClass__note1[note] "This is a note for a class"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-030 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment] "Shape"",
+    "Shape2[compartment] "Shape2"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-031 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Shape[compartment] "Shape"",
+    "Shape2[compartment] "Shape2"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-032 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Class01[compartment] "Class01"",
+    "Class02[compartment] "Class02"",
+    "Class03[compartment] "Class03"",
+    "Class04[compartment] "Class04"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-033 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal"",
+    "Mineral[compartment] "Mineral"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-034 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-035 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal" {-int sizeInFeet | -canEat()}",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-036 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal"",
+    "Mineral[compartment] "Mineral"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-037 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Animal[compartment] "Animal"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/class-038 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "class",
+  "nodes": [
+    "Duck[compartment] "Duck"",
+  ],
+  "title": undefined,
+  "types": {
+    "plain": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-001 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE-ITEM "contains" [one solid oneOrMore]",
+    "CUSTOMER -> DELIVERY-ADDRESS "uses" [oneOrMore dotted oneOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER"",
+    "ORDER[compartment] "ORDER"",
+    "LINE-ITEM[compartment] "LINE-ITEM"",
+    "DELIVERY-ADDRESS[compartment] "DELIVERY-ADDRESS"",
+  ],
+  "title": "Order example",
+  "types": {
+    "database": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-002 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE-ITEM "contains" [one solid oneOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER" {string name; string custNumber; string sector}",
+    "ORDER[compartment] "ORDER" {int orderNumber; string deliveryAddress}",
+    "LINE-ITEM[compartment] "LINE-ITEM" {string productCode; int quantity; float pricePerUnit}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-003 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE_ITEM "contains" [one solid oneOrMore]",
+    "PRODUCT -> LINE_ITEM "appears in" [one solid zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER" {string name; string email}",
+    "ORDER[compartment] "ORDER" {int id; date placedAt}",
+    "LINE_ITEM[compartment] "LINE_ITEM" {int quantity; float price}",
+    "PRODUCT[compartment] "PRODUCT" {string sku; string title}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-004 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE_ITEM "contains" [one solid oneOrMore]",
+    "PRODUCT -> LINE_ITEM "appears in" [one solid zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER" {string name; string email}",
+    "ORDER[compartment] "ORDER" {int id; date placedAt}",
+    "LINE_ITEM[compartment] "LINE_ITEM" {int quantity; float price}",
+    "PRODUCT[compartment] "PRODUCT" {string sku; string title}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-005 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "This ❤ Unicode[compartment] "This ❤ Unicode"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-006 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "This **is** _Markdown_[compartment] "This is _Markdown_"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-007 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CAR -> NAMED-DRIVER "allows" [one solid zeroOrMore]",
+    "PERSON -> NAMED-DRIVER "is" [zeroOrMore dotted zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR"",
+    "NAMED-DRIVER[compartment] "NAMED-DRIVER"",
+    "PERSON[compartment] "PERSON"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-008 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CAR -> NAMED-DRIVER "allows" [one solid zeroOrMore]",
+    "PERSON -> NAMED-DRIVER "is" [zeroOrMore dotted zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR"",
+    "NAMED-DRIVER[compartment] "NAMED-DRIVER"",
+    "PERSON[compartment] "PERSON"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-009 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CAR -> NAMED-DRIVER "allows" [one solid zeroOrMore]",
+    "PERSON -> NAMED-DRIVER "is" [one solid zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR" {string registrationNumber; string make; string model}",
+    "NAMED-DRIVER[compartment] "NAMED-DRIVER"",
+    "PERSON[compartment] "PERSON" {string firstName; string lastName; int age}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-010 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "PERSON[compartment] "PERSON" {string firstName; string? middleName; string lastName}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-011 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "p -> a "has" [one solid zeroOrOne]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "p[compartment] "Person" {string firstName; string lastName}",
+    "a[compartment] "Customer Account" {string email}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-012 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CAR -> NAMED-DRIVER "allows" [one solid zeroOrMore]",
+    "PERSON -> NAMED-DRIVER "is" [one solid zeroOrMore]",
+    "MANUFACTURER -> CAR "makes" [one solid zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR" {string registrationNumber PK; string make ; string model ; string[] parts }",
+    "NAMED-DRIVER[compartment] "NAMED-DRIVER" {string carRegistrationNumber PK, FK; string driverLicence PK, FK}",
+    "PERSON[compartment] "PERSON" {string driversLicense PK The license #; string(99) firstName  Only 99 characters are allowed; string lastName  ; string phone UK ; int age  }",
+    "MANUFACTURER[compartment] "MANUFACTURER"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-013 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE-ITEM "contains" [one solid oneOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER" {string name; string custNumber; string sector}",
+    "ORDER[compartment] "ORDER" {int orderNumber; string deliveryAddress}",
+    "LINE-ITEM[compartment] "LINE-ITEM" {string productCode; int quantity; float pricePerUnit}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-014 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "LR",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE-ITEM "contains" [one solid oneOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER" {string name; string custNumber; string sector}",
+    "ORDER[compartment] "ORDER" {int orderNumber; string deliveryAddress}",
+    "LINE-ITEM[compartment] "LINE-ITEM" {string productCode; int quantity; float pricePerUnit}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-015 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CAR -> NAMED-DRIVER "allows" [one solid zeroOrMore]",
+  ],
+  "events": undefined,
+  "groups": [
+    "title1 "title1"",
+    "title3 in title2 "title3"",
+    "title2 "title2"",
+  ],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment in title1] "CUSTOMER" {string name; string custNumber; string sector}",
+    "CAR[compartment in title2] "CAR"",
+    "NAMED-DRIVER[compartment in title2] "NAMED-DRIVER"",
+    "PERSON[compartment in title3] "PERSON" {string firstName; string lastName; int age}",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 4,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-016 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [
+    "title1 "title1"",
+  ],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment in title1] "CUSTOMER"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-017 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [
+    "Customer Domain "Customer Domain"",
+  ],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment in Customer Domain] "CUSTOMER"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-018 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [
+    "id1 "title 1"",
+  ],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment in id1] "CUSTOMER"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 1,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-019 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "A1 -> A2 "links" [one solid one]",
+    "B1 -> B2 "links" [one solid one]",
+    "C1 -> C2 "links" [one solid one]",
+    "title1 -> title2 "links" [one solid one]",
+    "title2 -> title3 "links" [one solid one]",
+    "title2 -> C2 "links" [one solid one]",
+  ],
+  "events": undefined,
+  "groups": [
+    "title1 "title1"",
+    "title2 "title2"",
+    "title3 "title3"",
+  ],
+  "kind": "er",
+  "nodes": [
+    "A1[compartment in title1] "A1"",
+    "A2[compartment in title1] "A2"",
+    "B1[compartment in title2] "B1"",
+    "B2[compartment in title2] "B2"",
+    "C1[compartment in title3] "C1"",
+    "C2[compartment in title3] "C2"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 6,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-020 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "LR",
+  "edges": [
+    "I1 -> F1 "links" [one solid one]",
+    "I2 -> F2 "links" [one solid one]",
+    "A -> TOP "links" [one solid one]",
+    "TOP -> B "links" [one solid one]",
+    "B1 -> B2 "links" [one solid one]",
+  ],
+  "events": undefined,
+  "groups": [
+    "B1 in TOP "B1"",
+    "B2 in TOP "B2"",
+    "TOP "TOP"",
+  ],
+  "kind": "er",
+  "nodes": [
+    "I1[compartment in B1] "I1"",
+    "F1[compartment in B1] "F1"",
+    "I2[compartment in B2] "I2"",
+    "F2[compartment in B2] "F2"",
+    "A[compartment] "A"",
+    "B[compartment] "B"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 6,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-021 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "id1 -> id2 "label" [one solid one]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "id1[compartment] "id1"",
+    "id2[compartment] "id2"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 2,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-022 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR" {string registrationNumber; string make; string model}",
+    "PERSON[compartment] "PERSON" {string firstName; string lastName; int age}",
+    "HOUSE[compartment] "HOUSE"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-023 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "PERSON -> CAR "owns" [one solid one]",
+    "PERSON -> HOUSE "has" [zeroOrMore solid one]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR" {string registrationNumber; string make; string model}",
+    "PERSON[compartment] "PERSON" {string firstName; string lastName; int age}",
+    "HOUSE[compartment] "HOUSE"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-024 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "PERSON -> CAR "owns" [one solid one]",
+    "PERSON -> HOUSE "has" [zeroOrMore solid one]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CAR[compartment] "CAR" {string registrationNumber; string make; string model}",
+    "PERSON[compartment] "PERSON" {string firstName; string lastName; int age}",
+    "HOUSE[compartment] "HOUSE"",
+  ],
+  "title": undefined,
+  "types": {
+    "database": 3,
+  },
+}
+`;
+
+exports[`mermaid-docs/er-025 > parses, lays out, and satisfies scene invariants 1`] = `
+{
+  "direction": "TB",
+  "edges": [
+    "CUSTOMER -> ORDER "places" [one solid zeroOrMore]",
+    "ORDER -> LINE-ITEM "contains" [one solid oneOrMore]",
+    "CUSTOMER -> DELIVERY-ADDRESS "uses" [oneOrMore dotted oneOrMore]",
+  ],
+  "events": undefined,
+  "groups": [],
+  "kind": "er",
+  "nodes": [
+    "CUSTOMER[compartment] "CUSTOMER"",
+    "ORDER[compartment] "ORDER"",
+    "LINE-ITEM[compartment] "LINE-ITEM"",
+    "DELIVERY-ADDRESS[compartment] "DELIVERY-ADDRESS"",
+  ],
+  "title": "Order example",
+  "types": {
+    "database": 4,
   },
 }
 `;

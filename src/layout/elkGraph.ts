@@ -36,7 +36,7 @@ function baseOptions(direction: Direction): LayoutOptions {
 }
 
 /** Build the ELK input graph. Group ids become compound nodes. */
-export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, string[]>; back: Set<string> } {
+export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, string[]>; flipped: Set<string> } {
   const withCaption = ir.kind !== 'state';
   const lines = new Map<string, string[]>();
   const elkNodes = new Map<string, ElkNode>();
@@ -87,10 +87,20 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
     }
   };
   for (const e of ir.edges) {
-    bump(e.from);
-    bump(e.to);
+    bump(e.authoredReversed ? e.to : e.from);
+    bump(e.authoredReversed ? e.from : e.to);
   }
   for (const id of elkNodes.keys()) bump(id);
+  const back = backEdges(ir, rank);
+  // ER and class diagrams declare structure rather than a flow: the order things
+  // are first mentioned says nothing about direction. Rank them topologically
+  // so ELK's model-order cycle breaking reverses only true back-edges.
+  if (ir.kind === 'er' || ir.kind === 'class') {
+    const order = topoOrder(ir, rank, back);
+    rank.clear();
+    for (const id of order) bump(id);
+    for (const id of elkNodes.keys()) bump(id);
+  }
   const ordered = [...elkNodes].sort((a, b) => rank.get(a[0])! - rank.get(b[0])!);
   for (const [id, elkNode] of ordered) {
     const parent = parentOf(id);
@@ -98,13 +108,15 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
     container.children!.push(elkNode);
   }
 
-  const back = backEdges(ir, rank);
+  const flipped = new Set<string>();
   const edges: ElkExtendedEdge[] = [];
   for (const e of ir.edges) {
     if (!elkNodes.has(e.from) || !elkNodes.has(e.to)) continue;
     // Back-edges go to ELK reversed (and are flipped back in fromElk), so the
-    // authored main path always flows forward.
-    const flip = back.has(e.id);
+    // authored main path always flows forward. Edges written the other way
+    // round go in their written order.
+    const flip = back.has(e.id) !== !!e.authoredReversed;
+    if (flip) flipped.add(e.id);
     let source = flip ? e.to : e.from;
     let target = flip ? e.from : e.to;
     if (usesPorts) {
@@ -119,7 +131,7 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
     edges.push(edge);
   }
   root.edges = edges;
-  return { graph: root, lines, back };
+  return { graph: root, lines, flipped };
 }
 
 /**
@@ -132,9 +144,10 @@ export function backEdges(ir: DiagramIR, rank: Map<string, number>): Set<string>
   const indeg = new Map<string, number>();
   for (const e of ir.edges) {
     if (e.from === e.to) continue;
-    if (!out.has(e.from)) out.set(e.from, []);
-    out.get(e.from)!.push({ id: e.id, to: e.to });
-    indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
+    const [from, to] = e.authoredReversed ? [e.to, e.from] : [e.from, e.to];
+    if (!out.has(from)) out.set(from, []);
+    out.get(from)!.push({ id: e.id, to });
+    indeg.set(to, (indeg.get(to) ?? 0) + 1);
   }
   const ids = [...new Set([...rank.keys(), ...out.keys()])].sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
   const roots = [...ids.filter((id) => !indeg.get(id)), ...ids];
@@ -160,6 +173,47 @@ export function backEdges(ir: DiagramIR, rank: Map<string, number>): Set<string>
   return back;
 }
 
+/** Layout-direction edges (written order, back-edges reversed): endpoints of each. */
+function layoutEnds(ir: DiagramIR, back: Set<string>): [string, string][] {
+  return ir.edges
+    .filter((e) => e.from !== e.to)
+    .map((e) => {
+      const written: [string, string] = e.authoredReversed ? [e.to, e.from] : [e.from, e.to];
+      return back.has(e.id) ? [written[1], written[0]] : written;
+    });
+}
+
+/** Topological order of the (acyclic) layout edges, ties broken by first mention. */
+export function topoOrder(ir: DiagramIR, rank: Map<string, number>, back: Set<string>): string[] {
+  const ends = layoutEnds(ir, back);
+  const indeg = new Map<string, number>();
+  const out = new Map<string, string[]>();
+  for (const id of rank.keys()) indeg.set(id, 0);
+  for (const [a, b] of ends) {
+    indeg.set(b, (indeg.get(b) ?? 0) + 1);
+    if (!indeg.has(a)) indeg.set(a, 0);
+    if (!out.has(a)) out.set(a, []);
+    out.get(a)!.push(b);
+  }
+  const byRank = (a: string, b: string) => (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity);
+  const ready = [...indeg].filter(([, d]) => d === 0).map(([id]) => id).sort(byRank);
+  const order: string[] = [];
+  while (ready.length) {
+    const id = ready.shift()!;
+    order.push(id);
+    for (const next of out.get(id) ?? []) {
+      indeg.set(next, indeg.get(next)! - 1);
+      if (indeg.get(next) === 0) {
+        ready.push(next);
+        ready.sort(byRank);
+      }
+    }
+  }
+  // Anything left sits on a cycle backEdges missed (edges into groups); keep first-mention order.
+  for (const id of [...indeg.keys()].sort(byRank)) if (!order.includes(id)) order.push(id);
+  return order;
+}
+
 function addPort(node: ElkNode, id: string, side: Side | undefined): string {
   if (!side || !node.ports) return node.id;
   const port: ElkPort = { id, width: 0, height: 0, layoutOptions: { 'elk.port.side': PORT_SIDE[side] } };
@@ -168,7 +222,7 @@ function addPort(node: ElkNode, id: string, side: Side | undefined): string {
 }
 
 /** Convert ELK output (ROOT coordinates) into a Scene. */
-export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[]>, back = new Set<string>()): Scene {
+export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[]>, flipped = new Set<string>()): Scene {
   const boxes = new Map<string, { x: number; y: number; w: number; h: number }>();
   const visit = (n: ElkNode) => {
     for (const c of n.children ?? []) {
@@ -189,6 +243,8 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
     ...(n.style && { style: settleInk(n.style) }),
     ...(n.link && { link: n.link }),
     ...(n.tooltip && { tooltip: n.tooltip }),
+    ...(n.compartments?.length && { compartments: n.compartments }),
+    ...(n.annotation && { annotation: n.annotation }),
   }));
 
   const depthOf = (id: string | undefined): number => {
@@ -232,7 +288,7 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
       from: e.from,
       to: e.to,
       label: e.label,
-      points: dedupe(back.has(e.id) ? points.reverse() : points),
+      points: dedupe(flipped.has(e.id) ? points.reverse() : points),
       labelBox: lab ? { x: lab.x ?? 0, y: lab.y ?? 0, w: lab.width ?? 0, h: lab.height ?? 0 } : undefined,
       stroke: e.stroke,
       arrowEnd: e.arrowEnd,
@@ -240,10 +296,12 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
       ...(e.marker && { arrowStyle: e.marker }),
       order: order.get(e.id) ?? 0,
       ...(e.style && { style: e.style }),
+      ...(e.ends && { ends: e.ends }),
     });
   }
 
   anchorLabels(edges, nodes);
+  for (const e of edges) placeEndLabels(e);
 
   return {
     version: 1,
@@ -298,6 +356,30 @@ function anchorLabels(edges: SceneEdge[], nodes: SceneNode[]) {
     if (clear) e.labelBox = moved;
     placed.push(e.labelBox!);
   }
+}
+
+/**
+ * Class multiplicities sit just outside each end of the route, beside the
+ * line: clear of the node the edge meets and of the marker drawn on it.
+ */
+function placeEndLabels(e: SceneEdge) {
+  const out: NonNullable<SceneEdge['endLabels']> = [];
+  const place = (text: string | undefined, tip: Pt, prev: Pt) => {
+    if (!text) return;
+    const { w, h } = edgeLabelSize(text);
+    const len = Math.hypot(tip.x - prev.x, tip.y - prev.y) || 1;
+    const dx = (tip.x - prev.x) / len;
+    const dy = (tip.y - prev.y) / len;
+    // Back off from the node by the label's own extent along the line, then step aside.
+    const back = Math.abs(dx) * (w / 2) + Math.abs(dy) * (h / 2) + 16;
+    const side = Math.abs(dy) * (w / 2) + Math.abs(dx) * (h / 2) + 4;
+    out.push({ text, x: Math.round(tip.x - dx * back - dy * side), y: Math.round(tip.y - dy * back + dx * side) });
+  };
+  const p = e.points;
+  if (p.length < 2) return;
+  place(e.ends?.startLabel, p[0], p[1]);
+  place(e.ends?.endLabel, p.at(-1)!, p.at(-2)!);
+  if (out.length) e.endLabels = out;
 }
 
 function dedupe(points: Pt[]): Pt[] {

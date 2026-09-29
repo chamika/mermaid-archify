@@ -3,6 +3,8 @@ import { hasIcons, iconKeys, removeIcon } from '../icons/fa';
 import { resolveIcons } from '../icons/resolve';
 import { settleTypes } from '../ir/classify';
 import { architectureToIR } from './architecture';
+import { classToIR } from './class';
+import { erToIR } from './er';
 import { flowchartToIR } from './flowchart';
 import { sequenceToIR } from './sequence';
 import { stateToIR } from './state';
@@ -30,7 +32,7 @@ function loadMermaid(): Promise<MermaidModule> {
   return mermaidPromise;
 }
 
-const SUPPORTED = 'flowchart, graph, sequenceDiagram, stateDiagram-v2, architecture-beta';
+const SUPPORTED = 'flowchart, graph, sequenceDiagram, stateDiagram-v2, erDiagram, classDiagram, architecture-beta';
 
 export async function parseMermaid(text: string): Promise<DiagramIR> {
   if (!text.trim()) throw new MermaidParseError('The diagram is empty.');
@@ -67,6 +69,11 @@ function toIR(type: string, db: any): DiagramIR {
       return stateToIR(db);
     case 'architecture':
       return architectureToIR(db);
+    case 'er':
+      return erToIR(db);
+    case 'class':
+    case 'classDiagram':
+      return classToIR(db);
     default:
       throw new MermaidParseError(`"${type}" diagrams are not supported yet. Supported: ${SUPPORTED}.`, 1);
   }

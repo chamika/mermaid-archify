@@ -338,3 +338,112 @@ test('icon names count as keyword evidence for component types', async () => {
   const ir = await parseMermaid('flowchart LR\n  A[fa:fa-server Alpha] --> B[fa:fa-database Beta] --> C[fa:fa-server Gamma]');
   expect(ir.nodes.map((n) => n.type)).toEqual(['backend', 'database', 'backend']);
 });
+
+describe('erDiagram', () => {
+  test('sample: entities, attributes, cardinalities', async () => {
+    const ir = await parseMermaid(sample('er'));
+    expect(ir).toMatchObject({ kind: 'er', title: 'Order data model', direction: 'TB' });
+    const byId = Object.fromEntries(ir.nodes.map((n) => [n.id, n]));
+    expect(ir.nodes.every((n) => n.shape === 'compartment' && n.type === 'database')).toBe(true);
+    expect(byId.CUSTOMER.compartments).toEqual([
+      {
+        title: 'attributes',
+        cols: ['type', 'name', 'keys', 'comment'],
+        rows: [
+          { cells: ['uuid', 'id', 'PK', ''] },
+          { cells: ['string', 'email', 'UK', 'login and receipts'] },
+          { cells: ['string', 'name', '', ''] },
+        ],
+      },
+    ]);
+    expect(byId.LINE_ITEM.compartments![0].rows[0].cells).toEqual(['uuid', 'order_id', 'PK, FK']);
+    // `A ||--o{ B`: the left token belongs to A, the right one to B.
+    const places = ir.edges.find((e) => e.label === 'places')!;
+    expect(places).toMatchObject({ from: 'CUSTOMER', to: 'ORDER', stroke: 'solid', ends: { start: 'one', end: 'zeroOrMore' } });
+    expect(ir.edges.find((e) => e.label === 'ships to')).toMatchObject({ stroke: 'dotted', ends: { start: 'zeroOrMore', end: 'zeroOrMore' } });
+    expect(ir.edges.find((e) => e.label === 'enrolled in')!.ends).toEqual({ start: 'zeroOrOne', end: 'zeroOrOne' });
+    expect(ir.edges.find((e) => e.label === 'contains')!.ends).toEqual({ start: 'one', end: 'oneOrMore' });
+  });
+
+  test('aliases, styles, explicit types and subgraphs', async () => {
+    const ir = await parseMermaid(
+      [
+        'erDiagram',
+        '  direction LR',
+        '  p["Person"] {',
+        '    string name',
+        '  }',
+        '  p ||--o{ q:::queue : owns',
+        '  style p stroke:#f00',
+        '  subgraph core["Core"]',
+        '    p',
+        '  end',
+      ].join('\n'),
+    );
+    expect(ir.direction).toBe('LR');
+    const [p, q] = ir.nodes;
+    expect(p).toMatchObject({ id: 'p', label: 'Person', type: 'database', parent: 'core', style: { stroke: '#f00' } });
+    expect(q).toMatchObject({ id: 'q', type: 'messagebus', classes: ['queue'] });
+    expect(ir.groups).toEqual([{ id: 'core', label: 'Core', parent: undefined }]);
+  });
+
+  test('a relationship to a subgraph targets the group', async () => {
+    const ir = await parseMermaid('erDiagram\n  subgraph g\n    A ||--|| B : x\n  end\n  g ||--|| C : y');
+    expect(ir.nodes.map((n) => n.id)).toEqual(['A', 'B', 'C']);
+    expect(ir.edges[1]).toMatchObject({ from: 'g', to: 'C' });
+  });
+});
+
+describe('classDiagram', () => {
+  test('sample: members, methods, annotations, relations', async () => {
+    const ir = await parseMermaid(sample('class'));
+    expect(ir).toMatchObject({ kind: 'class', title: 'Payments domain' });
+    const byId = Object.fromEntries(ir.nodes.map((n) => [n.id, n]));
+    expect(ir.nodes.every((n) => n.type === 'plain')).toBe(true);
+    expect(byId.PaymentMethod).toMatchObject({ shape: 'compartment', annotation: 'interface' });
+    expect(byId.Customer.compartments).toEqual([
+      { title: 'members', cols: ['member'], rows: [{ cells: ['+String email'] }, { cells: ['+List<Order> orders'] }] },
+    ]);
+    expect(byId.Ledger.compartments![0]).toMatchObject({ title: 'methods', rows: [{ cells: ['+record(Payment p)'], style: 'underline' }] });
+    const rel = (from: string, to: string) => ir.edges.find((e) => e.from === from && e.to === to)!;
+    // Edges point at their marked end: the implementer points at the interface.
+    expect(rel('Card', 'PaymentMethod')).toMatchObject({ stroke: 'dotted', ends: { end: 'inherit' } });
+    expect(rel('LineItem', 'Order')).toMatchObject({ label: 'contains', ends: { end: 'compose', startLabel: '1..*', endLabel: '1' } });
+    expect(rel('Order', 'Customer')).toMatchObject({ ends: { end: 'aggregate', startLabel: '*', endLabel: '1' } });
+    expect(rel('Order', 'PaymentMethod')).toMatchObject({ stroke: 'dotted', ends: { end: 'open' } });
+    expect(rel('Order', 'Ledger')).toMatchObject({ stroke: 'solid', arrowEnd: true, arrowStart: false });
+  });
+
+  test('namespaces, notes, lollipops, generics, styles and links', async () => {
+    const ir = await parseMermaid(
+      [
+        'classDiagram',
+        '  namespace Shapes {',
+        '    class Square~T~ {',
+        '      +area() double*',
+        '    }',
+        '  }',
+        '  Square --() Drawable',
+        '  Square -- Circle',
+        '  note for Square "sides are equal"',
+        '  note "free note"',
+        '  class Circle:::database',
+        '  style Circle fill:#f96',
+        '  click Circle href "https://example.com" "Docs"',
+      ].join('\n'),
+    );
+    const byId = Object.fromEntries(ir.nodes.map((n) => [n.id, n]));
+    expect(byId.Square).toMatchObject({ label: 'Square<T>', parent: 'Shapes' });
+    expect(byId.Square.compartments![0].rows[0]).toEqual({ cells: ['+area() : double'], style: 'italic' });
+    expect(byId.Circle).toMatchObject({ type: 'database', style: { fill: '#f96' }, link: 'https://example.com/', tooltip: 'Docs' });
+    const iface = ir.nodes.find((n) => n.hint === 'interface')!;
+    expect(iface).toMatchObject({ label: 'Drawable', shape: 'text' });
+    expect(ir.edges.find((e) => e.to === iface.id)).toMatchObject({ from: 'Square', ends: { end: 'lollipop' } });
+    expect(ir.edges.find((e) => e.to === 'Circle')).toMatchObject({ from: 'Square', arrowEnd: false, ends: {} });
+    expect(ir.nodes.filter((n) => n.shape === 'note').map((n) => [n.label, n.parent])).toEqual([
+      ['sides are equal', 'Shapes'],
+      ['free note', undefined],
+    ]);
+    expect(ir.edges.find((e) => e.to === 'Square' && e.stroke === 'dotted')).toBeDefined();
+  });
+});

@@ -1,5 +1,5 @@
 import { iconsAsCells } from '../icons/fa';
-import type { Direction, IRNode } from '../ir/types';
+import type { Compartment, Direction, IRNode } from '../ir/types';
 
 /**
  * Text metrics. The UI font is monospace (JetBrains Mono, like Archify), so a
@@ -99,6 +99,10 @@ export function nodeSize(node: IRNode, direction: Direction, withCaption: boolea
     }
     case 'text':
       return { w: Math.ceil(Math.max(40, textW + 16)), h: Math.ceil(textH + 12), lines };
+    case 'compartment': {
+      const m = compartmentMetrics(node.label, node.annotation, node.compartments);
+      return { w: m.w, h: m.h, lines: m.lines };
+    }
     default: {
       const caption = withCaption && node.shape !== 'note' && node.type !== 'plain' ? CAPTION_H : 0;
       const pad = node.shape === 'cylinder' || node.shape === 'document' ? 18 : 0;
@@ -119,4 +123,61 @@ export function edgeLabelSize(label: string): { w: number; h: number; lines: str
     h: Math.ceil(lines.length * FONT.edge * FONT.lineHeight + 6),
     lines,
   };
+}
+
+/** Compartment boxes (ER entities, UML classes): a title band, then sections of aligned rows. */
+export const ROW = {
+  size: 12,
+  h: 18,
+  padX: 12,
+  gap: 14,
+  sectionPad: 5,
+  headPad: 9,
+  annotationH: 15,
+  /** Longer cells are cut with an ellipsis; the details panel shows them whole. */
+  maxCells: 40,
+  titleChars: 30,
+};
+
+export function fitCell(text: string): string {
+  return cells(text) <= ROW.maxCells ? text : `${chunk(text, ROW.maxCells - 1)[0]}…`;
+}
+
+export interface CompartmentMetrics {
+  /** Title lines. */
+  lines: string[];
+  headH: number;
+  /** Per section: top offset from the node's y, height, and column x offsets from the node's x. */
+  sections: { y: number; h: number; colX: number[] }[];
+  w: number;
+  h: number;
+}
+
+/** Geometry shared by layout (sizing) and the renderer (drawing), so both agree exactly. */
+export function compartmentMetrics(title: string, annotation: string | undefined, compartments: Compartment[] = []): CompartmentMetrics {
+  const lines = title ? wrap(title, ROW.titleChars) : [];
+  const lh = FONT.label * FONT.lineHeight;
+  const headH = Math.ceil(Math.max(40, ROW.headPad * 2 + (annotation ? ROW.annotationH : 0) + lines.length * lh));
+  let w = Math.max(
+    120,
+    ...lines.map((l) => textWidth(l, FONT.label) + ROW.padX * 2 + 8),
+    annotation ? textWidth(`«${annotation}»`, FONT.caption) + ROW.padX * 2 : 0,
+  );
+  let y = headH;
+  const sections: CompartmentMetrics['sections'] = [];
+  for (const c of compartments) {
+    if (!c.rows.length) continue;
+    const colW = c.cols.map((_, i) => Math.max(0, ...c.rows.map((r) => textWidth(fitCell(r.cells[i] ?? ''), ROW.size))));
+    const colX: number[] = [];
+    let x = ROW.padX;
+    for (const cw of colW) {
+      colX.push(x);
+      x += cw + ROW.gap;
+    }
+    w = Math.max(w, x - ROW.gap + ROW.padX);
+    const h = ROW.sectionPad * 2 + c.rows.length * ROW.h;
+    sections.push({ y, h, colX });
+    y += h;
+  }
+  return { lines, headH, sections, w: Math.ceil(w), h: y };
 }

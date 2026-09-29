@@ -1,0 +1,50 @@
+---
+title: Payments domain
+---
+classDiagram
+  class PaymentMethod {
+    <<interface>>
+    +authorize(Money amount) Result
+    +capture(String authId) Result
+  }
+  class Card {
+    -String token
+    +String last4
+    +authorize(Money amount) Result
+    +capture(String authId) Result
+  }
+  class Wallet {
+    -String walletId
+    +authorize(Money amount) Result
+    +capture(String authId) Result
+  }
+  class Order {
+    +UUID id
+    +Status status
+    +total() Money
+    +pay(PaymentMethod method)
+  }
+  class LineItem {
+    +String sku
+    +int quantity
+    +Money price
+  }
+  class Customer {
+    +String email
+    +List~Order~ orders
+  }
+  class Ledger {
+    <<service>>
+    +record(Payment p)$
+  }
+  class Money {
+    +long minorUnits
+    +String currency
+  }
+  PaymentMethod <|.. Card
+  PaymentMethod <|.. Wallet
+  Order "1" *-- "1..*" LineItem : contains
+  Customer "1" o-- "*" Order : places
+  Order ..> PaymentMethod : pays with
+  Order --> Ledger : posts to
+  LineItem ..> Money

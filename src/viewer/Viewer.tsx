@@ -5,7 +5,7 @@ import { safeLink } from '../ir/style';
 import type { SemanticType } from '../ir/types';
 import type { Scene, SceneNode } from '../scene/types';
 import { Diagram, type Highlight, pathD } from './Diagram';
-import { type Lit, adjacency, neighbourhood, route, search } from './graph';
+import { type Lit, adjacency, neighbourhood, relationPhrase, route, search } from './graph';
 import { Icon, STATE_TONE_LABEL, TYPE_ICON, TYPE_LABEL, UI_ICON } from './icons';
 import { usePanZoom } from './usePanZoom';
 import diagramCss from './diagram.css?inline';
@@ -541,13 +541,22 @@ function Passport({
   const kindLabel =
     scene.kind === 'state'
       ? STATE_TONE_LABEL[node.type]
-      : node.type === 'plain'
-        ? scene.kind === 'sequence'
-          ? 'participant'
-          : node.shape === 'diamond'
-            ? 'decision'
-            : 'step'
-        : TYPE_LABEL[node.type];
+      : node.shape === 'note'
+        ? 'note'
+        : scene.kind === 'er' && node.type === 'database'
+          ? 'entity'
+          : scene.kind === 'class' && node.type === 'plain'
+            ? (node.annotation ?? (node.shape === 'compartment' ? 'class' : 'interface'))
+            : node.type === 'plain'
+              ? scene.kind === 'sequence'
+                ? 'participant'
+                : node.shape === 'diamond'
+                  ? 'decision'
+                  : 'step'
+              : TYPE_LABEL[node.type];
+  // ER and class relationships read both ways, so they are listed once, each with its meaning.
+  const relational = scene.kind === 'er' || scene.kind === 'class';
+  const relations = relational ? [...new Map([...outgoing, ...incoming].map((e) => [e.id, e])).values()] : [];
   const link = safeLink(node.link);
   const Rel = ({ other, text, dir }: { other: string; text?: string; dir: '→' | '←' }) => (
     <li>
@@ -601,20 +610,47 @@ function Passport({
           </>
         )}
       </dl>
-      <h3>{scene.kind === 'sequence' ? 'Receives' : 'Upstream'}</h3>
-      <ul>
-        {incoming.length === 0 && <li class="none">none</li>}
-        {incoming.map((e) => (
-          <Rel key={e.id} other={e.to === node.id ? e.from : e.to} text={e.label} dir="←" />
-        ))}
-      </ul>
-      <h3>{scene.kind === 'sequence' ? 'Sends' : 'Downstream'}</h3>
-      <ul>
-        {outgoing.length === 0 && <li class="none">none</li>}
-        {outgoing.map((e) => (
-          <Rel key={e.id} other={e.from === node.id ? e.to : e.from} text={e.label} dir="→" />
-        ))}
-      </ul>
+      {node.compartments?.map((c) => (
+        <div key={c.title}>
+          <h3>{c.title}</h3>
+          <ul class="rows">
+            {c.rows.map((r, i) => (
+              <li key={i} class={r.style}>
+                {r.cells.map((cell, k) => (cell ? <span key={k} class={`c-${c.cols[k]}`}>{cell}</span> : null))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {relational ? (
+        <>
+          <h3>Relationships</h3>
+          <ul>
+            {relations.length === 0 && <li class="none">none</li>}
+            {relations.map((e) => {
+              const out = e.from === node.id;
+              return <Rel key={e.id} other={out ? e.to : e.from} text={relationPhrase(e, node.id, scene.kind)} dir={out ? '→' : '←'} />;
+            })}
+          </ul>
+        </>
+      ) : (
+        <>
+          <h3>{scene.kind === 'sequence' ? 'Receives' : 'Upstream'}</h3>
+          <ul>
+            {incoming.length === 0 && <li class="none">none</li>}
+            {incoming.map((e) => (
+              <Rel key={e.id} other={e.to === node.id ? e.from : e.to} text={e.label} dir="←" />
+            ))}
+          </ul>
+          <h3>{scene.kind === 'sequence' ? 'Sends' : 'Downstream'}</h3>
+          <ul>
+            {outgoing.length === 0 && <li class="none">none</li>}
+            {outgoing.map((e) => (
+              <Rel key={e.id} other={e.from === node.id ? e.to : e.from} text={e.label} dir="→" />
+            ))}
+          </ul>
+        </>
+      )}
       <footer>
         {onCopyLink && (
           <button class="ma-btn" onClick={onCopyLink}>

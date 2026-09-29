@@ -112,6 +112,52 @@
   fill: none;
   stroke-width: 1.5;
 }
+.ma-marker.hollow {
+  fill: var(--mask);
+  stroke-width: 1.5;
+}
+.ma-edge .end-label {
+  fill: var(--text-muted);
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: var(--mask);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+/* Compartment boxes (ER entities, UML classes). */
+.ma-node .head {
+  fill-opacity: 0.14;
+  stroke: none;
+}
+.ma-node .body.divider {
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+.ma-node .annotation {
+  fill: var(--u-ink, var(--text-muted));
+  font-style: italic;
+}
+.ma-node .row {
+  font-size: 12px;
+  fill: var(--u-ink, var(--text));
+}
+.ma-node .row.italic {
+  font-style: italic;
+}
+.ma-node .row.underline {
+  text-decoration: underline;
+}
+.ma-node .row .c-type,
+.ma-node .row .c-comment {
+  fill: var(--u-ink, var(--text-muted));
+}
+.ma-node .row .c-comment {
+  font-style: italic;
+}
+.ma-node .row .c-keys {
+  fill: var(--u-ink, var(--cloud-stroke));
+  font-weight: 700;
+}
 .ma-lifeline {
   stroke: var(--lane-stroke);
   stroke-width: 1.25;

@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { FONT, textWidth } from '../../src/layout/measure';
+import { FONT, ROW, compartmentMetrics, edgeLabelSize, fitCell, textWidth } from '../../src/layout/measure';
 import { iconKeys } from '../../src/icons/fa';
 import { nearestOnPath } from '../../src/layout/elkGraph';
 import type { Box, Pt, Scene } from '../../src/scene/types';
@@ -52,6 +52,25 @@ export function checkScene(s: Scene, where = '') {
       expect(tall, at(`node ${n.id} label taller than its box`)).toBeLessThanOrEqual(n.h);
     }
   }
+  // Compartments: title, «annotation» and every row fit the box; sections stack inside it.
+  for (const n of s.nodes) {
+    if (n.shape !== 'compartment') continue;
+    const m = compartmentMetrics(n.label, n.annotation, n.compartments);
+    for (const l of m.lines) expect(textWidth(l, FONT.label), at(`title of ${n.id} wider than its box`)).toBeLessThanOrEqual(n.w - 16);
+    const sections = (n.compartments ?? []).filter((c) => c.rows.length);
+    expect(m.sections.length, at(`${n.id} section count`)).toBe(sections.length);
+    sections.forEach((c, i) => {
+      const sec = m.sections[i];
+      expect(sec.y + sec.h, at(`section ${i} of ${n.id} below its box`)).toBeLessThanOrEqual(n.h + 0.5);
+      for (const r of c.rows) {
+        expect(LEAKS.test(r.cells.join(' ')), at(`row of ${n.id} leaks markup: ${JSON.stringify(r.cells)}`)).toBe(false);
+        r.cells.forEach((cell, k) => {
+          const right = sec.colX[k] + textWidth(fitCell(cell), ROW.size);
+          expect(right, at(`row ${JSON.stringify(cell)} of ${n.id} wider than its box`)).toBeLessThanOrEqual(n.w - ROW.padX + 0.5);
+        });
+      }
+    });
+  }
   for (const e of s.edges) {
     if (e.label) expect(LEAKS.test(e.label), at(`edge ${e.id} label leaks markup: ${JSON.stringify(e.label)}`)).toBe(false);
   }
@@ -99,6 +118,14 @@ export function checkScene(s: Scene, where = '') {
         expect(overlaps(e.labelBox, n, 1), at(`edge ${e.id} label covers node ${n.id}`)).toBe(false);
     }
   }
+  // End labels (multiplicities) stay on the canvas and off every node.
+  for (const e of s.edges)
+    for (const l of e.endLabels ?? []) {
+      const { w, h } = edgeLabelSize(l.text);
+      const box = { x: l.x - w / 2, y: l.y - h / 2, w, h };
+      expect(inside(box, canvas, 1), at(`end label ${JSON.stringify(l.text)} of ${e.id} outside the canvas`)).toBe(true);
+      for (const n of s.nodes) expect(overlaps(box, n, 1), at(`end label ${JSON.stringify(l.text)} of ${e.id} covers node ${n.id}`)).toBe(false);
+    }
   // Labels sit on (or right beside) their own route, and never on each other.
   for (const d of detached) expect(d.gap, at(`label of ${d.id} is ${d.gap.toFixed(0)}px away from its edge`)).toBeLessThanOrEqual(maxLabelGap);
   const boxes2 = s.edges.flatMap((e) => (e.labelBox ? [{ id: e.id, b: e.labelBox }] : []));

@@ -39,6 +39,25 @@ describe('checkScene catches', () => {
     expect(() => checkScene(s)).toThrow(/sticks out of block/);
   });
 
+  test('a compartment row wider than its box', async () => {
+    const s = clone(await base('erDiagram\n  A {\n    string name\n  }'));
+    s.nodes[0].w = 60;
+    expect(() => checkScene(s)).toThrow(/wider than its box/);
+  });
+
+  test('markup leaking into a compartment row', async () => {
+    const s = clone(await base('classDiagram\n  class A {\n    +run()\n  }'));
+    s.nodes[0].compartments![0].rows[0].cells = ['<b>run</b>'];
+    expect(() => checkScene(s)).toThrow(/leaks markup/);
+  });
+
+  test('an end label covering a node', async () => {
+    const s = clone(await base('classDiagram\n  A "1" --> "*" B'));
+    const b = s.nodes.find((n) => n.id === 'B')!;
+    s.edges[0].endLabels![1] = { text: '*', x: b.x + b.w / 2, y: b.y + b.h / 2 };
+    expect(() => checkScene(s)).toThrow(/end label .* covers node/);
+  });
+
   test('out-of-order sequence messages', async () => {
     const s = clone(await base('sequenceDiagram\n  A->>B: one\n  B->>A: two'));
     s.edges[1].points = s.edges[1].points.map((p) => ({ ...p, y: 0.5 }));
