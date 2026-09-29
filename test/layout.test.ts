@@ -130,3 +130,10 @@ test('plain nodes are sized without a caption row', async () => {
   expect(plain.nodes[0].type).toBe('plain');
   expect(plain.nodes[0].h).toBeLessThan(typed.nodes[0].h);
 });
+
+test('an inline icon reserves room in the node width', async () => {
+  const without = await scene('flowchart LR\n  A[Readme docs for everyone]');
+  const withIcon = await scene('flowchart LR\n  A[fa:fa-book Readme docs for everyone]');
+  expect(withIcon.nodes[0].w).toBeGreaterThan(without.nodes[0].w);
+  expect(Object.keys(withIcon.icons!)).toEqual(['fa:book']);
+});

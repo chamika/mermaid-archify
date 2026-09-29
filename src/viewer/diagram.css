@@ -61,6 +61,13 @@
   stroke: var(--arrow-emphasis);
   stroke-dasharray: 3 3;
 }
+.ma-icon {
+  fill: var(--text);
+}
+.ma-edge .ma-icon,
+.ma-group .ma-icon {
+  fill: var(--text-muted);
+}
 .ma-node .junction {
   fill: var(--arrow);
 }

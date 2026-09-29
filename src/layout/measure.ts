@@ -1,3 +1,4 @@
+import { iconsAsCells } from '../icons/fa';
 import type { Direction, IRNode } from '../ir/types';
 
 /**
@@ -25,7 +26,7 @@ const WIDE =
 
 export function cells(text: string): number {
   let n = 0;
-  for (const ch of text) n += WIDE.test(ch) ? 2 : 1;
+  for (const ch of iconsAsCells(text)) n += WIDE.test(ch) ? 2 : 1;
   return n;
 }
 

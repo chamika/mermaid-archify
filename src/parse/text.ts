@@ -1,3 +1,5 @@
+import { encodeIcons, stripIconTokens } from '../icons/fa';
+
 /** Line-break placeholder that survives Mermaid's HTML sanitizer. */
 export const BR = '\u23CE';
 
@@ -46,7 +48,12 @@ export function decodeMermaidEntities(s: string): string {
 }
 
 /** Normalize Mermaid label markup (br tags, html, markdown backticks) to plain text with \n breaks. */
-export function cleanLabel(raw: unknown): string {
+export interface CleanOptions {
+  /** Keep Font Awesome tokens as inline icon markers (flowcharts); otherwise drop them. */
+  icons?: boolean;
+}
+
+export function cleanLabel(raw: unknown, { icons = false }: CleanOptions = {}): string {
   let s = Array.isArray(raw) ? raw.join('\n') : String(raw ?? '');
   s = decodeMermaidEntities(s)
     .replaceAll(BR, '\n')
@@ -54,10 +61,9 @@ export function cleanLabel(raw: unknown): string {
     .replace(/<[^>]+>/g, '')
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e: string) => ENTITIES[e])
     .replace(/^"`|`"$/g, '')
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    // Font Awesome icons only render when the page loads FA's CSS; like Mermaid
-    // without it, show nothing rather than the raw token.
-    .replace(/\bfa[bklrs]?:fa-[\w-]+\s*/g, '');
+    .replace(/\*\*(.+?)\*\*/g, '$1');
+  // Mermaid renders `fa:` icons in flowcharts only; elsewhere the token is dropped.
+  s = icons ? encodeIcons(s) : stripIconTokens(s);
   return s
     .split('\n')
     .map((l) => l.trim())

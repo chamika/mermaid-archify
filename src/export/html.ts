@@ -19,7 +19,7 @@ export function buildStandaloneHtml(scene: Scene, source: string, viewerJs: stri
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="mermaid-archify">
+<meta name="generator" content="mermaid-archify">${scene.icons ? '\n<!-- Icons: Font Awesome Free by Fonticons, Inc., CC BY 4.0, https://fontawesome.com/license/free -->' : ''}
 <title>${title}</title>
 ${FONT_LINK}
 <style>html,body{margin:0;height:100%;background:var(--bg,#020617)}#app{position:fixed;inset:0}</style>

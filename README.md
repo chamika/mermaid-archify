@@ -66,8 +66,14 @@ Mermaid text ─parse─▶ DiagramIR ─layout─▶ Scene ─render─▶ View
 - **Viewer** (`src/viewer/`): consumes only the positioned Scene, so exported
   HTML embeds the Scene plus a ~70 KB runtime, with no Mermaid or ELK.
 
-Known gaps: KaTeX (`$$…$$`) labels show their LaTeX source, and Font Awesome
-`fa:` icons are dropped (as Mermaid does when Font Awesome isn't loaded).
+**Font Awesome icons** (`A[fa:fa-car Car]`, also `fab:`/`far:`/`fas:` and old
+FA4 names like `fa-cogs`) render inline in flowchart node, edge and subgraph
+labels, as in Mermaid. The icon table is built from Font Awesome Free at build
+time and loaded only when a diagram uses icons; exported HTML embeds just the
+icons it uses. Icons © Fonticons, Inc., CC BY 4.0 (https://fontawesome.com/license/free).
+Like Mermaid, other diagram types ignore `fa:` tokens.
+
+Known gaps: KaTeX (`$$…$$`) labels show their LaTeX source.
 Mermaid's 40+ expanded node shapes are mapped onto shape families (storage,
 document, in/out, manual, note, text) rather than drawn individually.
 

@@ -9,3 +9,8 @@ declare module '*.mmd?raw' {
   const src: string;
   export default src;
 }
+
+declare module 'virtual:fa-icons' {
+  const table: Record<string, unknown>;
+  export default table;
+}

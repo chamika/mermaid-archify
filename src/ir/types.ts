@@ -1,3 +1,5 @@
+import type { IconSet } from '../icons/fa';
+
 /**
  * DiagramIR — the syntax-neutral Intermediate Representation every Mermaid
  * parser produces. It carries meaning only (no coordinates); layout turns it
@@ -160,4 +162,6 @@ export interface DiagramIR {
   groups: IRGroup[];
   /** Ordered sequence events (sequence diagrams only). */
   events?: SeqEvent[];
+  /** Path data for the Font Awesome icons its labels use, keyed `style:name`. */
+  icons?: IconSet;
 }

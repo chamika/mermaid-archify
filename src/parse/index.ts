@@ -1,4 +1,6 @@
 import type { DiagramIR } from '../ir/types';
+import { hasIcons, iconKeys, removeIcon } from '../icons/fa';
+import { resolveIcons } from '../icons/resolve';
 import { settleTypes } from '../ir/classify';
 import { architectureToIR } from './architecture';
 import { flowchartToIR } from './flowchart';
@@ -46,6 +48,7 @@ export async function parseMermaid(text: string): Promise<DiagramIR> {
   }
   const ir = toIR(diagram.type, diagram.db);
   if (ir.kind !== 'state') settleTypes(ir.nodes);
+  await attachIcons(ir);
   ir.title ??= frontmatterTitle(text);
   return ir;
 }
@@ -67,6 +70,19 @@ function toIR(type: string, db: any): DiagramIR {
     default:
       throw new MermaidParseError(`"${type}" diagrams are not supported yet. Supported: ${SUPPORTED}.`, 1);
   }
+}
+
+/** Resolve every icon the labels use; icons Font Awesome Free lacks are removed from the text. */
+async function attachIcons(ir: DiagramIR): Promise<void> {
+  const labelled: { label?: string }[] = [...ir.nodes, ...ir.edges, ...ir.groups];
+  const keys = labelled.flatMap((x) => (x.label && hasIcons(x.label) ? iconKeys(x.label) : []));
+  if (!keys.length) return;
+  const icons = await resolveIcons(keys);
+  for (const x of labelled) {
+    if (!x.label || !hasIcons(x.label)) continue;
+    for (const key of iconKeys(x.label)) if (!icons[key]) x.label = removeIcon(x.label, key);
+  }
+  if (Object.keys(icons).length) ir.icons = icons;
 }
 
 function frontmatterTitle(text: string): string | undefined {

@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { plainText } from '../icons/fa';
 import type { SemanticType } from '../ir/types';
 import type { Scene, SceneNode } from '../scene/types';
 import { Diagram, type Highlight, pathD } from './Diagram';
@@ -285,7 +286,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
     }
     if (pinnedEdge) {
       const e = scene.edges.find((x) => x.id === pinnedEdge);
-      if (e) return <>{label(nodeById.get(e.from)) || e.from} → {label(nodeById.get(e.to)) || e.to}{e.label ? ` · ${e.label.replace(/\n/g, ' ')}` : ''}</>;
+      if (e) return <>{label(nodeById.get(e.from)) || e.from} → {label(nodeById.get(e.to)) || e.to}{e.label ? ` · ${plainText(e.label).replace(/\n/g, ' ')}` : ''}</>;
     }
     if (traceStep !== undefined) return <>Tracing · step {Math.min(traceStep, maxOrder) + 1} of {maxOrder + 1}</>;
     return toast;
@@ -445,7 +446,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
   );
 }
 
-const label = (n: SceneNode | undefined) => (n ? (n.label || n.id).replace(/\n/g, ' ') : '');
+const label = (n: SceneNode | undefined) => (n ? (plainText(n.label) || n.id).replace(/\n/g, ' ') : '');
 
 function Finder({ scene, onPick, onClose }: { scene: Scene; onPick: (id: string) => void; onClose: () => void }) {
   const [q, setQ] = useState('');
@@ -527,7 +528,7 @@ function Passport({
   while (p) {
     const g = scene.groups.find((x) => x.id === p);
     if (!g) break;
-    groupPath.unshift(g.label);
+    groupPath.unshift(plainText(g.label));
     p = g.parent;
   }
   const kindLabel =
@@ -546,7 +547,7 @@ function Passport({
         <span>{dir}</span>
         <span>
           {label(nodeById.get(other)) || other}
-          {text && <div class="via">{text.replace(/\n/g, ' ')}</div>}
+          {text && <div class="via">{plainText(text).replace(/\n/g, ' ')}</div>}
         </span>
       </button>
     </li>
@@ -558,7 +559,7 @@ function Passport({
           <path d={TYPE_ICON[node.type]} fill="none" stroke={`var(--${node.type}-stroke)`} stroke-width="1.4" />
         </svg>
         <div>
-          <h2>{node.label || node.id}</h2>
+          <h2>{plainText(node.label) || node.id}</h2>
           <span class="kind" style={{ color: `var(--${node.type}-stroke)` }}>
             {node.shape === 'start' ? 'start' : node.shape === 'end' ? 'end' : kindLabel}
           </span>

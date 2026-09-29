@@ -6,7 +6,12 @@ import { layoutSequence } from './sequence';
 export type { ElkLike };
 
 export async function layout(ir: DiagramIR, elk: ElkLike): Promise<Scene> {
-  if (ir.kind === 'sequence') return layoutSequence(ir);
+  const scene = ir.kind === 'sequence' ? layoutSequence(ir) : await layoutGraph(ir, elk);
+  if (ir.icons) scene.icons = ir.icons;
+  return scene;
+}
+
+async function layoutGraph(ir: DiagramIR, elk: ElkLike): Promise<Scene> {
   const { graph, lines, back } = toElkGraph(ir);
   const laid = await elk.layout(graph);
   return fromElk(ir, laid, lines, back);

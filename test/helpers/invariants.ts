@@ -1,5 +1,6 @@
 import { expect } from 'vitest';
 import { FONT, textWidth } from '../../src/layout/measure';
+import { iconKeys } from '../../src/icons/fa';
 import { nearestOnPath } from '../../src/layout/elkGraph';
 import type { Box, Pt, Scene } from '../../src/scene/types';
 
@@ -55,6 +56,12 @@ export function checkScene(s: Scene, where = '') {
     if (e.label) expect(LEAKS.test(e.label), at(`edge ${e.id} label leaks markup: ${JSON.stringify(e.label)}`)).toBe(false);
   }
   for (const g of s.groups) expect(LEAKS.test(g.label), at(`group ${g.id} label leaks markup`)).toBe(false);
+
+  // Icons: no raw Font Awesome token survives, and every inline icon has path data.
+  for (const text of [...s.nodes.map((n) => n.label), ...s.edges.map((e) => e.label ?? ''), ...s.groups.map((g) => g.label)]) {
+    expect(/\bfa[bklrs]?:fa-/.test(text), at(`raw icon token in ${JSON.stringify(text)}`)).toBe(false);
+    for (const key of iconKeys(text)) expect(s.icons?.[key], at(`icon ${key} has no path data`)).toBeDefined();
+  }
 
   // Nodes never overlap each other.
   for (let i = 0; i < s.nodes.length; i++)
