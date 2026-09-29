@@ -118,7 +118,7 @@ export function App() {
   const sampleId = SAMPLES.find((s) => s.source === source)?.id ?? '';
 
   return (
-    <div class="app" style={{ '--split': editorOpen ? `${split}%` : '0px' }}>
+    <div class="app" style={{ '--split': `${split}%` }}>
       <header class="topbar">
         <div class="brand">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -158,7 +158,7 @@ export function App() {
         </button>
       </header>
 
-      <main class="panes">
+      <main class={editorOpen ? 'panes' : 'panes code-hidden'}>
         {editorOpen && (
           <section class="editor-pane" aria-label="Mermaid editor">
             <Editor value={source} onChange={setSource} errorLine={problem?.line} errorMessage={problem?.message} />

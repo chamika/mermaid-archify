@@ -54,6 +54,31 @@ test('focus opens the passport; finder focuses a node', async ({ page }) => {
   await expect(page.locator('.ma-passport h2')).toHaveText('Stripe');
 });
 
+async function expectCentred(page: Page) {
+  // The diagram's horizontal centre sits on the canvas centre.
+  await expect(async () => {
+    const c = (await page.locator('.canvas-pane').boundingBox())!;
+    const d = (await page.locator('.ma-svg').boundingBox())!;
+    expect(Math.abs(d.x + d.width / 2 - (c.x + c.width / 2))).toBeLessThan(2);
+  }).toPass({ timeout: 2_000 });
+}
+
+test('hiding the code gives the diagram the full width', async ({ page }) => {
+  const canvas = page.locator('.canvas-pane');
+  const before = (await canvas.boundingBox())!.width;
+  await page.getByRole('button', { name: 'Hide code' }).click();
+  await expect(page.locator('.editor-pane')).toHaveCount(0);
+  await expect(page.locator('.ma-svg')).toBeVisible();
+  const after = (await canvas.boundingBox())!.width;
+  expect(after).toBeGreaterThan(before);
+  expect(after).toBeGreaterThanOrEqual(page.viewportSize()!.width - 1);
+  await expectCentred(page);
+  await page.getByRole('button', { name: 'Show code' }).click();
+  await expect(page.locator('.editor-pane')).toBeVisible();
+  expect((await canvas.boundingBox())!.width).toBeCloseTo(before, 0);
+  await expectCentred(page);
+});
+
 test('theme toggle flips data-theme', async ({ page }) => {
   const before = await page.evaluate(() => document.documentElement.dataset.theme ?? 'auto');
   await page.getByRole('button', { name: 'Toggle theme' }).click();
