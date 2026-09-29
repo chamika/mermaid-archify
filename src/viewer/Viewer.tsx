@@ -255,7 +255,7 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
 
   const types = useMemo(() => {
     const seen = new Set<SemanticType>();
-    for (const n of scene.nodes) if (!['start', 'end', 'junction', 'fork'].includes(n.shape)) seen.add(n.type);
+    for (const n of scene.nodes) if (n.type !== 'plain' && !['start', 'end', 'junction', 'fork', 'note', 'text'].includes(n.shape)) seen.add(n.type);
     return [...seen];
   }, [scene]);
 
@@ -296,10 +296,6 @@ export function Viewer({ scene, initialFocus, onFocusChange, linkFor, exports = 
       ref={viewportRef}
       class="ma-viewer"
       tabIndex={-1}
-      style={{
-        backgroundSize: `${32 * pz.t.k}px ${32 * pz.t.k}px`,
-        backgroundPosition: `${pz.t.x}px ${pz.t.y}px`,
-      }}
       onClick={(e) => {
         if (pz.didPan() || (e.target as Element).closest('.ma-chrome')) return;
         clearAll();
@@ -534,7 +530,16 @@ function Passport({
     groupPath.unshift(g.label);
     p = g.parent;
   }
-  const kindLabel = scene.kind === 'state' ? STATE_TONE_LABEL[node.type] : TYPE_LABEL[node.type];
+  const kindLabel =
+    scene.kind === 'state'
+      ? STATE_TONE_LABEL[node.type]
+      : node.type === 'plain'
+        ? scene.kind === 'sequence'
+          ? 'participant'
+          : node.shape === 'diamond'
+            ? 'decision'
+            : 'step'
+        : TYPE_LABEL[node.type];
   const Rel = ({ other, text, dir }: { other: string; text?: string; dir: '→' | '←' }) => (
     <li>
       <button onClick={() => nodeById.has(other) && onPick(other)}>

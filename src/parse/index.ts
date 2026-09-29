@@ -1,4 +1,5 @@
 import type { DiagramIR } from '../ir/types';
+import { settleTypes } from '../ir/classify';
 import { architectureToIR } from './architecture';
 import { flowchartToIR } from './flowchart';
 import { sequenceToIR } from './sequence';
@@ -44,6 +45,7 @@ export async function parseMermaid(text: string): Promise<DiagramIR> {
     throw e;
   }
   const ir = toIR(diagram.type, diagram.db);
+  if (ir.kind !== 'state') settleTypes(ir.nodes);
   ir.title ??= frontmatterTitle(text);
   return ir;
 }

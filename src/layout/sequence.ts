@@ -1,9 +1,8 @@
 import type { DiagramIR, SeqBlockType } from '../ir/types';
 import type { Pt, Scene, SceneActivation, SceneBlock, SceneEdge, SceneNode, SceneNote } from '../scene/types';
-import { FONT, edgeLabelSize, textWidth, wrap } from './measure';
+import { CAPTION_H, FONT, edgeLabelSize, textWidth, wrap } from './measure';
 
 const MARGIN = 32;
-const HEAD_H = 56;
 const COL_GAP = 48;
 const SELF_W = 44;
 const ACT_W = 10;
@@ -14,7 +13,9 @@ const NOTE_MAX = 30;
 export function layoutSequence(ir: DiagramIR): Scene {
   const events = ir.events ?? [];
   const index = new Map(ir.nodes.map((n, i) => [n.id, i]));
-  const widths = ir.nodes.map((n) => Math.max(120, Math.ceil(textWidth(n.label, FONT.label) + 36)));
+  const headLines = ir.nodes.map((n) => wrap(n.label, 24));
+  const widths = headLines.map((lines) => Math.max(120, Math.ceil(Math.max(...lines.map((l) => textWidth(l, FONT.label))) + 36)));
+  const HEAD_H = Math.max(56, Math.ceil(Math.max(1, ...headLines.map((l) => l.length)) * FONT.label * FONT.lineHeight + CAPTION_H + 26));
 
   // --- columns: minimum centre distance between neighbours ---
   const need: number[] = ir.nodes.map((_, i) => (i === 0 ? 0 : (widths[i - 1] + widths[i]) / 2 + COL_GAP));
@@ -51,7 +52,7 @@ export function layoutSequence(ir: DiagramIR): Scene {
     ir.nodes.map((n, i) => ({
       id: n.id,
       label: n.label,
-      lines: [n.label],
+      lines: headLines[i],
       type: n.type,
       shape: n.shape,
       x: cx[i] - widths[i] / 2,
@@ -74,6 +75,9 @@ export function layoutSequence(ir: DiagramIR): Scene {
     y: number;
     sections: { y: number; label: string }[];
     cols: Set<number>;
+    /** Horizontal extent of everything drawn inside (labels, notes, self-loops, child blocks). */
+    minX: number;
+    maxX: number;
   }[] = [];
   let lastMessageY = y;
 
@@ -84,6 +88,12 @@ export function layoutSequence(ir: DiagramIR): Scene {
   };
   const touch = (...cols: number[]) => {
     for (const b of openBlocks) for (const c of cols) b.cols.add(c);
+  };
+  const reach = (x1: number, x2: number) => {
+    for (const b of openBlocks) {
+      b.minX = Math.min(b.minX, x1);
+      b.maxX = Math.max(b.maxX, x2);
+    }
   };
 
   for (const ev of events) {
@@ -121,6 +131,8 @@ export function layoutSequence(ir: DiagramIR): Scene {
           lastMessageY = y;
           y += 30;
         }
+        reach(Math.min(...points.map((p) => p.x)), Math.max(...points.map((p) => p.x)));
+        if (labelBox) reach(labelBox.x, labelBox.x + labelBox.w);
         edges.push({
           id: ev.id,
           from: ev.from,
@@ -151,12 +163,13 @@ export function layoutSequence(ir: DiagramIR): Scene {
           width = Math.max(w, cx[cols.at(-1)!] - cx[cols[0]] + 48);
         } else x = cx[cols[0]] - w / 2;
         notes.push({ id: ev.id, text: ev.text, lines, x, y: y - 6, w: width, h });
+        reach(x, x + width);
         y += h + 16;
         break;
       }
       case 'blockStart':
         y += 8;
-        openBlocks.push({ id: ev.id, type: ev.type, label: ev.label, y, sections: [], cols: new Set() });
+        openBlocks.push({ id: ev.id, type: ev.type, label: ev.label, y, sections: [], cols: new Set(), minX: Infinity, maxX: -Infinity });
         y += 34;
         break;
       case 'blockSection': {
@@ -176,9 +189,9 @@ export function layoutSequence(ir: DiagramIR): Scene {
         const lo = Math.min(...cols);
         const hi = Math.max(...cols);
         const inset = nesting * 8;
-        const left = cx[lo] - Math.max(widths[lo] / 2, 60) + inset - BLOCK_PAD + 12;
-        const right = cx[hi] + Math.max(widths[hi] / 2, 60) - inset + BLOCK_PAD - 12;
-        const selfPad = edges.some((e) => e.from === e.to && index.get(e.from) === hi) ? SELF_W + 20 : 0;
+        // Cover the participants involved, and anything drawn inside that reaches further.
+        const left = Math.min(cx[lo] - Math.max(widths[lo] / 2, 60) + inset - BLOCK_PAD + 12, b.minX - 10);
+        const right = Math.max(cx[hi] + Math.max(widths[hi] / 2, 60) - inset + BLOCK_PAD - 12, b.maxX + 10);
         blocks.push({
           id: b.id,
           type: b.type,
@@ -186,10 +199,11 @@ export function layoutSequence(ir: DiagramIR): Scene {
           sections: b.sections,
           x: left,
           y: b.y,
-          w: right - left + selfPad,
+          w: right - left,
           h: y - b.y - 2,
         });
         touch(...cols);
+        reach(left - 8, right + 8);
         y += 14;
         break;
       }

@@ -1,4 +1,4 @@
-import { classify } from '../ir/classify';
+import { classify, typed } from '../ir/classify';
 import type { DiagramIR, IREdge, IRNode, SemanticType, SeqArrow, SeqBlockType, SeqEvent } from '../ir/types';
 import { cleanLabel } from './text';
 
@@ -36,7 +36,7 @@ export function sequenceToIR(db: any): DiagramIR {
       id: a.name,
       label,
       shape: pType === 'actor' ? 'actor' : 'participant',
-      type: PARTICIPANT_TYPES[pType] ?? classify({ label, id: a.name }),
+      ...(PARTICIPANT_TYPES[pType] ? { type: PARTICIPANT_TYPES[pType], certainty: 'explicit' as const } : typed(classify({ label, id: a.name }))),
       classes: [],
       hint: pType,
     });

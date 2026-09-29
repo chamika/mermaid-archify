@@ -116,3 +116,126 @@ describe('error lines stay aligned with the source', () => {
     expect((await parseMermaid('---\ntitle: "Hello"\n---\nflowchart LR\n  A-->B')).title).toBe('Hello');
   });
 });
+
+describe('label cleanup', () => {
+  test('LaTeX backslash sequences are not turned into line breaks', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A["$$\\nu + \\nabla$$"]');
+    expect(ir.nodes[0].label).toBe('$$\\nu + \\nabla$$');
+  });
+  test('Font Awesome tokens are dropped, text kept', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[fa:fa-ban forbidden] --> B["fab:fa-github GitHub"]');
+    expect(ir.nodes.map((n) => n.label)).toEqual(['forbidden', 'GitHub']);
+  });
+  test('Mermaid entity codes are decoded', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  A->>B: I #9829; you #infin; times #quot;more#quot;');
+    expect(ir.edges[0].label).toBe('I ♥ you ∞ times "more"');
+  });
+  test('CJK labels wrap by display width', async () => {
+    const { wrap, cells } = await import('../src/layout/measure');
+    expect(cells('负责人审批')).toBe(10);
+    expect(cells('abc')).toBe(3);
+    const lines = wrap('负'.repeat(30), 22);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const l of lines) expect(cells(l)).toBeLessThanOrEqual(22);
+  });
+});
+
+test('concurrent state regions get stable, unlabelled ids', async () => {
+  const src = 'stateDiagram-v2\n  state Active {\n    [*] --> A\n    --\n    [*] --> B\n    --\n    [*] --> C\n  }';
+  const [one, two] = [await parseMermaid(src), await parseMermaid(src)];
+  expect(one.groups.map((g) => g.id)).toEqual(two.groups.map((g) => g.id));
+  expect(one.groups.filter((g) => g.parent === 'Active').map((g) => [g.id, g.label])).toEqual([
+    ['Active.region1', ''],
+    ['Active.region2', ''],
+    ['Active.region3', ''],
+  ]);
+  expect(one.nodes.find((n) => n.id === 'C')!.parent).toBe('Active.region3');
+  expect(one.edges.map((e) => e.from)).toContain('Active.region3_start');
+});
+
+test('Mermaid v11 shape names map to shape families', async () => {
+  const src = [
+    'flowchart LR',
+    '  a@{ shape: cyl, label: "Orders" }',
+    '  b@{ shape: docs, label: "Reports" }',
+    '  c@{ shape: lean-r, label: "Input" }',
+    '  d@{ shape: trap-t, label: "Manual" }',
+    '  e@{ shape: sm-circ }',
+    '  f@{ shape: text, label: "Plain" }',
+    '  g@{ shape: brace-r, label: "Remark" }',
+    '  h@{ shape: datastore, label: "Things" }',
+    '  i@{ shape: bolt, label: "Zap" }',
+  ].join('\n');
+  const ir = await parseMermaid(src);
+  const shape = Object.fromEntries(ir.nodes.map((n) => [n.id, n.shape]));
+  expect(shape).toEqual({ a: 'cylinder', b: 'document', c: 'parallelogram', d: 'trapezoid', e: 'start', f: 'text', g: 'note', h: 'cylinder', i: 'rect' });
+  expect(ir.nodes.find((n) => n.id === 'h')!.type).toBe('database');
+});
+
+test('state transition text honours literal \\n line breaks', async () => {
+  const ir = await parseMermaid('stateDiagram-v2\n  A --> B: first\\nsecond');
+  expect(ir.edges[0].label).toBe('first\nsecond');
+});
+
+test('state notes become note nodes with a plain connector', async () => {
+  const ir = await parseMermaid('stateDiagram-v2\n  A --> B\n  note right of A : check this\n  note left of B\n    multi\n    line\n  end note');
+  const notes = ir.nodes.filter((n) => n.shape === 'note');
+  expect(notes.map((n) => [n.id, n.label])).toEqual([
+    ['A__note', 'check this'],
+    ['B__note', 'multi\nline'],
+  ]);
+  const links = ir.edges.filter((e) => e.from.includes('__note') || e.to.includes('__note'));
+  expect(links.every((e) => e.stroke === 'dotted' && !e.arrowEnd && !e.arrowStart)).toBe(true);
+});
+
+describe('type markers only where the source gives evidence', () => {
+  const types = async (src: string) => Object.fromEntries((await parseMermaid(src)).nodes.map((n) => [n.id, n.type]));
+
+  test('a process flow stays plain (the Mermaid docs "Christmas" example)', async () => {
+    const src = [
+      'flowchart TD',
+      '    A[Christmas] -->|Get money| B(Go shopping)',
+      '    B --> C{Let me think}',
+      '    C -->|One| D[Laptop]',
+      '    C -->|Two| E[iPhone]',
+      '    C -->|Three| F[fa:fa-car Car]',
+    ].join('\n');
+    expect(Object.values(await types(src))).toEqual(Array(6).fill('plain'));
+  });
+
+  test('a stray keyword in a process flow is not promoted to a component type', async () => {
+    expect(await types('flowchart LR\n  A[Login] --> B[Check cart] --> C[Pay] --> D[Done]')).toEqual({
+      A: 'plain',
+      B: 'plain',
+      C: 'plain',
+      D: 'plain',
+    });
+  });
+
+  test('explicit evidence always shows, even in a process flow', async () => {
+    expect(await types('flowchart LR\n  A[Start] --> B[(Orders)] --> C[Ship it]:::external --> D[Done]')).toEqual({
+      A: 'plain',
+      B: 'database',
+      C: 'external',
+      D: 'plain',
+    });
+  });
+
+  test('an architecture-like diagram keeps its keyword types', async () => {
+    expect(await types('flowchart LR\n  W[Web app] --> G[API gateway] --> S[Order service] --> P[Postgres]\n  S --> K[Kafka]')).toEqual({
+      W: 'frontend',
+      G: 'cloud',
+      S: 'backend',
+      P: 'database',
+      K: 'messagebus',
+    });
+  });
+
+  test('states without an outcome word are plain, outcome words keep their tone', async () => {
+    expect(await types('stateDiagram-v2\n  [*] --> Still\n  Still --> Crash\n  Crash --> Done')).toMatchObject({
+      Still: 'plain',
+      Crash: 'security',
+      Done: 'backend',
+    });
+  });
+});

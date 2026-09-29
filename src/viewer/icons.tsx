@@ -2,6 +2,7 @@ import type { SemanticType } from '../ir/types';
 
 /** 16×16 line glyphs, one per semantic type. */
 export const TYPE_ICON: Record<SemanticType, string> = {
+  plain: 'M3.5 3.5h9v9h-9z',
   frontend: 'M2.5 3.5h11v7h-11zM6 13.5h4M8 10.5v3',
   backend: 'M2.5 2.5h11v4.5h-11zM2.5 9h11v4.5h-11zM5 4.75h.01M5 11.25h.01',
   database: 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2',
@@ -12,6 +13,7 @@ export const TYPE_ICON: Record<SemanticType, string> = {
 };
 
 export const TYPE_LABEL: Record<SemanticType, string> = {
+  plain: 'node',
   frontend: 'frontend',
   backend: 'service',
   database: 'data store',
@@ -23,6 +25,7 @@ export const TYPE_LABEL: Record<SemanticType, string> = {
 
 /** State diagrams reuse the palette for outcome, so the legend speaks lifecycle. */
 export const STATE_TONE_LABEL: Record<SemanticType, string> = {
+  plain: 'state',
   frontend: 'in progress',
   backend: 'settled / success',
   database: 'stored',

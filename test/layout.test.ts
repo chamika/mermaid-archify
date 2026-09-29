@@ -3,46 +3,14 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { layout } from '../src/layout';
 import { parseMermaid } from '../src/parse';
-import type { Box, Scene } from '../src/scene/types';
+import type { Scene } from '../src/scene/types';
+import { checkScene, overlaps } from './helpers/invariants';
 
 const elk = new ELK();
 const sample = (name: string) => readFileSync(`${process.cwd()}/src/samples/${name}.mmd`, 'utf8');
 const scene = async (src: string) => layout(await parseMermaid(src), elk);
 
-const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-const inside = (inner: Box, outer: Box) =>
-  inner.x >= outer.x - 0.5 && inner.y >= outer.y - 0.5 && inner.x + inner.w <= outer.x + outer.w + 0.5 && inner.y + inner.h <= outer.y + outer.h + 0.5;
-
-function onBoundary(p: { x: number; y: number }, b: Box, tol = 1.5) {
-  const withinX = p.x >= b.x - tol && p.x <= b.x + b.w + tol;
-  const withinY = p.y >= b.y - tol && p.y <= b.y + b.h + tol;
-  const onV = Math.abs(p.x - b.x) <= tol || Math.abs(p.x - (b.x + b.w)) <= tol;
-  const onH = Math.abs(p.y - b.y) <= tol || Math.abs(p.y - (b.y + b.h)) <= tol;
-  return withinX && withinY && (onV || onH);
-}
-
-function checkInvariants(s: Scene) {
-  const nodeBoxes = new Map<string, Box>([...s.nodes, ...s.groups].map((n) => [n.id, n]));
-  // No two nodes overlap.
-  for (let i = 0; i < s.nodes.length; i++)
-    for (let j = i + 1; j < s.nodes.length; j++)
-      expect(overlaps(s.nodes[i], s.nodes[j]), `${s.nodes[i].id} overlaps ${s.nodes[j].id}`).toBe(false);
-  // Children sit inside their group.
-  for (const n of [...s.nodes, ...s.groups])
-    if (n.parent) expect(inside(n, nodeBoxes.get(n.parent)!), `${n.id} outside ${n.parent}`).toBe(true);
-  // Edge endpoints touch their node boundaries; everything is inside the canvas.
-  for (const e of s.edges) {
-    expect(e.points.length).toBeGreaterThanOrEqual(2);
-    expect(onBoundary(e.points[0], nodeBoxes.get(e.from)!), `${e.id} start`).toBe(true);
-    expect(onBoundary(e.points.at(-1)!, nodeBoxes.get(e.to)!), `${e.id} end`).toBe(true);
-    for (const p of e.points) {
-      expect(p.x).toBeGreaterThanOrEqual(0);
-      expect(p.x).toBeLessThanOrEqual(s.width);
-      expect(p.y).toBeLessThanOrEqual(s.height);
-    }
-  }
-  for (const n of s.nodes) expect(n.x + n.w).toBeLessThanOrEqual(s.width);
-}
+const checkInvariants = (s: Scene) => checkScene(s);
 
 describe('ELK layout', () => {
   test('flowchart sample', async () => {
@@ -126,4 +94,39 @@ test('retry cycles keep the authored main direction', async () => {
   const y = (id: string) => s.nodes.find((n) => n.id === id)?.y ?? s.groups.find((g) => g.id === id)!.y;
   expect(y('Queued')).toBeLessThan(y('Running'));
   expect(y('Running')).toBeLessThan(y('Failed'));
+});
+
+test('invisible links steer layout but are not drawn', async () => {
+  const s = await scene('flowchart LR\n  A ~~~ B');
+  expect(s.edges).toHaveLength(0);
+  const [a, b] = s.nodes;
+  expect(b.x).toBeGreaterThan(a.x + a.w); // placed side by side, as Mermaid does
+});
+
+test('circle and cross edge ends carry their marker style', async () => {
+  const s = await scene('flowchart LR\n  A --o B\n  B --x C\n  C o--o D');
+  expect(s.edges.map((e) => [e.arrowStyle, e.arrowStart])).toEqual([
+    ['circle', false],
+    ['cross', false],
+    ['circle', true],
+  ]);
+});
+
+test('two-state cycles follow the authored entry, even inside concurrent regions', async () => {
+  const s = await scene(
+    'stateDiagram-v2\n  state Active {\n    [*] --> Off\n    Off --> On : press\n    On --> Off : press\n    --\n    [*] --> Low\n    Low --> High\n    High --> Low\n  }',
+  );
+  const y = (id: string) => s.nodes.find((n) => n.id === id)!.y;
+  expect(y('Off')).toBeLessThan(y('On'));
+  expect(y('Low')).toBeLessThan(y('High'));
+  // Reversed-for-layout edges still point the authored way.
+  const back = s.edges.find((e) => e.from === 'On' && e.to === 'Off')!;
+  expect(back.points[0].y).toBeGreaterThan(back.points.at(-1)!.y);
+});
+
+test('plain nodes are sized without a caption row', async () => {
+  const plain = await scene('flowchart LR\n  A[Laptop] --> B[iPhone] --> C[Car]');
+  const typed = await scene('flowchart LR\n  A[(Laptop)]:::database');
+  expect(plain.nodes[0].type).toBe('plain');
+  expect(plain.nodes[0].h).toBeLessThan(typed.nodes[0].h);
 });

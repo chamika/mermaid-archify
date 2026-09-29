@@ -1,6 +1,6 @@
 import type { ElkExtendedEdge, ElkNode, ElkPort, LayoutOptions } from 'elkjs/lib/elk-api';
 import type { DiagramIR, Direction, Side } from '../ir/types';
-import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
+import type { Box, Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { edgeLabelSize, nodeSize } from './measure';
 
 export interface ElkLike {
@@ -27,7 +27,7 @@ function baseOptions(direction: Direction): LayoutOptions {
     'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
     // Break cycles by source order: an edge written "backwards" (retry, loop)
     // is the one reversed, so the main path keeps its authored direction.
-    'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+    'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER', // backstop; backEdges() pre-breaks cycles
     'elk.layered.crossingMinimization.forceNodeModelOrder': 'false',
     'elk.edgeLabels.placement': 'CENTER',
     'elk.layered.edgeLabels.sideSelection': 'SMART_DOWN',
@@ -35,7 +35,7 @@ function baseOptions(direction: Direction): LayoutOptions {
 }
 
 /** Build the ELK input graph. Group ids become compound nodes. */
-export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, string[]> } {
+export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, string[]>; back: Set<string> } {
   const withCaption = ir.kind !== 'state';
   const lines = new Map<string, string[]>();
   const elkNodes = new Map<string, ElkNode>();
@@ -97,14 +97,18 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
     container.children!.push(elkNode);
   }
 
+  const back = backEdges(ir, rank);
   const edges: ElkExtendedEdge[] = [];
   for (const e of ir.edges) {
     if (!elkNodes.has(e.from) || !elkNodes.has(e.to)) continue;
-    let source = e.from;
-    let target = e.to;
+    // Back-edges go to ELK reversed (and are flipped back in fromElk), so the
+    // authored main path always flows forward.
+    const flip = back.has(e.id);
+    let source = flip ? e.to : e.from;
+    let target = flip ? e.from : e.to;
     if (usesPorts) {
-      source = addPort(elkNodes.get(e.from)!, `${e.id}:s`, e.fromSide);
-      target = addPort(elkNodes.get(e.to)!, `${e.id}:t`, e.toSide);
+      source = addPort(elkNodes.get(source)!, `${e.id}:s`, flip ? e.toSide : e.fromSide);
+      target = addPort(elkNodes.get(target)!, `${e.id}:t`, flip ? e.fromSide : e.toSide);
     }
     const edge: ElkExtendedEdge = { id: e.id, sources: [source], targets: [target] };
     if (e.label) {
@@ -114,7 +118,45 @@ export function toElkGraph(ir: DiagramIR): { graph: ElkNode; lines: Map<string, 
     edges.push(edge);
   }
   root.edges = edges;
-  return { graph: root, lines };
+  return { graph: root, lines, back };
+}
+
+/**
+ * Edges that close a cycle, found by depth-first search in source order
+ * (starting from nodes nothing points at). ELK's own cycle breaking ignores
+ * authored order inside nested groups, so we decide instead.
+ */
+export function backEdges(ir: DiagramIR, rank: Map<string, number>): Set<string> {
+  const out = new Map<string, { id: string; to: string }[]>();
+  const indeg = new Map<string, number>();
+  for (const e of ir.edges) {
+    if (e.from === e.to) continue;
+    if (!out.has(e.from)) out.set(e.from, []);
+    out.get(e.from)!.push({ id: e.id, to: e.to });
+    indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
+  }
+  const ids = [...new Set([...rank.keys(), ...out.keys()])].sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
+  const roots = [...ids.filter((id) => !indeg.get(id)), ...ids];
+  const state = new Map<string, 1 | 2>(); // 1 = on the stack, 2 = done
+  const back = new Set<string>();
+  for (const root of roots) {
+    if (state.has(root)) continue;
+    const stack: { id: string; i: number }[] = [{ id: root, i: 0 }];
+    state.set(root, 1);
+    while (stack.length) {
+      const top = stack.at(-1)!;
+      const next = out.get(top.id)?.[top.i++];
+      if (!next) {
+        state.set(top.id, 2);
+        stack.pop();
+      } else if (state.get(next.to) === 1) back.add(next.id);
+      else if (!state.has(next.to)) {
+        state.set(next.to, 1);
+        stack.push({ id: next.to, i: 0 });
+      }
+    }
+  }
+  return back;
 }
 
 function addPort(node: ElkNode, id: string, side: Side | undefined): string {
@@ -125,7 +167,7 @@ function addPort(node: ElkNode, id: string, side: Side | undefined): string {
 }
 
 /** Convert ELK output (ROOT coordinates) into a Scene. */
-export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[]>): Scene {
+export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[]>, back = new Set<string>()): Scene {
   const boxes = new Map<string, { x: number; y: number; w: number; h: number }>();
   const visit = (n: ElkNode) => {
     for (const c of n.children ?? []) {
@@ -172,6 +214,7 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
 
   const edges: SceneEdge[] = [];
   for (const e of ir.edges) {
+    if (e.invisible) continue;
     const le = laidEdges.get(e.id);
     if (!le?.sections?.length) continue;
     const points: Pt[] = [];
@@ -185,14 +228,17 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
       from: e.from,
       to: e.to,
       label: e.label,
-      points: dedupe(points),
+      points: dedupe(back.has(e.id) ? points.reverse() : points),
       labelBox: lab ? { x: lab.x ?? 0, y: lab.y ?? 0, w: lab.width ?? 0, h: lab.height ?? 0 } : undefined,
       stroke: e.stroke,
       arrowEnd: e.arrowEnd,
       arrowStart: e.arrowStart,
+      ...(e.marker && { arrowStyle: e.marker }),
       order: order.get(e.id) ?? 0,
     });
   }
+
+  anchorLabels(edges, nodes);
 
   return {
     version: 1,
@@ -206,6 +252,49 @@ export function fromElk(ir: DiagramIR, laid: ElkNode, lines: Map<string, string[
   };
 }
 
+const hit = (a: Box, b: Box, pad = 2) =>
+  a.x - pad < b.x + b.w && b.x - pad < a.x + a.w && a.y - pad < b.y + b.h && b.y - pad < a.y + a.h;
+
+/** Closest point on a polyline to `p`. */
+export function nearestOnPath(points: Pt[], p: Pt): Pt {
+  let best = points[0];
+  let bestD = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = dx * dx + dy * dy;
+    const t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
+    const q = { x: a.x + t * dx, y: a.y + t * dy };
+    const d = (q.x - p.x) ** 2 + (q.y - p.y) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = q;
+    }
+  }
+  return best;
+}
+
+/**
+ * ELK parks labels beside their edge, which gets ambiguous when routes run in
+ * parallel. Move each label onto the nearest point of its own route (drawn on a
+ * mask, Archify-style) unless that would collide with a node or another label.
+ */
+function anchorLabels(edges: SceneEdge[], nodes: SceneNode[]) {
+  const placed: Box[] = [];
+  const labelled = edges.filter((e) => e.labelBox);
+  for (const e of labelled) {
+    const box = e.labelBox!;
+    const on = nearestOnPath(e.points, { x: box.x + box.w / 2, y: box.y + box.h / 2 });
+    const moved = { x: on.x - box.w / 2, y: on.y - box.h / 2, w: box.w, h: box.h };
+    const others = labelled.filter((o) => o !== e && !placed.includes(o.labelBox!)).map((o) => o.labelBox!);
+    const clear = !nodes.some((n) => hit(moved, n)) && !placed.some((b) => hit(moved, b)) && !others.some((b) => hit(moved, b));
+    if (clear) e.labelBox = moved;
+    placed.push(e.labelBox!);
+  }
+}
+
 function dedupe(points: Pt[]): Pt[] {
   return points.filter((p, i) => i === 0 || p.x !== points[i - 1].x || p.y !== points[i - 1].y);
 }
@@ -214,7 +303,8 @@ function dedupe(points: Pt[]): Pt[] {
 export function traceOrder(ir: DiagramIR): Map<string, number> {
   const incoming = new Map<string, number>();
   for (const n of ir.nodes) incoming.set(n.id, 0);
-  for (const e of ir.edges) incoming.set(e.to, (incoming.get(e.to) ?? 0) + 1);
+  const visible = ir.edges.filter((e) => !e.invisible);
+  for (const e of visible) incoming.set(e.to, (incoming.get(e.to) ?? 0) + 1);
   const depth = new Map<string, number>();
   let frontier = ir.nodes.filter((n) => !incoming.get(n.id)).map((n) => n.id);
   if (!frontier.length && ir.nodes.length) frontier = [ir.nodes[0].id];
@@ -224,12 +314,12 @@ export function traceOrder(ir: DiagramIR): Map<string, number> {
     for (const id of frontier) {
       if (depth.has(id)) continue;
       depth.set(id, d);
-      for (const e of ir.edges) if (e.from === id && !depth.has(e.to)) next.push(e.to);
+      for (const e of visible) if (e.from === id && !depth.has(e.to)) next.push(e.to);
     }
     frontier = next;
     d++;
   }
   const out = new Map<string, number>();
-  for (const e of ir.edges) out.set(e.id, depth.get(e.from) ?? d);
+  for (const e of visible) out.set(e.id, depth.get(e.from) ?? d);
   return out;
 }

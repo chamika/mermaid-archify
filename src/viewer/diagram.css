@@ -47,6 +47,20 @@
   stroke: var(--text);
   stroke-width: 1.5;
 }
+.ma-node .body.note {
+  fill: var(--note-fill);
+  stroke: var(--note-stroke);
+  stroke-dasharray: 4 3;
+}
+.ma-node .body.text-only {
+  fill: transparent;
+  stroke: transparent;
+}
+.ma-node.focused .body.text-only,
+.ma-node:focus-visible .body.text-only {
+  stroke: var(--arrow-emphasis);
+  stroke-dasharray: 3 3;
+}
 .ma-node .junction {
   fill: var(--arrow);
 }
@@ -120,6 +134,10 @@
 .ma-block .cond {
   fill: var(--text-muted);
   font-size: 11px;
+}
+.ma-highlight .band {
+  fill-opacity: 0.1;
+  stroke: none;
 }
 .ma-block .cond-bg {
   fill: var(--mask);
