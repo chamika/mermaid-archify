@@ -144,6 +144,7 @@ test('exported HTML works offline with focus and exports', async ({ page, contex
   const svgText = readFileSync((await svg.path())!, 'utf8');
   expect(svgText).toContain('<svg');
   expect(svgText).not.toMatch(/class="[^"]*\b(lit|dimmed|focused)\b/);
+  expect(svgText).not.toMatch(/tabindex/i);
   expect(svgText).toContain('--backend-stroke:');
 });
 

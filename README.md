@@ -16,6 +16,50 @@ npm run e2e        # every browser test against a production build (uses install
 npm run build
 ```
 
+## CLI and library
+
+The same pipeline runs headlessly in Node (22+), for docs builds, CI jobs and
+pre-commit hooks. Output is identical to the app's **Interactive HTML** and
+**SVG** exports.
+
+```bash
+npx mermaid-archify diagram.mmd -o diagram.html               # standalone interactive HTML
+npx mermaid-archify diagram.mmd -o diagram.svg --theme light  # SVG, light palette baked in
+npx mermaid-archify "docs/**/*.mmd" --out-dir build/diagrams  # batch: build/diagrams/<path below docs/>.html
+npx mermaid-archify "docs/**/*.mmd" -f svg                    # batch: an .svg next to each input
+cat diagram.mmd | npx mermaid-archify - -f svg -o - > out.svg # stdin → stdout
+```
+
+| Option | |
+|---|---|
+| `-o, --out <file\|->` | Output file for a single input; its extension picks the format. `-` is stdout. |
+| `-d, --out-dir <dir>` | Write every output here, mirroring each input's path below its glob. |
+| `-f, --format html\|svg` | Format when `-o` doesn't name one (default `html`). |
+| `-t, --theme dark\|light` | Palette (default `dark`). |
+| `--direction LR\|RL\|TB\|BT` | Override the diagram direction. |
+| `-q, --quiet` | Don't list written files. |
+
+Without `-o` or `--out-dir`, each output goes next to its input. Quote globs so
+every shell passes them through unchanged. Layout settings in the source's
+front-matter (`config.archify`) apply, as in the app. Exit codes: `0` ok, `1`
+a diagram failed (reported as `file:line: message`, and the rest of the batch
+still renders), `2` usage error. PNG is not produced headlessly: export SVG, or
+use the app's PNG export.
+
+```ts
+import { render, MermaidParseError } from 'mermaid-archify';
+
+const { html, svg, scene } = await render(source, { theme: 'dark' });
+// Optional layout overrides, on top of the front-matter:
+await render(source, { layout: { direction: 'TB', routing: 'splines' } });
+// Invalid input rejects with MermaidParseError (err.line is 1-based).
+```
+
+The library needs a DOM for Mermaid's parser and installs a
+[happy-dom](https://github.com/capricorn86/happy-dom) window on `globalThis`
+when none exists (an existing DOM, such as jsdom, is used as is). ELK runs
+in-process. Build it with `npm run build:lib` (output in `dist-node/`).
+
 ## Testing
 
 The suite is built around a **corpus of 358 real Mermaid diagrams** taken
@@ -32,6 +76,8 @@ including the large, CJK, KaTeX and expanded-shape stress cases.
 | `e2e/corpus.spec.ts` | Every fixture rendered by the real app in Chrome with real fonts: rendered text fits its shapes and label masks, no `NaN` geometry, no console errors, diagram fits the viewport. |
 | `e2e/visual.spec.ts` | Pixel baselines for 22 curated diagrams in both themes (`e2e/visual.spec.ts-snapshots/`, macOS; skipped on CI). |
 | `e2e/app.spec.ts` | App flows: editing and errors, focus, finder, theme, share links, HTML/SVG/PNG export, offline export. |
+| `e2e/cli.spec.ts` | The CLI's HTML (byte-identical) and SVG match the app's exports for one diagram of each kind; batch globs, `file:line` errors, exit codes. |
+| `test/node.test.ts` | `render()` in plain Node, and CLI input/output path handling. |
 
 Fixtures Mermaid itself rejects are listed in `test/corpus/invalid.json` and
 must fail cleanly with a line number.

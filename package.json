@@ -5,9 +5,28 @@
   "type": "module",
   "description": "Archify-style interactive diagrams from Mermaid source.",
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "mermaid-archify": "./dist-node/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist-node/types/node/index.d.ts",
+      "import": "./dist-node/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist-node/types/node/index.d.ts",
+  "files": [
+    "dist-node"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && npm run build:lib",
+    "build:lib": "vite build -c vite.lib.config.ts && tsc -p tsconfig.lib.json && node scripts/lib-types.mjs",
+    "prepack": "npm run build:lib",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
@@ -18,25 +37,25 @@
     "corpus:sheets": "node scripts/contact-sheets.mjs"
   },
   "dependencies": {
+    "elkjs": "0.12.0",
+    "happy-dom": "20.14.5",
+    "mermaid": "12.0.0",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
     "@codemirror/commands": "6.11.1",
     "@codemirror/language": "6.12.4",
     "@codemirror/lint": "6.9.7",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
     "@fontsource/jetbrains-mono": "5.3.0",
-    "@lezer/highlight": "1.2.5",
-    "codemirror": "6.0.2",
-    "elkjs": "0.12.0",
-    "lz-string": "1.5.0",
-    "mermaid": "12.0.0",
-    "preact": "10.29.8"
-  },
-  "devDependencies": {
     "@fortawesome/fontawesome-free": "7.3.1",
+    "@lezer/highlight": "1.2.5",
     "@playwright/test": "1.63.0",
     "@preact/preset-vite": "2.10.6",
     "@types/node": "26.6.3",
-    "happy-dom": "20.14.5",
+    "codemirror": "6.0.2",
+    "lz-string": "1.5.0",
     "typescript": "7.0.2",
     "vite": "8.3.1",
     "vitest": "5.0.2"
