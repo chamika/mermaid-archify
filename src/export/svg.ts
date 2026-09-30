@@ -21,7 +21,8 @@ export function serializeSvg(live: SVGSVGElement, scene: Scene): string {
   svg.querySelectorAll('.ma-overlay').forEach((el) => el.remove());
   for (const cls of VIEW_STATE_CLASSES) svg.querySelectorAll(`.${cls}`).forEach((el) => el.classList.remove(cls));
   svg.classList.remove(...VIEW_STATE_CLASSES);
-  svg.querySelectorAll('[tabindex]').forEach((el) => el.removeAttribute('tabindex'));
+  // Preact sets `tabIndex` as an attribute on SVG elements, where selectors are case-sensitive.
+  for (const name of ['tabindex', 'tabIndex']) svg.querySelectorAll(`[${name}]`).forEach((el) => el.removeAttribute(name));
 
   const pad = 24;
   const w = scene.width + pad * 2;
