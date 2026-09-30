@@ -1,8 +1,8 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { type Diagnostic, lintGutter, setDiagnostics } from '@codemirror/lint';
-import { EditorState } from '@codemirror/state';
-import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
 import { useEffect, useRef } from 'preact/hooks';
 import { mermaidHighlight, mermaidLanguage } from './mermaidLanguage';
 
@@ -18,7 +18,25 @@ const theme = EditorView.theme({
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-lintRange-error': { backgroundImage: 'none', textDecoration: 'underline wavy var(--security-stroke)' },
+  '.cm-linkedLine': { backgroundColor: 'color-mix(in srgb, var(--arrow-emphasis) 20%, transparent)' },
   '.cm-tooltip': { backgroundColor: 'var(--toolbar-menu-bg)', border: '1px solid var(--toolbar-border)', color: 'var(--text)' },
+});
+
+/** Marks selection changes made for the diagram, so they are not reported back as cursor moves. */
+const fromDiagram = Annotation.define<boolean>();
+const setLinked = StateEffect.define<number | null>();
+const linkedMark = Decoration.line({ class: 'cm-linkedLine' });
+
+/** The line a diagram click revealed; cleared by the next edit or cursor move. */
+const linkedLine = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setLinked)) return e.value ? Decoration.set([linkedMark.range(tr.state.doc.line(e.value).from)]) : Decoration.none;
+    }
+    return tr.docChanged || (tr.selection && !tr.annotation(fromDiagram)) ? Decoration.none : deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
 });
 
 export interface EditorProps {
@@ -27,13 +45,19 @@ export interface EditorProps {
   /** 1-based line of the current parse error, if any. */
   errorLine?: number;
   errorMessage?: string;
+  /** Reports the 1-based cursor line whenever the user moves the cursor or edits. */
+  onCursorLine?: (line: number) => void;
+  /** Line to reveal and highlight (a new object each time, so the same line can be revealed again). */
+  reveal?: { line: number };
 }
 
-export function Editor({ value, onChange, errorLine, errorMessage }: EditorProps) {
+export function Editor({ value, onChange, errorLine, errorMessage, onCursorLine, reveal }: EditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>();
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onCursorRef = useRef(onCursorLine);
+  onCursorRef.current = onCursorLine;
 
   useEffect(() => {
     view.current = new EditorView({
@@ -49,6 +73,7 @@ export function Editor({ value, onChange, errorLine, errorMessage }: EditorProps
           indentOnInput(),
           bracketMatching(),
           lintGutter(),
+          linkedLine,
           mermaidLanguage,
           mermaidHighlight,
           theme,
@@ -57,6 +82,9 @@ export function Editor({ value, onChange, errorLine, errorMessage }: EditorProps
           EditorView.contentAttributes.of({ 'aria-label': 'Mermaid source' }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onChangeRef.current(u.state.doc.toString());
+            if (u.selectionSet && !u.transactions.some((tr) => tr.annotation(fromDiagram))) {
+              onCursorRef.current?.(u.state.doc.lineAt(u.state.selection.main.head).number);
+            }
           }),
         ],
       }),
@@ -82,6 +110,21 @@ export function Editor({ value, onChange, errorLine, errorMessage }: EditorProps
     }
     v.dispatch(setDiagnostics(v.state, diagnostics));
   }, [errorLine, errorMessage]);
+
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    if (!reveal || reveal.line > v.state.doc.lines) {
+      v.dispatch({ effects: setLinked.of(null) });
+      return;
+    }
+    const line = v.state.doc.line(reveal.line);
+    v.dispatch({
+      selection: { anchor: line.from },
+      effects: [setLinked.of(reveal.line), EditorView.scrollIntoView(line.from, { y: 'center' })],
+      annotations: fromDiagram.of(true),
+    });
+  }, [reveal]);
 
   return <div ref={host} class="editor-host" />;
 }
