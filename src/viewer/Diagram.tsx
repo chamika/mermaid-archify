@@ -17,12 +17,16 @@ export interface Highlight {
   routeEdges?: Set<string>;
   pinnedEdge?: string;
   traceStep?: number;
+  /** Hand-placed nodes, outlined while arranging. */
+  pinnedNodes?: Set<string>;
 }
 
 export interface DiagramHandlers {
   onNodeClick?: (id: string, e: MouseEvent) => void;
   onNodeEnter?: (id: string) => void;
   onNodeLeave?: (id: string) => void;
+  onNodePointerDown?: (id: string, e: PointerEvent) => void;
+  onNodeDoubleClick?: (id: string) => void;
   onEdgeClick?: (id: string, e: MouseEvent) => void;
   onEdgeEnter?: (id: string) => void;
   onEdgeLeave?: (id: string) => void;
@@ -423,6 +427,8 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
       }}
       onPointerEnter={() => h.onNodeEnter?.(n.id)}
       onPointerLeave={() => h.onNodeLeave?.(n.id)}
+      onPointerDown={h.onNodePointerDown && ((e) => h.onNodePointerDown!(n.id, e as unknown as PointerEvent))}
+      onDblClick={h.onNodeDoubleClick && (() => h.onNodeDoubleClick!(n.id))}
     >
       <Shape n={n} />
       {n.shape === 'compartment' ? <CompartmentText n={n} /> : n.lines.length > 0 && <Label n={n} withCaption={withCaption} />}
@@ -570,9 +576,11 @@ export interface DiagramProps {
 }
 
 function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: DiagramProps) {
-  const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep } = highlight;
+  const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep, pinnedNodes } = highlight;
   const nodeCls = (id: string) =>
-    [lit?.nodes.has(id) && 'lit', focused === id && 'focused', routeEnds?.includes(id) && 'route-end'].filter(Boolean).join(' ');
+    [lit?.nodes.has(id) && 'lit', focused === id && 'focused', routeEnds?.includes(id) && 'route-end', pinnedNodes?.has(id) && 'pinned']
+      .filter(Boolean)
+      .join(' ');
   const edgeCls = (e: SceneEdge) =>
     [
       lit?.edges.has(e.id) && 'lit',

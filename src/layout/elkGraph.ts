@@ -11,7 +11,9 @@ export interface ElkLike {
 
 const ELK_DIR: Record<Direction, string> = { LR: 'RIGHT', RL: 'LEFT', TB: 'DOWN', BT: 'UP' };
 const PORT_SIDE: Record<Side, string> = { L: 'WEST', R: 'EAST', T: 'NORTH', B: 'SOUTH' };
-const MARGIN = 32;
+export const MARGIN = 32;
+/** Inner padding of a group box: room for its title band on top. */
+export const GROUP_PAD = { top: 42, left: 22, bottom: 22, right: 22 };
 
 /** ELK constant for a settings value: `brandes-koepf` → `BRANDES_KOEPF`. */
 const elkConst = (v: string) => v.toUpperCase().replace(/-/g, '_');
@@ -80,7 +82,7 @@ export function toElkGraph(
       children: [],
       // With INCLUDE_CHILDREN the root's options apply inside groups too; repeating
       // considerModelOrder on nested compounds crashes ELK, so set padding only.
-      layoutOptions: { 'elk.padding': '[top=42,left=22,bottom=22,right=22]', ...groupSpacing(settings) },
+      layoutOptions: { 'elk.padding': `[top=${GROUP_PAD.top},left=${GROUP_PAD.left},bottom=${GROUP_PAD.bottom},right=${GROUP_PAD.right}]`, ...groupSpacing(settings) },
     });
   }
 
@@ -413,7 +415,7 @@ function anchorLabels(edges: SceneEdge[], nodes: SceneNode[]) {
  * Class multiplicities sit just outside each end of the route, beside the
  * line: clear of the node the edge meets and of the marker drawn on it.
  */
-function placeEndLabels(e: SceneEdge, boxOf: Map<string, Box>) {
+export function placeEndLabels(e: SceneEdge, boxOf: Map<string, Box>) {
   const out: NonNullable<SceneEdge['endLabels']> = [];
   const place = (text: string | undefined, tip: Pt, prev: Pt, node: Box | undefined) => {
     if (!text) return;

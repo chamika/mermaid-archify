@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { imageExports } from '../export/actions';
 import { download, slug } from '../export/download';
 import { buildStandaloneHtml } from '../export/html';
-import { layout } from '../layout';
+import { applyPins, layout } from '../layout';
 import { browserElk } from '../layout/elk';
-import { type LayoutSettings, readLayoutSettings, writeLayoutSettings } from '../layout/settings';
+import { type LayoutSettings, type Pins, readLayoutSettings, writeLayoutSettings } from '../layout/settings';
+import type { DiagramIR } from '../ir/types';
 import { MermaidParseError, parseMermaid } from '../parse';
 import { SAMPLES } from '../samples';
 import type { Scene } from '../scene/types';
@@ -23,9 +24,10 @@ const initial = readHash();
 
 export function App() {
   const [source, setSource] = useState(() => initial.src ?? loadSaved() ?? SAMPLES[0].source);
-  const [scene, setScene] = useState<Scene>();
-  /** The source `scene` was built from; lags `source` while an edit is being laid out. */
-  const [sceneSource, setSceneSource] = useState<string>();
+  /** The automatic layout, before pins; rebuilt only when the source changes other than its pins. */
+  const [base, setBase] = useState<{ scene: Scene; ir: DiagramIR; key: string }>();
+  /** A pin being dragged, previewed live and written to the source on release. */
+  const [draft, setDraft] = useState<{ id: string; offset?: [number, number] }>();
   const [problem, setProblem] = useState<Problem>();
   const [busy, setBusy] = useState(false);
   const [split, setSplit] = useState(36);
@@ -37,6 +39,13 @@ export function App() {
   const focusRef = useRef<string | undefined>(initial.focus);
   const run = useRef(0);
 
+  const layoutSettings = useMemo(() => readLayoutSettings(source), [source]);
+  // The source minus its pins: moving a node must not re-run parse and ELK.
+  const layoutKey = useMemo(
+    () => writeLayoutSettings(source, { ...layoutSettings, pins: undefined }) ?? source,
+    [source, layoutSettings],
+  );
+
   // parse → layout, debounced; stale results are dropped.
   useEffect(() => {
     const ticket = ++run.current;
@@ -44,10 +53,9 @@ export function App() {
       setBusy(true);
       try {
         const ir = await parseMermaid(source);
-        const next = await layout(ir, browserElk(), readLayoutSettings(source));
+        const next = await layout(ir, browserElk(), { ...readLayoutSettings(source), pins: undefined });
         if (ticket !== run.current) return;
-        setScene(next);
-        setSceneSource(source);
+        setBase({ scene: next, ir, key: layoutKey });
         setProblem(undefined);
       } catch (err) {
         if (ticket !== run.current) return;
@@ -60,9 +68,27 @@ export function App() {
         if (ticket === run.current) setBusy(false);
       }
     }, 300);
-    save(source);
     return () => window.clearTimeout(timer);
-  }, [source]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the pin-free source on purpose
+  }, [layoutKey]);
+
+  useEffect(() => save(source), [source]);
+
+  // Pins (and a live drag) apply on top of the automatic layout, instantly.
+  const pins = useMemo<Pins | undefined>(() => {
+    if (!draft) return layoutSettings.pins;
+    const next = { ...layoutSettings.pins };
+    if (draft.offset) next[draft.id] = draft.offset;
+    else delete next[draft.id];
+    return next;
+  }, [layoutSettings.pins, draft]);
+  const pinned = useMemo(
+    () => base && applyPins(base.scene, pins, { routing: layoutSettings.routing, ir: base.ir }),
+    [base, pins, layoutSettings.routing],
+  );
+  const scene = pinned?.scene;
+  /** The source `scene` was built from; lags `source` while an edit is being laid out. */
+  const sceneSource = base && base.key === layoutKey ? source : undefined;
 
   const flash = (msg: string) => {
     setNotice(msg);
@@ -101,12 +127,27 @@ export function App() {
     [source],
   );
 
-  const layoutSettings = useMemo(() => readLayoutSettings(source), [source]);
   const changeLayout = (next: LayoutSettings) => {
     const written = writeLayoutSettings(source, next);
     if (written === undefined) flash('Front-matter uses {…} style; edit config.archify by hand');
     else setSource(written);
   };
+
+  const onPin = useCallback(
+    (id: string, offset: [number, number] | undefined, final: boolean) => {
+      if (!final) return setDraft({ id, offset });
+      setDraft(undefined);
+      // Keep pins for nodes that still exist; drop ids the source no longer has.
+      const ids = new Set(base?.scene.nodes.map((n) => n.id));
+      const next: Pins = {};
+      for (const [k, v] of Object.entries(layoutSettings.pins ?? {})) if (ids.has(k)) next[k] = v;
+      if (offset) next[id] = offset;
+      else delete next[id];
+      changeLayout({ ...layoutSettings, pins: next });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [base, layoutSettings, source],
+  );
 
   // Two-way linking, only while the map matches the text in the editor.
   const linkActive = linking && editorOpen;
@@ -265,7 +306,15 @@ export function App() {
               linked={linkActive ? linked : undefined}
               linkFor={(id) => shareUrl(source, id)}
               exports={exportsList}
-              toolbarExtra={<LayoutControls settings={layoutSettings} onChange={changeLayout} disabled={scene.kind === 'sequence'} />}
+              arrange={{ pins: pins ?? {}, onPin }}
+              toolbarExtra={
+                <LayoutControls
+                  settings={layoutSettings}
+                  onChange={changeLayout}
+                  disabled={scene.kind === 'sequence'}
+                  ignoredPins={pinned?.ignored ?? []}
+                />
+              }
             />
           ) : (
             <div class="empty">{problem ? 'Fix the error to render the diagram.' : 'Rendering…'}</div>

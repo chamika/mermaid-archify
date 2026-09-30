@@ -101,3 +101,20 @@ describe.each(ROUTINGS)('routing: %s', (routing) => {
     checkScene(scene, `${name} (${routing})`);
   });
 });
+
+/**
+ * Pinned nodes: pin the first connected node by a fixed nudge under every
+ * router. The pin is either applied or reported as ignored (no room); either
+ * way the scene must stay valid.
+ */
+describe.each<Routing>(['orthogonal', 'polyline', 'splines'])('pinned, routing: %s', (routing) => {
+  test.each(graphs)('%s satisfies scene invariants', async (name) => {
+    const ir = await parseMermaid(read(name));
+    const id = ir.nodes.find((n) => ir.edges.some((e) => !e.invisible && (e.from === n.id || e.to === n.id)))?.id;
+    if (!id) return;
+    const pins = { [id]: [37, 53] as [number, number] };
+    const scene = await layout(ir, elk, { routing, pins });
+    expect(scene.nodes).toHaveLength(ir.nodes.length);
+    checkScene(scene, `${name} (${routing}, ${id} pinned)`);
+  });
+});

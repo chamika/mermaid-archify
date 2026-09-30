@@ -43,6 +43,21 @@
 .ma-node:focus-visible {
   outline: none;
 }
+/* Arranging: nodes are draggable; hand-placed ones get a dashed outline. */
+.ma-viewer.arranging .ma-node {
+  cursor: grab;
+}
+.ma-viewer.dragging,
+.ma-viewer.dragging .ma-node {
+  cursor: grabbing;
+}
+.ma-viewer.dragging .ma-node,
+.ma-viewer.dragging .ma-edge {
+  transition: none;
+}
+.ma-viewer.arranging .ma-node.pinned .body {
+  stroke-dasharray: 5 3;
+}
 .ma-node:focus-visible .body {
   stroke-width: 2.5;
 }

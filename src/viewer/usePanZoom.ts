@@ -21,6 +21,8 @@ export interface PanZoom {
   fit: (content: { w: number; h: number }, animate?: boolean) => void;
   centerOn: (box: Box, opts?: { minK?: number; animate?: boolean; offsetX?: number }) => void;
   panTo: (sceneX: number, sceneY: number) => void;
+  /** Shift the view by screen pixels, without animation. */
+  panBy: (dx: number, dy: number) => void;
 }
 
 /** Pan/zoom over a CSS-transformed stage. Wheel pans, ctrl/⌘+wheel or pinch zooms. */
@@ -85,6 +87,14 @@ export function usePanZoom(viewport: { current: HTMLElement | null }): PanZoom {
       apply({ k, x: el.clientWidth / 2 - sx * k, y: el.clientHeight / 2 - sy * k });
     },
     [apply, viewport],
+  );
+
+  const panBy = useCallback(
+    (dx: number, dy: number) => {
+      const cur = tRef.current;
+      apply({ ...cur, x: cur.x + dx, y: cur.y + dy });
+    },
+    [apply],
   );
 
   useEffect(() => {
@@ -177,5 +187,5 @@ export function usePanZoom(viewport: { current: HTMLElement | null }): PanZoom {
     };
   }, [apply, viewport, zoomBy]);
 
-  return { t, animating, size, didPan: () => panned.current, zoomBy, fit, centerOn, panTo };
+  return { t, animating, size, didPan: () => panned.current, zoomBy, fit, centerOn, panTo, panBy };
 }
