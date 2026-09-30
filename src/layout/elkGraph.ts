@@ -1,4 +1,4 @@
-import type { ElkExtendedEdge, ElkNode, ElkPort, LayoutOptions } from 'elkjs/lib/elk-api';
+import type { ElkExtendedEdge, ElkNode, ElkPort, LayoutOptions } from 'elkjs/lib/elk-api.js';
 import { settleInk } from '../ir/style';
 import type { DiagramIR, Direction, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';

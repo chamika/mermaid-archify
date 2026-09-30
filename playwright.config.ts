@@ -11,7 +11,7 @@ export default defineConfig({
   use: { baseURL: 'http://localhost:4174', viewport: { width: 1440, height: 900 } },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1440, height: 900 } } }],
   webServer: {
-    command: 'npx vite build && npx vite preview --port 4174 --strictPort',
+    command: 'npx vite build && npm run build:lib && npx vite preview --port 4174 --strictPort',
     url: 'http://localhost:4174',
     reuseExistingServer: false,
     timeout: 120_000,
