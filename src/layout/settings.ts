@@ -16,7 +16,11 @@ export interface LayoutSettings {
   rankSpacing?: number;
   routing?: Routing;
   placement?: Placement;
+  /** Hand-placed nodes: offset in scene px from the automatic position, by node id. */
+  pins?: Pins;
 }
+
+export type Pins = Record<string, [number, number]>;
 
 export const DIRECTIONS: readonly Direction[] = ['LR', 'RL', 'TB', 'BT'];
 export const ROUTINGS: readonly Routing[] = ['orthogonal', 'polyline', 'splines'];
@@ -24,6 +28,8 @@ export const PLACEMENTS: readonly Placement[] = ['network-simplex', 'brandes-koe
 
 export const DEFAULTS = { nodeSpacing: 44, rankSpacing: 72, routing: 'orthogonal', placement: 'network-simplex' } as const;
 export const RANGES = { nodeSpacing: [12, 160], rankSpacing: [24, 240] } as const;
+/** Largest pin offset kept, either axis; beyond this it is a typo, not a nudge. */
+const MAX_PIN = 5000;
 
 /** Front-matter with its three parts: opening fence, body, closing fence. Same shape `prepareSource` blanks. */
 const FRONT = /^(\s*---[ \t]*\r?\n)([\s\S]*?\r?\n)?(\s*---[ \t]*)(?=\r?\n|$)/;
@@ -46,7 +52,33 @@ export function normalize(raw: Record<string, unknown>): LayoutSettings {
   if (ROUTINGS.includes(routing as Routing) && routing !== DEFAULTS.routing) out.routing = routing as Routing;
   const placement = String(raw.placement ?? '').toLowerCase();
   if (PLACEMENTS.includes(placement as Placement) && placement !== DEFAULTS.placement) out.placement = placement as Placement;
+  const pins = normalizePins(raw.pins);
+  if (pins) out.pins = pins;
   return out;
+}
+
+/** Finite, rounded, clamped offsets in id order; [0, 0] means "not pinned" and is dropped. */
+function normalizePins(raw: unknown): Pins | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Pins = {};
+  for (const id of Object.keys(raw).sort()) {
+    const v = (raw as Record<string, unknown>)[id];
+    if (!id || !Array.isArray(v) || v.length !== 2) continue;
+    const [dx, dy] = v.map((n) => Math.round(Math.min(MAX_PIN, Math.max(-MAX_PIN, Number(n))) || 0));
+    if (!Number.isFinite(Number(v[0])) || !Number.isFinite(Number(v[1])) || (!dx && !dy)) continue;
+    out[id] = [dx, dy];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** A pin key as written: bare when it is a plain identifier, else a JSON string. */
+const pinKey = (id: string) => (/^[A-Za-z_][\w-]*$/.test(id) ? id : JSON.stringify(id));
+
+/** The archify block's entries as lines relative to its own indent. */
+function entryLines(clean: LayoutSettings): string[] {
+  const lines = KEYS.filter((k) => clean[k] !== undefined).map((k) => `${k}: ${clean[k]}`);
+  if (clean.pins) lines.push('pins:', ...Object.entries(clean.pins).map(([id, [dx, dy]]) => `  ${pinKey(id)}: [${dx}, ${dy}]`));
+  return lines;
 }
 
 interface Line {
@@ -58,9 +90,21 @@ interface Line {
 
 function parseLine(text: string): Line {
   const indent = /^[ \t]*/.exec(text)![0].length;
-  const m = /^[ \t]*([A-Za-z_][\w-]*)[ \t]*:(?:[ \t]+(.*?))?[ \t]*$/.exec(text);
+  // Keys are bare identifiers or quoted strings (pin ids can hold anything).
+  const m = /^[ \t]*("(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z_][\w.-]*)[ \t]*:(?:[ \t]+(.*?))?[ \t]*$/.exec(text);
   if (!m || text.trimStart().startsWith('#')) return { text, indent };
-  return { text, indent, key: m[1], value: m[2] };
+  return { text, indent, key: unquoteKey(m[1]), value: m[2] };
+}
+
+function unquoteKey(k: string): string {
+  if (k.startsWith('"')) {
+    try {
+      return JSON.parse(k);
+    } catch {
+      return k.slice(1, -1);
+    }
+  }
+  return k.startsWith("'") ? k.slice(1, -1) : k;
 }
 
 const blank = (l: Line) => !l.text.trim() || l.text.trimStart().startsWith('#');
@@ -119,12 +163,27 @@ export function readLayoutSettings(source: string): LayoutSettings {
   if (!fm?.[2]) return {};
   const { lines, archify, flow } = locate(fm[2]);
   if (archify < 0 || flow) return {};
-  const raw: Record<string, string> = {};
-  for (let i = archify + 1; i < blockEnd(lines, archify); i++) {
+  const raw: Record<string, unknown> = {};
+  const end = blockEnd(lines, archify);
+  const childIndent = lines.slice(archify + 1, end).find((l) => !blank(l))?.indent;
+  for (let i = archify + 1; i < end; i++) {
     const l = lines[i];
-    if (l.key && l.value !== undefined) raw[l.key] = unquote(l.value);
+    if (!l.key || l.indent !== childIndent) continue;
+    if (l.value !== undefined) raw[l.key] = unquote(l.value);
+    else if (l.key === 'pins') raw.pins = readPins(lines, i);
   }
   return normalize(raw);
+}
+
+/** `pins:` children, each `id: [dx, dy]`. */
+function readPins(lines: Line[], at: number): Record<string, [number, number]> {
+  const out: Record<string, [number, number]> = {};
+  for (let i = at + 1; i < blockEnd(lines, at); i++) {
+    const l = lines[i];
+    const m = l.key && /^\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\]$/.exec(unquote(l.value ?? ''));
+    if (m) out[l.key!] = [Number(m[1]), Number(m[2])];
+  }
+  return out;
 }
 
 /**
@@ -135,7 +194,7 @@ export function readLayoutSettings(source: string): LayoutSettings {
  */
 export function writeLayoutSettings(source: string, settings: LayoutSettings): string | undefined {
   const clean = normalize(settings as Record<string, unknown>);
-  const entries = KEYS.filter((k) => clean[k] !== undefined).map((k) => `${k}: ${clean[k]}`);
+  const entries = entryLines(clean);
   const fm = FRONT.exec(source);
 
   if (!fm) {

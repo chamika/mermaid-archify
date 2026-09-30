@@ -279,3 +279,23 @@ body.resizing {
 .ma-layout-panel .ma-layout-foot .ma-btn {
   border: 1px solid var(--toolbar-border);
 }
+
+/* Pins summary in the layout popover. */
+.ma-layout-panel .ma-pins {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ma-layout-panel .ma-pins > span {
+  margin: 0;
+  display: block;
+}
+.ma-layout-panel .ma-pins em {
+  color: var(--route);
+  font-style: normal;
+}
+.ma-layout-panel .ma-pins .ma-btn {
+  border: 1px solid var(--toolbar-border);
+  flex: none;
+}

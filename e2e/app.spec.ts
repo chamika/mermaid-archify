@@ -337,3 +337,86 @@ test.describe('code ↔ diagram linking', () => {
     await expect(toggle).toBeDisabled();
   });
 });
+
+async function dragBy(page: Page, selector: string, dx: number, dy: number) {
+  const box = (await page.locator(selector).boundingBox())!;
+  const s = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(s.x, s.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(s.x + (dx * i) / 8, s.y + (dy * i) / 8);
+  await page.mouse.up();
+}
+
+test('arrange mode: drag a node to pin it, keep it through a share link, unpin with a double-click', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await replaceSource(page, 'flowchart LR\n  A[Alpha] --> B[Beta] --> C[Gamma]');
+  await expect(page.locator('.ma-node')).toHaveCount(3);
+  const node = (p: Page, id: string) => p.locator(`.ma-node[data-id="${id}"]`);
+  const before = (await node(page, 'B').boundingBox())!;
+
+  const arrange = page.getByRole('button', { name: 'Arrange nodes' });
+  await arrange.click();
+  await expect(arrange).toHaveAttribute('aria-pressed', 'true');
+  await dragBy(page, '.ma-node[data-id="B"]', 0, 120);
+
+  const after = (await node(page, 'B').boundingBox())!;
+  expect(after.y - before.y).toBeCloseTo(120, -1);
+  await expect(page.locator('.cm-content')).toContainText('pins:');
+  await expect(page.locator('.cm-content')).toContainText(/B: \[0, \d+\]/);
+  await expect(node(page, 'B')).toHaveClass(/pinned/);
+  // A drag is not a click: no details panel.
+  await expect(page.locator('.ma-passport')).toHaveCount(0);
+  // Edges still meet the moved node.
+  const edgeEnd = await page.locator('.ma-edge[data-id]').first().evaluate((g) => {
+    const path = g.querySelector('path')!;
+    const p = path.getPointAtLength(path.getTotalLength());
+    return { x: p.x, y: p.y };
+  });
+  expect(edgeEnd).toBeTruthy();
+
+  await page.getByRole('button', { name: 'Copy share link' }).click();
+  const fresh = await context.newPage();
+  await fresh.goto(page.url());
+  await expect(node(fresh, 'C')).toBeVisible({ timeout: 20_000 });
+  const [fa, fb] = [(await node(fresh, 'A').boundingBox())!, (await node(fresh, 'B').boundingBox())!];
+  expect(fb.y).toBeGreaterThan(fa.y + fa.height); // B still sits below the line
+
+  await node(page, 'B').dblclick();
+  await expect(page.locator('.cm-content')).not.toContainText('pins:');
+  await expect(async () => {
+    const back = (await node(page, 'B').boundingBox())!;
+    expect(Math.abs(back.y - before.y)).toBeLessThan(2);
+  }).toPass({ timeout: 5_000 });
+});
+
+test('outside arrange mode, dragging a node pans and a click still opens details', async ({ page }) => {
+  await replaceSource(page, 'flowchart LR\n  A[Alpha] --> B[Beta] --> C[Gamma]');
+  await expect(page.locator('.ma-node')).toHaveCount(3);
+  const b = page.locator('.ma-node[data-id="B"]');
+  const a0 = (await page.locator('.ma-node[data-id="A"]').boundingBox())!;
+  await dragBy(page, '.ma-node[data-id="B"]', 60, 80);
+  const a1 = (await page.locator('.ma-node[data-id="A"]').boundingBox())!;
+  expect(a1.x - a0.x).toBeCloseTo(60, -1); // the whole view moved
+  await expect(page.locator('.cm-content')).not.toContainText('pins:');
+
+  await page.getByRole('button', { name: 'Arrange nodes' }).click();
+  await b.click();
+  await expect(page.locator('.ma-passport h2')).toHaveText('Beta');
+});
+
+test('arrange is disabled for sequence diagrams', async ({ page }) => {
+  await pickSample(page, 'sequence');
+  await expect(page.getByRole('button', { name: 'Arrange nodes' })).toBeDisabled();
+});
+
+test('dragging past the top-left grows the canvas without moving the other nodes on screen', async ({ page }) => {
+  await replaceSource(page, 'flowchart LR\n  A[Alpha] --> B[Beta] --> C[Gamma]');
+  await expect(page.locator('.ma-node')).toHaveCount(3);
+  const c0 = (await page.locator('.ma-node[data-id="C"]').boundingBox())!;
+  await page.getByRole('button', { name: 'Arrange nodes' }).click();
+  await dragBy(page, '.ma-node[data-id="A"]', -150, -120);
+  await expect(page.locator('.cm-content')).toContainText(/A: \[-\d+, -\d+\]/);
+  const c1 = (await page.locator('.ma-node[data-id="C"]').boundingBox())!;
+  expect(Math.abs(c1.x - c0.x)).toBeLessThan(2);
+  expect(Math.abs(c1.y - c0.y)).toBeLessThan(2);
+});

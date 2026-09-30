@@ -32,6 +32,15 @@ export interface ViewerProps {
   exports?: ExportAction[];
   /** Extra toolbar content (app-specific buttons). */
   toolbarExtra?: ComponentChildren;
+  /**
+   * Hand placement (the app only; exported files have no source to save to).
+   * `onPin` reports an offset from the automatic position, or undefined to
+   * unpin; `final` is false for live previews while dragging.
+   */
+  arrange?: {
+    pins: Record<string, [number, number]>;
+    onPin: (id: string, offset: [number, number] | undefined, final: boolean) => void;
+  };
   showTitle?: boolean;
 }
 
@@ -63,6 +72,7 @@ export function Viewer({
   linkFor,
   exports = [],
   toolbarExtra,
+  arrange,
   showTitle = true,
 }: ViewerProps) {
   injectCss();
@@ -84,6 +94,10 @@ export function Viewer({
   const [theme, setTheme] = useState<Theme>(currentTheme);
   const [toast, setToast] = useState<string>();
   const [linkedLit, setLinkedLit] = useState<Lit>();
+  const [arranging, setArranging] = useState(false);
+  const [dragging, setDragging] = useState<string>();
+  const canArrange = !!arrange && !scene.seq;
+  const arrangeOn = arranging && canArrange;
 
   const setFocus = useCallback(
     (id: string | undefined) => {
@@ -145,7 +159,7 @@ export function Viewer({
 
   // --- highlight model ---
   const highlight = useMemo<Highlight>(() => {
-    const h: Highlight = { traceStep, pinnedEdge, routeEnds };
+    const h: Highlight = { traceStep, pinnedEdge, routeEnds, ...(arrangeOn && { pinnedNodes: new Set(Object.keys(arrange!.pins)) }) };
     if (routeEnds.length === 2) {
       if (routeLit) return { ...h, lit: routeLit, mode: 'dimmed', routeEdges: routeLit.edges };
       return { ...h, lit: { nodes: new Set(routeEnds), edges: new Set() }, mode: 'dimmed' };
@@ -163,7 +177,7 @@ export function Viewer({
       if (e) return { ...h, lit: { nodes: new Set([e.from, e.to]), edges: new Set([e.id]) }, mode: 'previewing' };
     }
     return h;
-  }, [adj, focus, hoverNode, hoverEdge, pinnedEdge, linkedLit, routeEnds, routeLit, traceStep, scene]);
+  }, [adj, focus, hoverNode, hoverEdge, pinnedEdge, linkedLit, routeEnds, routeLit, traceStep, scene, arrangeOn, arrange]);
 
   // --- trace playback: one bounded pass over edge order ---
   const maxOrder = useMemo(() => Math.max(-1, ...scene.edges.map((e) => e.order)), [scene]);
@@ -199,8 +213,78 @@ export function Viewer({
     [nodeById, pz, setFocus],
   );
 
+  // --- arranging: drag nodes to pin them ---
+  const dragged = useRef(false);
+  const pinOf = (id: string): [number, number] => arrange?.pins[id] ?? [0, 0];
+  const onNodePointerDown = useCallback(
+    (id: string, e: PointerEvent) => {
+      if (!arrangeOn || e.button !== 0) return;
+      e.stopPropagation(); // not a pan
+      const start = { x: e.clientX, y: e.clientY };
+      const [bx, by] = pinOf(id);
+      const k = pz.t.k;
+      let moved = false;
+      let last: [number, number] = [bx, by];
+      const move = (ev: PointerEvent) => {
+        const dx = ev.clientX - start.x;
+        const dy = ev.clientY - start.y;
+        if (!moved && Math.hypot(dx, dy) < 4) return;
+        if (!moved) setDragging(id);
+        moved = true;
+        last = [Math.round(bx + dx / k), Math.round(by + dy / k)];
+        arrange!.onPin(id, last, false);
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        if (!moved) return;
+        setDragging(undefined);
+        arrange!.onPin(id, last[0] || last[1] ? last : undefined, true);
+        // Swallow the click that ends the drag.
+        dragged.current = true;
+        window.setTimeout(() => (dragged.current = false), 0);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [arrangeOn, arrange, pz.t.k],
+  );
+  const onNodeDoubleClick = useCallback(
+    (id: string) => {
+      if (arrangeOn && arrange!.pins[id]) arrange!.onPin(id, undefined, true);
+    },
+    [arrangeOn, arrange],
+  );
+
+  // A drag past the top-left grows the canvas there and shifts every node;
+  // pan by the same amount so the diagram stays put under the pointer.
+  const prevScene = useRef({ scene, pins: arrange?.pins });
+  useEffect(() => {
+    const prev = prevScene.current;
+    prevScene.current = { scene, pins: arrange?.pins };
+    if (!arrangeOn || prev.scene === scene) return;
+    // Only nodes pinned neither before nor after can reveal a canvas shift.
+    const before = new Map(prev.scene.nodes.map((n) => [n.id, n]));
+    const moved = (id: string) => !!(arrange!.pins[id] || prev.pins?.[id]);
+    const shifts = scene.nodes
+      .filter((n) => before.has(n.id) && !moved(n.id))
+      .map((n) => `${n.x - before.get(n.id)!.x},${n.y - before.get(n.id)!.y}`);
+    if (!shifts.length) return;
+    // A shift moves every such node alike; anything less is not a shift.
+    const count = new Map<string, number>();
+    for (const k of shifts) count.set(k, (count.get(k) ?? 0) + 1);
+    const [top, n] = [...count].sort((a, b) => b[1] - a[1])[0];
+    const [sx, sy] = top.split(',').map(Number);
+    if (n * 2 > shifts.length && (sx || sy)) pz.panBy(-sx * pz.t.k, -sy * pz.t.k);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+
   const onNodeClick = useCallback(
     (id: string, e: MouseEvent) => {
+      if (dragged.current) return e.stopPropagation(); // keep focus through a drag
       if (pz.didPan()) return;
       e.stopPropagation();
       setMenuOpen(false);
@@ -248,10 +332,11 @@ export function Viewer({
       onEdgeClick,
       onNodeEnter: setHoverNode,
       onNodeLeave: () => setHoverNode(undefined),
+      ...(arrangeOn && { onNodePointerDown, onNodeDoubleClick }),
       onEdgeEnter: setHoverEdge,
       onEdgeLeave: () => setHoverEdge(undefined),
     }),
-    [onNodeClick, onEdgeClick],
+    [onNodeClick, onEdgeClick, arrangeOn, onNodePointerDown, onNodeDoubleClick],
   );
 
   const toggleTheme = () => {
@@ -291,6 +376,15 @@ export function Viewer({
         return;
       }
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (nudge && arrangeOn && focus && nodeById.has(focus)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 32 : 8;
+        const [x, y] = pinOf(focus);
+        const next: [number, number] = [x + nudge[0] * step, y + nudge[1] * step];
+        arrange!.onPin(focus, next[0] || next[1] ? next : undefined, true);
+        return;
+      }
       if (e.key === '+' || e.key === '=') pz.zoomBy(1.25);
       else if (e.key === '-') pz.zoomBy(0.8);
       else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
@@ -341,7 +435,7 @@ export function Viewer({
   return (
     <div
       ref={viewportRef}
-      class="ma-viewer"
+      class={['ma-viewer', arrangeOn && 'arranging', dragging && 'dragging'].filter(Boolean).join(' ')}
       tabIndex={-1}
       onClick={(e) => {
         if (pz.didPan() || (e.target as Element).closest('.ma-chrome')) return;
@@ -403,6 +497,18 @@ export function Viewer({
         <button class="ma-btn" title="Toggle theme" aria-label="Toggle theme" onClick={toggleTheme}>
           <Icon d={theme === 'dark' ? UI_ICON.sun : UI_ICON.moon} />
         </button>
+        {arrange && (
+          <button
+            class="ma-btn"
+            title={canArrange ? 'Arrange: drag nodes to place them (double-click to unpin)' : 'Sequence diagrams have a fixed layout'}
+            aria-label="Arrange nodes"
+            aria-pressed={arrangeOn}
+            disabled={!canArrange}
+            onClick={() => setArranging((v) => !v)}
+          >
+            <Icon d={UI_ICON.move} />
+          </button>
+        )}
         {toolbarExtra}
         {exports.length > 0 && (
           <span style={{ position: 'relative' }}>
@@ -471,6 +577,7 @@ export function Viewer({
             setRouteEnds([focus]);
             setFocus(undefined);
           }}
+          onUnpin={arrange?.pins[focus] ? () => arrange.onPin(focus, undefined, true) : undefined}
         />
       )}
 
@@ -570,6 +677,7 @@ function Passport({
   onClose,
   onCopyLink,
   onRoute,
+  onUnpin,
 }: {
   scene: Scene;
   node: SceneNode;
@@ -578,6 +686,7 @@ function Passport({
   onPick: (id: string) => void;
   onClose: () => void;
   onCopyLink?: () => void;
+  onUnpin?: () => void;
   onRoute: () => void;
 }) {
   const incoming = adj.incoming.get(node.id) ?? [];
@@ -712,6 +821,11 @@ function Passport({
         <button class="ma-btn" onClick={onRoute} title="Pick a target to trace a directed route">
           <Icon d={UI_ICON.route} /> Route from here
         </button>
+        {onUnpin && (
+          <button class="ma-btn" onClick={onUnpin} title="Put this node back where the automatic layout places it">
+            <Icon d={UI_ICON.move} /> Unpin
+          </button>
+        )}
       </footer>
     </aside>
   );

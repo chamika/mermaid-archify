@@ -17,6 +17,10 @@ const CURATED: [string, string][] = [
   ['sample-class', readFileSync('src/samples/class.mmd', 'utf8')],
   ['styled-flowchart', readFileSync('e2e/fixtures/styled-flowchart.mmd', 'utf8')],
   [
+    'sample-flowchart-pinned',
+    `---\nconfig:\n  archify:\n    pins:\n      auth: [110, 250]\n      stripe: [-505, 393]\n---\n${readFileSync('src/samples/architecture-flowchart.mmd', 'utf8').replace(/^---[\s\S]*?---\n/, '')}`,
+  ],
+  [
     'sample-flowchart-splines',
     `---\nconfig:\n  archify:\n    nodeSpacing: 60\n    routing: splines\n---\n${readFileSync('src/samples/architecture-flowchart.mmd', 'utf8').replace(/^---[\s\S]*?---\n/, '')}`,
   ],

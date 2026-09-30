@@ -17,6 +17,8 @@ interface Props {
   onChange: (next: LayoutSettings) => void;
   /** Sequence diagrams have their own layout; the control is shown but disabled. */
   disabled?: boolean;
+  /** Pins skipped because the node would collide at its offset. */
+  ignoredPins?: string[];
 }
 
 const PLACEMENT_LABEL: Record<Placement, string> = {
@@ -27,7 +29,7 @@ const PLACEMENT_LABEL: Record<Placement, string> = {
 };
 
 /** Toolbar popover that edits the `config.archify` layout settings. */
-export function LayoutControls({ settings, onChange, disabled }: Props) {
+export function LayoutControls({ settings, onChange, disabled, ignoredPins = [] }: Props) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
 
@@ -107,6 +109,18 @@ export function LayoutControls({ settings, onChange, disabled }: Props) {
             </select>
           </label>
 
+          {settings.pins && (
+            <div class="ma-field ma-pins">
+              <span>
+                {plural(Object.keys(settings.pins).length, 'node')} placed by hand
+                {ignoredPins.length > 0 && <em title={ignoredPins.join(', ')}> · {ignoredPins.length} ignored (no room)</em>}
+              </span>
+              <button class="ma-btn" onClick={() => onChange({ ...settings, pins: undefined })}>
+                Clear pins
+              </button>
+            </div>
+          )}
+
           <div class="ma-layout-foot">
             <small>Saved in the front-matter</small>
             <button class="ma-btn" disabled={!custom} onClick={() => onChange({})}>
@@ -153,3 +167,5 @@ function Slider({
     </label>
   );
 }
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;

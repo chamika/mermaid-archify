@@ -81,3 +81,37 @@ describe('writeLayoutSettings', () => {
     expect(ir.nodes).toHaveLength(2);
   });
 });
+
+describe('pins', () => {
+  test('round-trip beside scalar settings, sorted, with awkward ids quoted', () => {
+    const pins = { zeta: [10, -20], 'Order events': [0, 64], 'a:b "c"': [-3.4, 7.6], api: [40, -24] } as Record<string, [number, number]>;
+    const out = writeLayoutSettings(BODY, { routing: 'splines', pins })!;
+    expect(out).toBe(
+      `---\nconfig:\n  archify:\n    routing: splines\n    pins:\n      "Order events": [0, 64]\n      "a:b \\"c\\"": [-3, 8]\n      api: [40, -24]\n      zeta: [10, -20]\n---\n${BODY}`,
+    );
+    expect(readLayoutSettings(out)).toEqual({
+      routing: 'splines',
+      pins: { 'Order events': [0, 64], 'a:b "c"': [-3, 8], api: [40, -24], zeta: [10, -20] },
+    });
+    // Writing what was read changes nothing.
+    expect(writeLayoutSettings(out, readLayoutSettings(out))).toBe(out);
+  });
+
+  test('zero, non-numeric and malformed pins are dropped', () => {
+    const src = `---\nconfig:\n  archify:\n    pins:\n      a: [0, 0]\n      b: [x, 2]\n      c: 5\n      d: [1, 2, 3]\n      'e': [9999999, -2] # far\n---\n${BODY}`;
+    expect(readLayoutSettings(src)).toEqual({ pins: { e: [5000, -2] } });
+    expect(writeLayoutSettings(BODY, { pins: { a: [0, 0] } })).toBe(BODY);
+  });
+
+  test('clearing pins keeps the other settings', () => {
+    const src = writeLayoutSettings(BODY, { direction: 'TB', pins: { a: [1, 2] } })!;
+    expect(writeLayoutSettings(src, { ...readLayoutSettings(src), pins: undefined })).toBe(
+      `---\nconfig:\n  archify:\n    direction: TB\n---\n${BODY}`,
+    );
+  });
+
+  test('pins nested one level deeper are not mistaken for settings', () => {
+    const src = `---\nconfig:\n  archify:\n    pins:\n      routing: [4, 4]\n---\n${BODY}`;
+    expect(readLayoutSettings(src)).toEqual({ pins: { routing: [4, 4] } });
+  });
+});
