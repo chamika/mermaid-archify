@@ -16,16 +16,29 @@
       "types": "./dist-node/types/node/index.d.ts",
       "import": "./dist-node/index.js"
     },
+    "./element": {
+      "types": "./dist-node/types/element/element.d.ts",
+      "import": "./dist-element/mermaid-archify.js"
+    },
+    "./remark": {
+      "types": "./dist-node/types/node/remark.d.ts",
+      "import": "./dist-node/remark.js"
+    },
+    "./markdown-it": {
+      "types": "./dist-node/types/node/markdown-it.d.ts",
+      "import": "./dist-node/markdown-it.js"
+    },
     "./package.json": "./package.json"
   },
   "types": "./dist-node/types/node/index.d.ts",
   "files": [
-    "dist-node"
+    "dist-node",
+    "dist-element"
   ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:lib",
-    "build:lib": "vite build -c vite.lib.config.ts && tsc -p tsconfig.lib.json && node scripts/lib-types.mjs",
+    "build:lib": "vite build -c vite.lib.config.ts && vite build -c vite.element.config.ts && tsc -p tsconfig.lib.json && node scripts/lib-types.mjs",
     "prepack": "npm run build:lib",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
@@ -53,10 +66,17 @@
     "@lezer/highlight": "1.2.5",
     "@playwright/test": "1.63.0",
     "@preact/preset-vite": "2.10.6",
+    "@types/markdown-it": "14.2.0",
     "@types/node": "26.6.3",
     "codemirror": "6.0.2",
     "lz-string": "1.5.0",
+    "markdown-it": "15.0.2",
+    "rehype-stringify": "10.0.1",
+    "remark-mdx": "3.1.1",
+    "remark-parse": "11.0.0",
+    "remark-rehype": "11.1.2",
     "typescript": "7.0.2",
+    "unified": "11.0.5",
     "vite": "8.3.1",
     "vitest": "5.0.2"
   }

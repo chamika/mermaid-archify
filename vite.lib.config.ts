@@ -6,7 +6,7 @@ import { viewerBundle } from './vite-plugin-viewer-bundle';
 
 const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8'));
 
-/** Node build of the library (`render`) and the `mermaid-archify` CLI into dist-node/. */
+/** Node build of the library (`render`), the `mermaid-archify` CLI and the Markdown plugins into dist-node/. */
 export default defineConfig({
   plugins: [viewerBundle(), faIcons()],
   define: { __VERSION__: JSON.stringify(pkg.version) },
@@ -17,7 +17,9 @@ export default defineConfig({
     target: 'node22',
     minify: false,
     rollupOptions: {
-      input: { index: resolve(import.meta.dirname, 'src/node/index.ts'), cli: resolve(import.meta.dirname, 'src/node/cli.ts') },
+      input: Object.fromEntries(
+        ['index', 'cli', 'remark', 'markdown-it', 'render-worker'].map((name) => [name, resolve(import.meta.dirname, `src/node/${name}.ts`)]),
+      ),
       output: {
         format: 'es',
         entryFileNames: '[name].js',

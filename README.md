@@ -60,6 +60,30 @@ The library needs a DOM for Mermaid's parser and installs a
 when none exists (an existing DOM, such as jsdom, is used as is). ELK runs
 in-process. Build it with `npm run build:lib` (output in `dist-node/`).
 
+## Embedding in docs sites
+
+`<mermaid-archify>` puts an interactive diagram in any page, and remark and
+markdown-it plugins turn ```` ```mermaid ```` blocks into it at build time, so
+pages ship only the ≈90 KB viewer, not Mermaid or ELK. Recipes for
+Docusaurus, VitePress and MkDocs: [docs/embedding.md](docs/embedding.md).
+
+```html
+<script type="module" src="mermaid-archify.js"></script>  <!-- dist-element/, or import 'mermaid-archify/element' -->
+<mermaid-archify src="diagram.mmd" height="420"></mermaid-archify>
+<mermaid-archify scene="diagram.json" theme="light" controls="false"></mermaid-archify>
+```
+
+```js
+import remarkMermaidArchify from 'mermaid-archify/remark';           // Docusaurus, Astro, unified
+import markdownItMermaidArchify from 'mermaid-archify/markdown-it';  // VitePress, Eleventy
+```
+
+Each diagram is isolated in shadow DOM, follows the page's theme
+(`<html data-theme>`, `<html class="dark">` or the OS), takes keyboard
+shortcuts only while focused, and renders only when scrolled near. `npm run
+build:lib` builds the element into `dist-element/`; `embed.html` shows several
+on one page.
+
 ## Testing
 
 The suite is built around a **corpus of 358 real Mermaid diagrams** taken
@@ -78,6 +102,8 @@ including the large, CJK, KaTeX and expanded-shape stress cases.
 | `e2e/app.spec.ts` | App flows: editing and errors, focus, finder, theme, share links, HTML/SVG/PNG export, offline export. |
 | `e2e/cli.spec.ts` | The CLI's HTML (byte-identical) and SVG match the app's exports for one diagram of each kind; batch globs, `file:line` errors, exit codes. |
 | `test/node.test.ts` | `render()` in plain Node, and CLI input/output path handling. |
+| `e2e/embed.spec.ts` | `embed.html`: several elements under hostile host CSS stay isolated (styles, keyboard, wheel), follow the host theme, render lazily; pages built with the remark and markdown-it plugins load only the viewer. |
+| `test/plugins.test.ts` | The Markdown plugins' output: HTML, MDX and Vue-safe markup, escaping, per-block options, `file:line` errors. |
 
 Fixtures Mermaid itself rejects are listed in `test/corpus/invalid.json` and
 must fail cleanly with a line number.

@@ -42,15 +42,29 @@ export interface ViewerProps {
     onPin: (id: string, offset: [number, number] | undefined, final: boolean) => void;
   };
   showTitle?: boolean;
+  /**
+   * Embedded use (the `<mermaid-archify>` element): styles are not added to
+   * the document, keyboard shortcuts only work while this viewer has focus,
+   * and the wheel scrolls the page until the viewer is focused.
+   */
+  embedded?: boolean;
+  /** Controlled theme; when set, the document's theme is neither read nor written. */
+  theme?: Theme;
+  onThemeChange?: (theme: Theme) => void;
+  /** Toolbar, legend and minimap. Default true. */
+  controls?: boolean;
 }
 
 type Theme = 'light' | 'dark';
+
+/** Everything the viewer needs to look right; the element puts it in its shadow root. */
+export const VIEWER_CSS = tokensCss + diagramCss + viewerCss;
 
 function injectCss() {
   if (typeof document === 'undefined' || document.getElementById('ma-viewer-css')) return;
   const style = document.createElement('style');
   style.id = 'ma-viewer-css';
-  style.textContent = tokensCss + diagramCss + viewerCss;
+  style.textContent = VIEWER_CSS;
   document.head.appendChild(style);
 }
 
@@ -58,6 +72,13 @@ function currentTheme(): Theme {
   const set = document.documentElement.dataset.theme;
   if (set === 'light' || set === 'dark') return set;
   return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/** Focus is inside `el`, looking through shadow roots (`document.activeElement` stops at the host). */
+function hasFocusWithin(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  const active = (el.getRootNode() as Document | ShadowRoot).activeElement;
+  return !!active && el.contains(active);
 }
 
 const isTyping = (t: EventTarget | null) =>
@@ -74,11 +95,15 @@ export function Viewer({
   toolbarExtra,
   arrange,
   showTitle = true,
+  embedded = false,
+  theme: themeProp,
+  onThemeChange,
+  controls = true,
 }: ViewerProps) {
-  injectCss();
+  if (!embedded) injectCss();
   const viewportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const pz = usePanZoom(viewportRef);
+  const pz = usePanZoom(viewportRef, embedded ? { wheelPans: () => hasFocusWithin(viewportRef.current) } : undefined);
   const adj = useMemo(() => adjacency(scene), [scene]);
   const nodeById = useMemo(() => new Map(scene.nodes.map((n) => [n.id, n])), [scene]);
 
@@ -91,7 +116,8 @@ export function Viewer({
   const [traceStep, setTraceStep] = useState<number>();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showMap, setShowMap] = useState(true);
-  const [theme, setTheme] = useState<Theme>(currentTheme);
+  const [ownTheme, setTheme] = useState<Theme>(() => themeProp ?? currentTheme());
+  const theme = themeProp ?? ownTheme;
   const [toast, setToast] = useState<string>();
   const [linkedLit, setLinkedLit] = useState<Lit>();
   const [arranging, setArranging] = useState(false);
@@ -341,6 +367,7 @@ export function Viewer({
 
   const toggleTheme = () => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    if (themeProp) return onThemeChange?.(next);
     document.documentElement.dataset.theme = next;
     try {
       localStorage.setItem('mermaid-archify:theme', next);
@@ -390,8 +417,10 @@ export function Viewer({
       else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
       else if (e.key === 't') toggleTrace();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Embedded, several viewers share a page: each only hears keys while it has focus.
+    const target: HTMLElement | Window | null = embedded ? viewportRef.current : window;
+    target?.addEventListener('keydown', onKey as EventListener);
+    return () => target?.removeEventListener('keydown', onKey as EventListener);
   });
 
   const types = useMemo(() => {
@@ -435,8 +464,17 @@ export function Viewer({
   return (
     <div
       ref={viewportRef}
-      class={['ma-viewer', arrangeOn && 'arranging', dragging && 'dragging'].filter(Boolean).join(' ')}
-      tabIndex={-1}
+      class={['ma-viewer', arrangeOn && 'arranging', dragging && 'dragging', !controls && 'no-controls'].filter(Boolean).join(' ')}
+      tabIndex={embedded ? 0 : -1}
+      aria-label={embedded ? `${scene.title ?? `${scene.kind} diagram`} (interactive diagram)` : undefined}
+      onPointerDown={
+        embedded
+          ? (e) => {
+              // Clicking the canvas focuses this diagram (and so its shortcuts); controls take focus themselves.
+              if (!hasFocusWithin(viewportRef.current) && !(e.target as Element).closest('.ma-chrome')) viewportRef.current?.focus({ preventScroll: true });
+            }
+          : undefined
+      }
       onClick={(e) => {
         if (pz.didPan() || (e.target as Element).closest('.ma-chrome')) return;
         clearAll();

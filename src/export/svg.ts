@@ -5,9 +5,9 @@ import tokensCss from '../viewer/tokens.css?inline';
 // Minified builds add `--lightningcss-*` helpers for `color-scheme`; they are not palette tokens.
 const TOKEN_NAMES = [...new Set([...tokensCss.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]))].filter((n) => !n.startsWith('--lightningcss-'));
 
-/** Palette values for the theme currently applied to the document. */
-function resolvedTokens(): string {
-  const cs = getComputedStyle(document.documentElement);
+/** Palette values in effect at `el` (the document's theme, or an embed's own inside its shadow root). */
+function resolvedTokens(el: Element): string {
+  const cs = getComputedStyle(el);
   return TOKEN_NAMES.map((name) => `${name}:${cs.getPropertyValue(name).trim()}`).join(';');
 }
 
@@ -27,7 +27,7 @@ const VIEW_STATE_CLASSES = ['dimmed', 'previewing', 'tracing', 'lit', 'focused',
  * Canonical SVG: the diagram only, current theme baked in, and every piece of
  * viewer state (focus, route, trace, hover) removed.
  */
-export function serializeSvg(live: SVGSVGElement, scene: Scene, tokens = resolvedTokens()): string {
+export function serializeSvg(live: SVGSVGElement, scene: Scene, tokens = resolvedTokens(live)): string {
   const svg = live.cloneNode(true) as SVGSVGElement;
   svg.querySelectorAll('.ma-overlay').forEach((el) => el.remove());
   for (const cls of VIEW_STATE_CLASSES) svg.querySelectorAll(`.${cls}`).forEach((el) => el.classList.remove(cls));

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mermaid-archify · embedding</title>
+    <meta name="description" content="Several <mermaid-archify> diagrams on one page." />
+    <style>
+      /* A deliberately hostile host stylesheet: none of it may reach the diagrams. */
+      * { color: #e11d48 !important; font-family: Georgia, serif !important; line-height: 3 !important; }
+      svg, rect, path, div { all: unset; fill: magenta; stroke: lime; }
+      button { background: orange !important; border: 4px solid black !important; }
+
+      body { display: block; margin: 0 auto; max-width: 960px; padding: 24px 16px 160px; background: #fff; }
+      html[data-theme='dark'] body, html.dark body { background: #0b1222; }
+      header, section { display: block; margin-bottom: 32px; }
+      mermaid-archify { border-radius: 8px; border: 1px solid #94a3b8; }
+      mermaid-archify:not(:defined) { visibility: hidden; }
+      .spacer { display: block; height: 2400px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Embedding mermaid-archify</h1>
+      <p>
+        Theme:
+        <select id="theme" aria-label="Page theme">
+          <option value="">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </p>
+    </header>
+
+    <section>
+      <h2>Inline Mermaid source</h2>
+      <mermaid-archify id="inline" height="420">
+        flowchart LR
+          shopper([Shopper]):::frontend --> web[Web App]
+          web --> api[[Checkout API]]
+          api --> db[(Postgres)]
+          api --> cache[(Redis)]
+      </mermaid-archify>
+    </section>
+
+    <section>
+      <h2>From a .mmd file</h2>
+      <mermaid-archify id="from-src" src="/examples/cache-miss.mmd" height="460"></mermaid-archify>
+    </section>
+
+    <section>
+      <h2>Prebuilt scene, light theme, no controls</h2>
+      <mermaid-archify id="from-scene" scene="/examples/architecture.json" theme="light" controls="false" height="360"></mermaid-archify>
+    </section>
+
+    <div class="spacer"></div>
+
+    <section>
+      <h2>Below the fold (rendered when scrolled near)</h2>
+      <mermaid-archify id="lazy" height="320">
+        <script type="text/mermaid">
+          flowchart TB
+            a[Request<br>arrives] --> b{Cached?}
+            b -->|yes| c[Serve]
+            b -->|no| d[Render] --> c
+        </script>
+      </mermaid-archify>
+    </section>
+
+    <script>
+      document.getElementById('theme').addEventListener('change', (e) => {
+        if (e.target.value) document.documentElement.dataset.theme = e.target.value;
+        else delete document.documentElement.dataset.theme;
+      });
+    </script>
+    <script type="module" src="/src/element/element.tsx"></script>
+  </body>
+</html>
