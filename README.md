@@ -186,4 +186,3 @@ Share links (`#src=…&focus=…`) carry the source compressed in the URL.
 
 Palette and interaction model are adapted from
 [Archify](https://github.com/tt-a1i/archify) (MIT).
-
