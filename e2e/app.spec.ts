@@ -468,3 +468,20 @@ test('trace: the pulse travels each edge from source to target', async ({ page }
   await page.waitForTimeout(400);
   expect(await at()).toBeGreaterThan(x0 + 10);
 });
+
+test('flowing dash patterns loop seamlessly (no jump as the animation repeats)', async ({ page }) => {
+  await pickSample(page, 'sequence');
+  await page.locator('.ma-zoom').click();
+  await page.keyboard.press(' ');
+  await expect(page.locator('.ma-svg.flowing')).toHaveCount(1);
+  const periods = await page.evaluate(() => {
+    const seen = new Set<number>();
+    for (const p of document.querySelectorAll('.ma-edge path.line')) {
+      const dash = getComputedStyle(p).strokeDasharray;
+      if (dash !== 'none') seen.add(dash.split(/[\s,]+/).reduce((sum, v) => sum + parseFloat(v), 0));
+    }
+    return [...seen];
+  });
+  expect(periods.length).toBeGreaterThan(1); // solid and dotted messages
+  for (const p of periods) expect(28 % p).toBe(0);
+});

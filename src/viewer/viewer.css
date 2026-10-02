@@ -101,7 +101,7 @@
   stroke: var(--arrow-emphasis);
 }
 
-/* trace and animation */
+/* trace and animation: every dash period must divide ma-flow's 28px offset, or the dashes jump as it loops */
 .tracing .ma-edge path.line,
 .flowing .ma-edge path.line {
   stroke-dasharray: 6 8;
@@ -109,7 +109,7 @@
 }
 .tracing .ma-edge.dotted path.line,
 .flowing .ma-edge.dotted path.line {
-  stroke-dasharray: 2 6;
+  stroke-dasharray: 2 5;
 }
 .ma-edge.trace-now path.line {
   stroke: var(--arrow-emphasis);
