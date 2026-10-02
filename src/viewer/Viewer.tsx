@@ -114,6 +114,7 @@ export function Viewer({
   const [routeEnds, setRouteEnds] = useState<string[]>([]);
   const [finderOpen, setFinderOpen] = useState(false);
   const [traceStep, setTraceStep] = useState<number>();
+  const [animating, setAnimating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showMap, setShowMap] = useState(true);
   const [ownTheme, setTheme] = useState<Theme>(() => themeProp ?? currentTheme());
@@ -185,7 +186,7 @@ export function Viewer({
 
   // --- highlight model ---
   const highlight = useMemo<Highlight>(() => {
-    const h: Highlight = { traceStep, pinnedEdge, routeEnds, ...(arrangeOn && { pinnedNodes: new Set(Object.keys(arrange!.pins)) }) };
+    const h: Highlight = { traceStep, animating, pinnedEdge, routeEnds, ...(arrangeOn && { pinnedNodes: new Set(Object.keys(arrange!.pins)) }) };
     if (routeEnds.length === 2) {
       if (routeLit) return { ...h, lit: routeLit, mode: 'dimmed', routeEdges: routeLit.edges };
       return { ...h, lit: { nodes: new Set(routeEnds), edges: new Set() }, mode: 'dimmed' };
@@ -203,7 +204,7 @@ export function Viewer({
       if (e) return { ...h, lit: { nodes: new Set([e.from, e.to]), edges: new Set([e.id]) }, mode: 'previewing' };
     }
     return h;
-  }, [adj, focus, hoverNode, hoverEdge, pinnedEdge, linkedLit, routeEnds, routeLit, traceStep, scene, arrangeOn, arrange]);
+  }, [adj, focus, hoverNode, hoverEdge, pinnedEdge, linkedLit, routeEnds, routeLit, traceStep, animating, scene, arrangeOn, arrange]);
 
   // --- trace playback: one bounded pass over edge order ---
   const maxOrder = useMemo(() => Math.max(-1, ...scene.edges.map((e) => e.order)), [scene]);
@@ -381,7 +382,13 @@ export function Viewer({
     setFocus(undefined);
     setRouteEnds([]);
     setPinnedEdge(undefined);
+    setAnimating(false);
     setTraceStep((s) => (s === undefined ? 0 : undefined));
+  };
+
+  const toggleAnimate = () => {
+    setTraceStep(undefined);
+    setAnimating((v) => !v);
   };
 
   const flash = (msg: string) => {
@@ -395,6 +402,7 @@ export function Viewer({
       if (e.key === 'Escape') {
         clearAll();
         setTraceStep(undefined);
+        setAnimating(false);
         return;
       }
       if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isTyping(e.target))) {
@@ -416,6 +424,10 @@ export function Viewer({
       else if (e.key === '-') pz.zoomBy(0.8);
       else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
       else if (e.key === 't') toggleTrace();
+      else if (e.key === ' ') {
+        e.preventDefault(); // no page scroll, and a focused button is not clicked as well
+        toggleAnimate();
+      }
     };
     // Embedded, several viewers share a page: each only hears keys while it has focus.
     const target: HTMLElement | Window | null = embedded ? viewportRef.current : window;
@@ -438,7 +450,14 @@ export function Viewer({
               <animateMotion dur="0.8s" fill="freeze" {...({ path: pathD(e.points) } as object)} />
             </circle>
           ))
-      : null;
+      : animating
+        ? // Continuous flow on every edge, staggered by order so it reads downstream.
+          scene.edges.map((e) => (
+            <circle key={e.id} class="ma-pulse" r={4.5}>
+              <animateMotion dur="2s" repeatCount="indefinite" begin={`${((e.order * 0.35) % 2).toFixed(2)}s`} {...({ path: pathD(e.points) } as object)} />
+            </circle>
+          ))
+        : null;
 
   const status = (() => {
     if (routeEnds.length === 1 && !routeEnds[0]) return <>Route probe: click the start node</>;
@@ -500,6 +519,15 @@ export function Viewer({
       <div class="ma-chrome ma-toolbar" role="toolbar" aria-label="Diagram controls">
         <button class="ma-btn" title="Find node (/ or ⌘K)" aria-label="Find node" onClick={() => setFinderOpen(true)}>
           <Icon d={UI_ICON.search} />
+        </button>
+        <button
+          class="ma-btn"
+          title={animating ? 'Stop animation (Space)' : 'Play animation (Space)'}
+          aria-label="Animate flow"
+          aria-pressed={animating}
+          onClick={toggleAnimate}
+        >
+          <Icon d={animating ? UI_ICON.stop : UI_ICON.play} />
         </button>
         <button class="ma-btn" title="Trace flow (T)" aria-label="Trace flow" aria-pressed={traceStep !== undefined} onClick={toggleTrace}>
           <Icon d={UI_ICON.trace} />

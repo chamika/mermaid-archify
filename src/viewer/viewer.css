@@ -101,12 +101,14 @@
   stroke: var(--arrow-emphasis);
 }
 
-/* trace */
-.tracing .ma-edge path.line {
+/* trace and animation */
+.tracing .ma-edge path.line,
+.flowing .ma-edge path.line {
   stroke-dasharray: 6 8;
   animation: ma-flow 900ms linear infinite;
 }
-.tracing .ma-edge.dotted path.line {
+.tracing .ma-edge.dotted path.line,
+.flowing .ma-edge.dotted path.line {
   stroke-dasharray: 2 6;
 }
 .ma-edge.trace-now path.line {
@@ -130,7 +132,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tracing .ma-edge path.line {
+  .tracing .ma-edge path.line,
+  .flowing .ma-edge path.line {
     animation: none;
   }
   .ma-pulse {

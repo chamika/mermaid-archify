@@ -17,6 +17,8 @@ export interface Highlight {
   routeEdges?: Set<string>;
   pinnedEdge?: string;
   traceStep?: number;
+  /** Animation mode: continuous flow on every edge, no steps. */
+  animating?: boolean;
   /** Hand-placed nodes, outlined while arranging. */
   pinnedNodes?: Set<string>;
 }
@@ -576,7 +578,7 @@ export interface DiagramProps {
 }
 
 function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: DiagramProps) {
-  const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep, pinnedNodes } = highlight;
+  const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep, animating, pinnedNodes } = highlight;
   const nodeCls = (id: string) =>
     [lit?.nodes.has(id) && 'lit', focused === id && 'focused', routeEnds?.includes(id) && 'route-end', pinnedNodes?.has(id) && 'pinned']
       .filter(Boolean)
@@ -592,7 +594,7 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
       .filter(Boolean)
       .join(' ');
   const groups = [...scene.groups].sort((a, b) => a.depth - b.depth);
-  const rootCls = ['ma-svg', mode, traceStep !== undefined && 'tracing'].filter(Boolean).join(' ');
+  const rootCls = ['ma-svg', mode, traceStep !== undefined && 'tracing', animating && 'flowing'].filter(Boolean).join(' ');
   return (
     <svg
       ref={svgRef}

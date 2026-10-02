@@ -21,7 +21,7 @@ export function themeTokens(theme: 'light' | 'dark'): string {
   return TOKEN_NAMES.map((name) => `${name}:${values.get(name) ?? ''}`).join(';');
 }
 
-const VIEW_STATE_CLASSES = ['dimmed', 'previewing', 'tracing', 'lit', 'focused', 'route-end', 'on-route', 'pinned', 'trace-now', 'trace-done'];
+const VIEW_STATE_CLASSES = ['dimmed', 'previewing', 'tracing', 'lit', 'focused', 'route-end', 'on-route', 'pinned', 'trace-now', 'trace-done', 'flowing'];
 
 /**
  * Canonical SVG: the diagram only, current theme baked in, and every piece of
