@@ -450,14 +450,7 @@ export function Viewer({
               <animateMotion dur="0.8s" fill="freeze" {...({ path: pathD(e.points) } as object)} />
             </circle>
           ))
-      : animating
-        ? // Continuous flow on every edge, staggered by order so it reads downstream.
-          scene.edges.map((e) => (
-            <circle key={e.id} class="ma-pulse" r={4.5}>
-              <animateMotion dur="2s" repeatCount="indefinite" begin={`${((e.order * 0.35) % 2).toFixed(2)}s`} {...({ path: pathD(e.points) } as object)} />
-            </circle>
-          ))
-        : null;
+      : null;
 
   const status = (() => {
     if (routeEnds.length === 1 && !routeEnds[0]) return <>Route probe: click the start node</>;

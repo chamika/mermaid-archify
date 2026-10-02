@@ -421,10 +421,9 @@ test('dragging past the top-left grows the canvas without moving the other nodes
   expect(Math.abs(c1.y - c0.y)).toBeLessThan(2);
 });
 
-test('Space toggles animation mode: continuous flow, no steps', async ({ page }) => {
+test('Space toggles animation mode: flowing lines, no steps', async ({ page }) => {
   await pickSample(page, 'flowchart');
   const button = page.locator('[aria-label="Animate flow"]');
-  const edges = await page.locator('.ma-edge').count();
 
   // Typing a space in the editor does not toggle it.
   await page.locator('.cm-content').click();
@@ -436,17 +435,15 @@ test('Space toggles animation mode: continuous flow, no steps', async ({ page })
   await page.keyboard.press(' ');
   await expect(button).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.ma-svg.flowing')).toHaveCount(1);
-  await expect(page.locator('.ma-pulse')).toHaveCount(edges);
+  await expect(page.locator('.ma-pulse')).toHaveCount(0); // lines flow; no travelling dots
   await page.waitForTimeout(2500);
   await expect(button).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.ma-pulse')).toHaveCount(edges);
   await expect(page.locator('.ma-edge.trace-now, .ma-edge.trace-done')).toHaveCount(0);
   await expect(page.locator('.ma-status')).toHaveCount(0);
 
   await page.keyboard.press(' ');
   await expect(button).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.ma-svg.flowing')).toHaveCount(0);
-  await expect(page.locator('.ma-pulse')).toHaveCount(0);
 
   // The button toggles too, and trace takes over from it.
   await button.click();
