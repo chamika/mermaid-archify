@@ -5,6 +5,8 @@ left; get an explorable diagram on the right, with typed components, focus and
 upstream/downstream details, a finder, a route probe, trace playback, a
 minimap, dark/light themes, and exports (standalone interactive HTML, SVG, PNG).
 
+Live: **https://mermaid-archify.pages.dev**
+
 Supported input: `flowchart`/`graph`, `sequenceDiagram`, `stateDiagram-v2`,
 `erDiagram`, `classDiagram`, `architecture-beta`.
 
@@ -116,6 +118,24 @@ SHOTS=1 npm run e2e:corpus && npm run corpus:sheets   # screenshot every fixture
 npm run e2e:visual -- --update-snapshots    # re-record baselines after an intended visual change
 npx vitest run -u                           # accept intended corpus snapshot changes (review the diff!)
 ```
+
+## Deployment
+
+The app is a static site on Cloudflare Pages (project `mermaid-archify`,
+Direct Upload from GitHub Actions; no Workers). In `.github/workflows/ci.yml`
+the `deploy` job runs only after the `test` job passes, and ships the `dist/`
+those tests exercised:
+
+- push to `main` → production, https://mermaid-archify.pages.dev
+- same-repo PR #n → preview, https://pr-n.mermaid-archify.pages.dev, linked
+  in a PR comment that updates on every push
+
+`.github/workflows/pages-cleanup.yml` deletes every deployment of a PR's
+`pr-<n>` branch when the PR closes, then checks that none are left. A daily sweep
+(also runnable by hand) deletes previews of any PR that is no longer open.
+Both use `scripts/pages-cleanup.mjs`. The repo secrets they need are
+`CLOUDFLARE_API_TOKEN` (Account → Cloudflare Pages → Edit) and
+`CLOUDFLARE_ACCOUNT_ID`.
 
 ## How it works
 

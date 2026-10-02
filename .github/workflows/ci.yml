@@ -24,6 +24,12 @@ jobs:
         run: npx playwright test
         env:
           CI: true
+      # The site exactly as the browser tests exercised it; the deploy job ships this.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist/
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -31,3 +37,69 @@ jobs:
           path: |
             playwright-report/
             test-results/
+
+  # Cloudflare Pages: main → https://mermaid-archify.pages.dev,
+  # PR #n → https://pr-n.mermaid-archify.pages.dev (removed by pages-cleanup.yml on close).
+  deploy:
+    needs: test
+    # Fork PRs get no secrets.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    # Shared with pages-cleanup.yml so a deploy and the cleanup of the same PR never overlap.
+    concurrency:
+      group: pages-${{ github.event_name == 'push' && 'main' || format('pr-{0}', github.event.pull_request.number) }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    env:
+      BRANCH: ${{ github.event_name == 'push' && 'main' || format('pr-{0}', github.event.pull_request.number) }}
+    steps:
+      # The PR may have closed (and been cleaned up) while the tests ran; don't resurrect its preview.
+      - name: Check PR is still open
+        id: open
+        if: github.event_name == 'pull_request'
+        run: echo "state=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json state -q .state)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: steps.open.outputs.state != 'CLOSED' && steps.open.outputs.state != 'MERGED'
+        with:
+          name: site
+          path: dist
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: steps.open.outputs.state != 'CLOSED' && steps.open.outputs.state != 'MERGED'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=mermaid-archify --branch=${{ env.BRANCH }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }} --commit-dirty=true
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request' && steps.deploy.outcome == 'success'
+        uses: actions/github-script@v7
+        env:
+          ALIAS_URL: https://${{ env.BRANCH }}.mermaid-archify.pages.dev
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const marker = '<!-- pages-preview -->';
+            const body = [
+              marker,
+              '## Preview deployment',
+              '',
+              `**Preview:** ${process.env.ALIAS_URL}`,
+              `**This commit (${process.env.SHA.slice(0, 7)}):** ${process.env.DEPLOYMENT_URL}`,
+              '',
+              '_Updated on every push. All deployments for this PR are deleted when it closes._',
+            ].join('\n');
+            const issue = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
+            const comments = await github.paginate(github.rest.issues.listComments, issue);
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...issue, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...issue, body });
+            }
