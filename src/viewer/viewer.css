@@ -12,6 +12,10 @@
   -webkit-user-select: none;
   outline: none;
 }
+/* Embedded with controls="false": the diagram alone. */
+.ma-viewer.no-controls :is(.ma-toolbar, .ma-legend, .ma-minimap) {
+  display: none;
+}
 .ma-viewer.is-panning {
   cursor: grabbing;
 }

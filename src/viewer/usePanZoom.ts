@@ -26,7 +26,7 @@ export interface PanZoom {
 }
 
 /** Pan/zoom over a CSS-transformed stage. Wheel pans, ctrl/⌘+wheel or pinch zooms. */
-export function usePanZoom(viewport: { current: HTMLElement | null }): PanZoom {
+export function usePanZoom(viewport: { current: HTMLElement | null }, opts?: { wheelPans?: () => boolean }): PanZoom {
   const [t, setT] = useState<Transform>({ x: 0, y: 0, k: 1 });
   const [animating, setAnimating] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -116,6 +116,8 @@ export function usePanZoom(viewport: { current: HTMLElement | null }): PanZoom {
     setSize(last);
 
     const onWheel = (e: WheelEvent) => {
+      // Embedded in a page, a plain wheel scrolls the page until the diagram is focused.
+      if (!e.ctrlKey && !e.metaKey && opts?.wheelPans && !opts.wheelPans()) return;
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const at = { x: e.clientX - rect.left, y: e.clientY - rect.top };

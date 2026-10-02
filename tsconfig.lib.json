@@ -8,5 +8,5 @@
     "outDir": "dist-node/types"
   },
   "include": ["src/env.d.ts"],
-  "files": ["src/node/index.ts"]
+  "files": ["src/node/index.ts", "src/node/remark.ts", "src/node/markdown-it.ts", "src/element/element.tsx"]
 }
