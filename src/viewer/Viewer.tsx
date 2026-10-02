@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { plainText } from '../icons/fa';
 import { safeLink } from '../ir/style';
 import type { SemanticType } from '../ir/types';
@@ -446,9 +446,7 @@ export function Viewer({
       ? scene.edges
           .filter((e) => e.order === traceStep)
           .map((e) => (
-            <circle key={`${e.id}-${traceStep}`} class="ma-pulse" r={4.5}>
-              <animateMotion dur="0.8s" fill="freeze" {...({ path: pathD(e.points) } as object)} />
-            </circle>
+            <TracePulse key={`${e.id}-${traceStep}`} path={pathD(e.points)} />
           ))
       : null;
 
@@ -655,6 +653,21 @@ export function Viewer({
 
       {status && <div class="ma-chrome ma-status" role="status">{status}</div>}
     </div>
+  );
+}
+
+/**
+ * A dot that travels an edge from source to target once. SMIL times
+ * animations from page load, so one added later would already be over:
+ * it starts on mount instead.
+ */
+function TracePulse({ path }: { path: string }) {
+  const ref = useRef<SVGAnimateMotionElement>(null);
+  useLayoutEffect(() => ref.current?.beginElement?.(), []); // before paint, so it never shows at the origin
+  return (
+    <circle class="ma-pulse" r={4.5}>
+      <animateMotion ref={ref} begin="indefinite" dur="0.8s" fill="freeze" {...({ path } as object)} />
+    </circle>
   );
 }
 

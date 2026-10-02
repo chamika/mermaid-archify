@@ -453,3 +453,18 @@ test('Space toggles animation mode: flowing lines, no steps', async ({ page }) =
   await expect(page.locator('[aria-label="Trace flow"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.ma-svg.flowing')).toHaveCount(0);
 });
+
+test('trace: the pulse travels each edge from source to target', async ({ page }) => {
+  await pickSample(page, 'flowchart');
+  await page.locator('.ma-zoom').click();
+  await page.keyboard.press('t');
+  const pulse = page.locator('.ma-pulse').first();
+  await expect(pulse).toHaveCount(1);
+  const at = () => pulse.evaluate((c) => (c as SVGGraphicsElement).getCTM()!.e);
+  const [x0, path] = await Promise.all([at(), page.locator('.ma-edge.trace-now path.line').first().getAttribute('d')]);
+  const [sx, tx] = [path!.match(/^M([\d.]+)/)![1], path!.match(/([\d.]+),[\d.]+$/)![1]].map(Number);
+  // Starts at the source end (left to right in this sample) and moves toward the target.
+  expect(Math.abs(x0 - sx)).toBeLessThan(Math.abs(x0 - tx));
+  await page.waitForTimeout(400);
+  expect(await at()).toBeGreaterThan(x0 + 10);
+});
