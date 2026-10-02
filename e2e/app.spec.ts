@@ -420,3 +420,68 @@ test('dragging past the top-left grows the canvas without moving the other nodes
   expect(Math.abs(c1.x - c0.x)).toBeLessThan(2);
   expect(Math.abs(c1.y - c0.y)).toBeLessThan(2);
 });
+
+test('Space toggles animation mode: flowing lines, no steps', async ({ page }) => {
+  await pickSample(page, 'flowchart');
+  const button = page.locator('[aria-label="Animate flow"]');
+
+  // Typing a space in the editor does not toggle it.
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press(' ');
+  await expect(button).toHaveAttribute('aria-pressed', 'false');
+
+  await page.locator('.ma-zoom').click(); // leave the editor
+  await page.keyboard.press(' ');
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.ma-svg.flowing')).toHaveCount(1);
+  await expect(page.locator('.ma-pulse')).toHaveCount(0); // lines flow; no travelling dots
+  await page.waitForTimeout(2500);
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.ma-edge.trace-now, .ma-edge.trace-done')).toHaveCount(0);
+  await expect(page.locator('.ma-status')).toHaveCount(0);
+
+  await page.keyboard.press(' ');
+  await expect(button).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.ma-svg.flowing')).toHaveCount(0);
+
+  // The button toggles too, and trace takes over from it.
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('t');
+  await expect(button).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('[aria-label="Trace flow"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.ma-svg.flowing')).toHaveCount(0);
+});
+
+test('trace: the pulse travels each edge from source to target', async ({ page }) => {
+  await pickSample(page, 'flowchart');
+  await page.locator('.ma-zoom').click();
+  await page.keyboard.press('t');
+  const pulse = page.locator('.ma-pulse').first();
+  await expect(pulse).toHaveCount(1);
+  const at = () => pulse.evaluate((c) => (c as SVGGraphicsElement).getCTM()!.e);
+  const [x0, path] = await Promise.all([at(), page.locator('.ma-edge.trace-now path.line').first().getAttribute('d')]);
+  const [sx, tx] = [path!.match(/^M([\d.]+)/)![1], path!.match(/([\d.]+),[\d.]+$/)![1]].map(Number);
+  // Starts at the source end (left to right in this sample) and moves toward the target.
+  expect(Math.abs(x0 - sx)).toBeLessThan(Math.abs(x0 - tx));
+  await page.waitForTimeout(400);
+  expect(await at()).toBeGreaterThan(x0 + 10);
+});
+
+test('flowing dash patterns loop seamlessly (no jump as the animation repeats)', async ({ page }) => {
+  await pickSample(page, 'sequence');
+  await page.locator('.ma-zoom').click();
+  await page.keyboard.press(' ');
+  await expect(page.locator('.ma-svg.flowing')).toHaveCount(1);
+  const periods = await page.evaluate(() => {
+    const seen = new Set<number>();
+    for (const p of document.querySelectorAll('.ma-edge path.line')) {
+      const dash = getComputedStyle(p).strokeDasharray;
+      if (dash !== 'none') seen.add(dash.split(/[\s,]+/).reduce((sum, v) => sum + parseFloat(v), 0));
+    }
+    return [...seen];
+  });
+  expect(periods.length).toBeGreaterThan(1); // solid and dotted messages
+  for (const p of periods) expect(28 % p).toBe(0);
+});

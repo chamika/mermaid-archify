@@ -101,13 +101,15 @@
   stroke: var(--arrow-emphasis);
 }
 
-/* trace */
-.tracing .ma-edge path.line {
+/* trace and animation: every dash period must divide ma-flow's 28px offset, or the dashes jump as it loops */
+.tracing .ma-edge path.line,
+.flowing .ma-edge path.line {
   stroke-dasharray: 6 8;
   animation: ma-flow 900ms linear infinite;
 }
-.tracing .ma-edge.dotted path.line {
-  stroke-dasharray: 2 6;
+.tracing .ma-edge.dotted path.line,
+.flowing .ma-edge.dotted path.line {
+  stroke-dasharray: 2 5;
 }
 .ma-edge.trace-now path.line {
   stroke: var(--arrow-emphasis);
@@ -130,7 +132,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tracing .ma-edge path.line {
+  .tracing .ma-edge path.line,
+  .flowing .ma-edge path.line {
     animation: none;
   }
   .ma-pulse {

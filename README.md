@@ -180,6 +180,7 @@ document, in/out, manual, note, text) rather than drawn individually.
 | Route probe | shift-click two nodes (directed shortest path) |
 | Pin an edge | click it |
 | Trace | `T` or the trace button |
+| Animate | `Space` or the play button |
 | Clear | `Esc` |
 
 Share links (`#src=…&focus=…`) carry the source compressed in the URL.
