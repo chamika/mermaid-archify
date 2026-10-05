@@ -18,6 +18,15 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.ma-group.tinted rect {
+  fill: var(--a-fill);
+  stroke: var(--a-stroke);
+  stroke-dasharray: none;
+  stroke-opacity: 0.55;
+}
+.ma-group.tinted text {
+  fill: var(--a-ink);
+}
 .ma-node .mask {
   fill: var(--mask);
   stroke: none;
@@ -79,7 +88,7 @@
 }
 .ma-edge path.line {
   fill: none;
-  stroke: var(--u-stroke, var(--arrow));
+  stroke: var(--u-stroke, var(--a-stroke, var(--arrow)));
   stroke-width: var(--u-sw, 1.5);
   stroke-dasharray: var(--u-dash, none);
 }

@@ -30,6 +30,8 @@ export interface SceneNode extends Box {
   tooltip?: string;
   compartments?: Compartment[];
   annotation?: string;
+  /** Palette tint: a token prefix in tokens.css (`tone-3`, `depth-2`), read as `--<accent>-stroke` etc. */
+  accent?: string;
 }
 
 export interface SceneGroup extends Box {
@@ -37,6 +39,8 @@ export interface SceneGroup extends Box {
   label: string;
   parent?: string;
   depth: number;
+  /** Palette tint: a token prefix in tokens.css (`tone-3`, `depth-2`), read as `--<accent>-stroke` etc. */
+  accent?: string;
 }
 
 export interface SceneEdge {
@@ -58,6 +62,8 @@ export interface SceneEdge {
   ends?: EdgeEnds;
   /** Placed end labels (class multiplicities), centre points. */
   endLabels?: { text: string; x: number; y: number }[];
+  /** Palette tint: a token prefix in tokens.css (`tone-3`, `depth-2`), read as `--<accent>-stroke` etc. */
+  accent?: string;
 }
 
 export interface SceneLifeline {
