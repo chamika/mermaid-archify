@@ -4,6 +4,8 @@ import {
   DEFAULTS,
   DIRECTIONS,
   type LayoutSettings,
+  PALETTES,
+  type Palette,
   PLACEMENTS,
   type Placement,
   RANGES,
@@ -26,6 +28,13 @@ const PLACEMENT_LABEL: Record<Placement, string> = {
   'brandes-koepf': 'Brandes–Köpf (straight edges)',
   'linear-segments': 'Linear segments (straight chains)',
   simple: 'Simple (compact)',
+};
+
+const PALETTE_TITLE: Record<Palette, string> = {
+  auto: 'Colour by subgraph when no node has a component type',
+  groups: 'Each top-level subgraph gets its own hue',
+  depth: 'Shade subgraphs by nesting level',
+  mono: 'Neutral dashed subgraphs',
 };
 
 /** Toolbar popover that edits the `config.archify` layout settings. */
@@ -108,6 +117,23 @@ export function LayoutControls({ settings, onChange, disabled, ignoredPins = [] 
               ))}
             </select>
           </label>
+
+          <fieldset>
+            <legend>Subgraph colours</legend>
+            <div class="ma-seg">
+              {PALETTES.map((p) => (
+                <button
+                  key={p}
+                  class="ma-btn"
+                  title={PALETTE_TITLE[p]}
+                  aria-pressed={(settings.palette ?? DEFAULTS.palette) === p}
+                  onClick={() => set({ palette: p })}
+                >
+                  {p[0].toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
           {settings.pins && (
             <div class="ma-field ma-pins">

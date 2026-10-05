@@ -8,6 +8,13 @@ import type { Direction } from '../ir/types';
 
 export type Routing = 'orthogonal' | 'polyline' | 'splines';
 export type Placement = 'network-simplex' | 'brandes-koepf' | 'linear-segments' | 'simple';
+/**
+ * How subgraphs are coloured. `groups` gives each top-level subgraph its own
+ * hue and tints its nodes and outgoing edges; `depth` shades subgraphs by
+ * nesting level; `mono` keeps the neutral dashed look. `auto` picks `groups`
+ * when no node has a component type (a process flow, not an architecture map).
+ */
+export type Palette = 'auto' | 'groups' | 'depth' | 'mono';
 
 export interface LayoutSettings {
   /** Overrides the direction written in the source. */
@@ -16,6 +23,7 @@ export interface LayoutSettings {
   rankSpacing?: number;
   routing?: Routing;
   placement?: Placement;
+  palette?: Palette;
   /** Hand-placed nodes: offset in scene px from the automatic position, by node id. */
   pins?: Pins;
 }
@@ -25,8 +33,9 @@ export type Pins = Record<string, [number, number]>;
 export const DIRECTIONS: readonly Direction[] = ['LR', 'RL', 'TB', 'BT'];
 export const ROUTINGS: readonly Routing[] = ['orthogonal', 'polyline', 'splines'];
 export const PLACEMENTS: readonly Placement[] = ['network-simplex', 'brandes-koepf', 'linear-segments', 'simple'];
+export const PALETTES: readonly Palette[] = ['auto', 'groups', 'depth', 'mono'];
 
-export const DEFAULTS = { nodeSpacing: 44, rankSpacing: 72, routing: 'orthogonal', placement: 'network-simplex' } as const;
+export const DEFAULTS = { nodeSpacing: 44, rankSpacing: 72, routing: 'orthogonal', placement: 'network-simplex', palette: 'auto' } as const;
 export const RANGES = { nodeSpacing: [12, 160], rankSpacing: [24, 240] } as const;
 /** Largest pin offset kept, either axis; beyond this it is a typo, not a nudge. */
 const MAX_PIN = 5000;
@@ -34,7 +43,7 @@ const MAX_PIN = 5000;
 /** Front-matter with its three parts: opening fence, body, closing fence. Same shape `prepareSource` blanks. */
 const FRONT = /^(\s*---[ \t]*\r?\n)([\s\S]*?\r?\n)?(\s*---[ \t]*)(?=\r?\n|$)/;
 
-const KEYS = ['direction', 'nodeSpacing', 'rankSpacing', 'routing', 'placement'] as const;
+const KEYS = ['direction', 'nodeSpacing', 'rankSpacing', 'routing', 'placement', 'palette'] as const;
 
 /** Keep only known keys with valid values; numbers are rounded and clamped; defaults are dropped. */
 export function normalize(raw: Record<string, unknown>): LayoutSettings {
@@ -52,6 +61,8 @@ export function normalize(raw: Record<string, unknown>): LayoutSettings {
   if (ROUTINGS.includes(routing as Routing) && routing !== DEFAULTS.routing) out.routing = routing as Routing;
   const placement = String(raw.placement ?? '').toLowerCase();
   if (PLACEMENTS.includes(placement as Placement) && placement !== DEFAULTS.placement) out.placement = placement as Placement;
+  const palette = String(raw.palette ?? '').toLowerCase();
+  if (PALETTES.includes(palette as Palette) && palette !== DEFAULTS.palette) out.palette = palette as Palette;
   const pins = normalizePins(raw.pins);
   if (pins) out.pins = pins;
   return out;

@@ -21,6 +21,15 @@ describe('readLayoutSettings', () => {
     expect(normalize({ nodeSpacing: 1, rankSpacing: 72 })).toEqual({ nodeSpacing: 12 });
   });
 
+  test('palette: known values kept, auto (the default) and junk dropped', () => {
+    expect(normalize({ palette: 'Depth' })).toEqual({ palette: 'depth' });
+    expect(normalize({ palette: 'auto' })).toEqual({});
+    expect(normalize({ palette: 'rainbow' })).toEqual({});
+    const written = writeLayoutSettings(BODY, { palette: 'mono' })!;
+    expect(written).toContain('palette: mono');
+    expect(readLayoutSettings(written)).toEqual({ palette: 'mono' });
+  });
+
   test('flow-style config is not read', () => {
     expect(readLayoutSettings(`---\nconfig: { archify: { routing: splines } }\n---\n${BODY}`)).toEqual({});
   });

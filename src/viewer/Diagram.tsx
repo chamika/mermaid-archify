@@ -209,9 +209,13 @@ function RichText({
   );
 }
 
+/** Palette tint as custom properties; diagram.css falls back to the neutral look without them. */
+const accentVars = (accent: string | undefined): Record<string, string> | undefined =>
+  accent ? { '--a-stroke': `var(--${accent}-stroke)`, '--a-fill': `var(--${accent}-fill)`, '--a-ink': `var(--${accent}-ink)` } : undefined;
+
 function GroupView({ g }: { g: SceneGroup }) {
   return (
-    <g class="ma-group" data-id={g.id}>
+    <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={accentVars(g.accent)}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
       {g.label && <RichText lines={[g.label]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
     </g>
@@ -281,7 +285,7 @@ function CompartmentText({ n }: { n: SceneNode }) {
 
 function Shape({ n }: { n: SceneNode }) {
   const { x, y, w, h } = n;
-  const st = { stroke: `var(--u-stroke, ${stroke(n.type)})`, fill: `var(--u-fill, ${fill(n.type)})` };
+  const st = { stroke: `var(--u-stroke, ${n.accent ? `var(--${n.accent}-stroke)` : stroke(n.type)})`, fill: `var(--u-fill, ${fill(n.type)})` };
   const cx = x + w / 2;
   const cy = y + h / 2;
   switch (n.shape) {
@@ -460,7 +464,7 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
     <g
       class={`ma-edge ${e.stroke} ${cls}`}
       data-id={e.id}
-      style={userVars(e.style)}
+      style={{ ...accentVars(e.accent), ...userVars(e.style) }}
       onClick={(ev) => h.onEdgeClick?.(e.id, ev as unknown as MouseEvent)}
       onPointerEnter={() => h.onEdgeEnter?.(e.id)}
       onPointerLeave={() => h.onEdgeLeave?.(e.id)}

@@ -272,3 +272,62 @@ describe('layout settings', () => {
     expect(await scene(src, { direction: 'TB', nodeSpacing: 160 })).toEqual(await scene(src));
   });
 });
+
+describe('subgraph palette', () => {
+  const groups = `graph TB
+    c1-->a2
+    subgraph one
+    a1-->a2
+    end
+    subgraph two
+    b1-->b2
+    subgraph inner
+    b3
+    end
+    end
+    subgraph three
+    c1-->c2
+    end
+    loose-->c2`;
+  const accent = (s: Scene, id: string) => [...s.nodes, ...s.groups].find((b) => b.id === id)?.accent;
+  const edge = (s: Scene, from: string, to: string) => s.edges.find((e) => e.from === from && e.to === to)?.accent;
+
+  test('auto colours an untyped diagram by top-level subgraph, in source order', async () => {
+    const s = await scene(groups);
+    expect(['one', 'two', 'three'].map((g) => accent(s, g))).toEqual(['tone-0', 'tone-1', 'tone-2']);
+    expect(accent(s, 'inner')).toBe('tone-1'); // nested groups keep their top-level hue
+    expect(accent(s, 'b3')).toBe('tone-1');
+    expect(accent(s, 'a1')).toBe('tone-0');
+    expect(accent(s, 'loose')).toBeUndefined(); // outside every subgraph
+    expect(edge(s, 'c1', 'a2')).toBe('tone-2'); // edges take their source's hue
+    expect(edge(s, 'loose', 'c2')).toBeUndefined();
+  });
+
+  test('auto stays neutral when any node has a component type, or there are no subgraphs', async () => {
+    const typed = await scene(`${groups}\n    db[(Orders DB)] --> a1`);
+    expect(typed.groups.some((g) => g.accent)).toBe(false);
+    expect(typed.nodes.some((n) => n.accent)).toBe(false);
+    const flat = await scene('graph TB\n  A --> B');
+    expect(flat.nodes.some((n) => n.accent) || flat.edges.some((e) => e.accent)).toBe(false);
+  });
+
+  test('groups can be forced onto a typed diagram; typed nodes keep their own colour', async () => {
+    const s = await scene(`${groups}\n    subgraph four\n    db[(Orders DB)]\n    end`, { palette: 'groups' });
+    expect(accent(s, 'four')).toBe('tone-3');
+    expect(accent(s, 'db')).toBeUndefined();
+  });
+
+  test('depth shades by nesting level only', async () => {
+    const s = await scene(groups, { palette: 'depth' });
+    expect(accent(s, 'two')).toBe('depth-1');
+    expect(accent(s, 'inner')).toBe('depth-2');
+    expect(s.nodes.some((n) => n.accent) || s.edges.some((e) => e.accent)).toBe(false);
+  });
+
+  test('mono leaves everything neutral; sequence diagrams are untouched', async () => {
+    const s = await scene(groups, { palette: 'mono' });
+    expect([...s.groups, ...s.nodes, ...s.edges].some((b) => b.accent)).toBe(false);
+    const seq = await scene('sequenceDiagram\n  A->>B: hi', { palette: 'groups' });
+    expect(seq.nodes.some((n) => n.accent)).toBe(false);
+  });
+});
