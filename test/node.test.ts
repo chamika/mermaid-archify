@@ -3,8 +3,9 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { MermaidParseError, render } from '../src/node';
+import { MermaidParseError, render, svgToPng } from '../src/node';
 import { UsageError, expandInputs, formatFor, globBase, outputPath } from '../src/node/outputs';
+import { bakeStyles } from '../src/node/png';
 
 /** The headless library, in plain Node: no DOM until `render` installs one. */
 describe('render()', () => {
@@ -52,15 +53,48 @@ describe('render()', () => {
   });
 });
 
+/** PNG without a browser: resvg, which reads presentation attributes rather than CSS. */
+describe('svgToPng()', () => {
+  const classes = 'classDiagram\n  Animal <|-- Duck : is\n  Animal *-- Leg\n  class Animal {\n    +eat()$\n  }\n';
+
+  test('bakes the stylesheet and palette into attributes resvg understands', async () => {
+    const { svg } = await render(classes, { theme: 'light' });
+    expect(svg).toMatch(/var\(|context-stroke|auto-start-reverse/);
+    const baked = bakeStyles(svg);
+    expect(baked).not.toMatch(/var\(|context-stroke|context-fill|auto-start-reverse|<style|\sclass=|\sstyle=/);
+    expect(baked).toContain('fill="#f8fafc"'); // the light background
+    expect(baked).toMatch(/text-decoration="underline"/); // static member
+    // Every marker reference points at a marker that exists.
+    for (const [, id] of baked.matchAll(/marker-(?:start|end)="url\(#([^)]+)\)"/g)) expect(baked).toContain(`<marker id="${id}"`);
+  });
+
+  test('group titles: uppercase text, letter-spacing in the title font size', async () => {
+    const baked = bakeStyles((await render('flowchart LR\n  subgraph Edge\n    a --> b\n  end\n')).svg);
+    expect(baked).toContain('>EDGE<');
+    expect(baked).toMatch(/letter-spacing="0\.88px"/); // 0.08em of 11px, not of the 16px root
+  });
+
+  test('renders a PNG at the requested scale', async () => {
+    const { svg } = await render('flowchart LR\n  a --> b\n');
+    const [w, h] = [/width="([\d.]+)"/.exec(svg)![1], /height="([\d.]+)"/.exec(svg)![1]].map(Number);
+    for (const scale of [1, 2]) {
+      const png = await svgToPng(svg, scale);
+      expect(png.subarray(1, 4).toString()).toBe('PNG');
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([Math.ceil(w * scale), Math.ceil(h * scale)]);
+    }
+  });
+});
+
 describe('CLI outputs', () => {
   test('format comes from -o, else --format, else html', () => {
     expect(formatFor({})).toBe('html');
     expect(formatFor({ format: 'SVG' })).toBe('svg');
     expect(formatFor({ out: 'a.svg', format: 'html' })).toBe('svg');
     expect(formatFor({ out: '-', format: 'svg' })).toBe('svg');
-    expect(() => formatFor({ out: 'a.png' })).toThrow(/PNG output isn't supported/);
-    expect(() => formatFor({ format: 'png' })).toThrow(UsageError);
-    expect(() => formatFor({ out: 'a.pdf' })).toThrow(/use .html or .svg/);
+    expect(formatFor({ out: 'a.png' })).toBe('png');
+    expect(formatFor({ format: 'PNG' })).toBe('png');
+    expect(() => formatFor({ format: 'pdf' })).toThrow(UsageError);
+    expect(() => formatFor({ out: 'a.pdf' })).toThrow(/use .html, .svg or .png/);
   });
 
   test('glob base is the literal leading directories', () => {

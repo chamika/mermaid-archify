@@ -11,6 +11,7 @@ import { Diagram } from '../viewer/Diagram';
 import { ensureDom } from './dom';
 
 export { MermaidParseError };
+export { svgToPng } from './png';
 export type { LayoutSettings, Scene };
 
 export type Theme = 'light' | 'dark';

@@ -3,21 +3,22 @@ import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Direction } from '../ir/types';
 import { DIRECTIONS } from '../layout/settings';
-import { MermaidParseError, type Theme, render } from './index';
+import { MermaidParseError, type Theme, render, svgToPng } from './index';
 import { type Input, UsageError, expandInputs, formatFor, outputPath } from './outputs';
 
 declare const __VERSION__: string;
 
 const HELP = `Usage: mermaid-archify <input|glob|->... [options]
 
-Render Mermaid diagrams to Archify-style interactive HTML or SVG.
+Render Mermaid diagrams to Archify-style interactive HTML, SVG or PNG.
 
 Options:
   -o, --out <file|->     Output file (single input). Its extension picks the format; - is stdout.
   -d, --out-dir <dir>    Write every output here, mirroring each input's path below its glob.
-  -f, --format <fmt>     html (default) or svg, when -o doesn't name one.
+  -f, --format <fmt>     html (default), svg or png, when -o doesn't name one.
   -t, --theme <theme>    dark (default) or light.
       --direction <dir>  Override the diagram direction: LR, RL, TB or BT.
+      --scale <n>        PNG pixel ratio (default 2, like the app's export).
   -q, --quiet            Don't list written files.
   -h, --help             Show this help.
   -v, --version          Show the version.
@@ -39,6 +40,7 @@ export async function main(argv: string[]): Promise<number> {
         format: { type: 'string', short: 'f' },
         theme: { type: 'string', short: 't' },
         direction: { type: 'string' },
+        scale: { type: 'string' },
         quiet: { type: 'boolean', short: 'q' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
@@ -54,11 +56,13 @@ export async function main(argv: string[]): Promise<number> {
   let format;
   const theme = (values.theme ?? 'dark').toLowerCase() as Theme;
   const direction = values.direction?.toUpperCase() as Direction | undefined;
+  const scale = Number(values.scale ?? 2);
   const opts = { out: values.out, outDir: values['out-dir'], format: values.format };
   try {
     if (!positionals.length) throw new UsageError('No input files');
     if (theme !== 'dark' && theme !== 'light') throw new UsageError(`Unknown theme "${values.theme}"; use dark or light`);
     if (direction && !DIRECTIONS.includes(direction)) throw new UsageError(`Unknown direction "${values.direction}"; use ${DIRECTIONS.join(', ')}`);
+    if (!(scale > 0 && scale <= 16)) throw new UsageError(`Bad --scale "${values.scale}"; use a number from 0 to 16`);
     if (opts.out && opts.outDir) throw new UsageError('Use either -o or --out-dir, not both');
     format = formatFor(opts);
     inputs = await expandInputs(positionals);
@@ -74,12 +78,13 @@ export async function main(argv: string[]): Promise<number> {
     try {
       const source = input.path === '-' ? await readStdin() : await readFile(input.path, 'utf8');
       const result = await render(source, { theme, layout: direction ? { direction } : undefined });
+      const output = format === 'png' ? await svgToPng(result.svg, scale) : result[format];
       const target = outputPath(input, format, opts);
       if (target === '-') {
-        process.stdout.write(result[format]);
+        process.stdout.write(output);
       } else {
         await mkdir(dirname(target), { recursive: true });
-        await writeFile(target, result[format]);
+        await writeFile(target, output);
         if (!values.quiet) process.stderr.write(`${name} → ${target}\n`);
       }
     } catch (err) {

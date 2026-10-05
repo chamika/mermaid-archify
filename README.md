@@ -22,11 +22,12 @@ npm run build
 
 The same pipeline runs headlessly in Node (22+), for docs builds, CI jobs and
 pre-commit hooks. Output is identical to the app's **Interactive HTML** and
-**SVG** exports.
+**SVG** exports; **PNG** is rasterized without a browser (see below).
 
 ```bash
 npx mermaid-archify diagram.mmd -o diagram.html               # standalone interactive HTML
 npx mermaid-archify diagram.mmd -o diagram.svg --theme light  # SVG, light palette baked in
+npx mermaid-archify diagram.mmd -o diagram.png                 # PNG at 2×, like the app's export
 npx mermaid-archify "docs/**/*.mmd" --out-dir build/diagrams  # batch: build/diagrams/<path below docs/>.html
 npx mermaid-archify "docs/**/*.mmd" -f svg                    # batch: an .svg next to each input
 cat diagram.mmd | npx mermaid-archify - -f svg -o - > out.svg # stdin → stdout
@@ -36,22 +37,29 @@ cat diagram.mmd | npx mermaid-archify - -f svg -o - > out.svg # stdin → stdout
 |---|---|
 | `-o, --out <file\|->` | Output file for a single input; its extension picks the format. `-` is stdout. |
 | `-d, --out-dir <dir>` | Write every output here, mirroring each input's path below its glob. |
-| `-f, --format html\|svg` | Format when `-o` doesn't name one (default `html`). |
+| `-f, --format html\|svg\|png` | Format when `-o` doesn't name one (default `html`). |
 | `-t, --theme dark\|light` | Palette (default `dark`). |
 | `--direction LR\|RL\|TB\|BT` | Override the diagram direction. |
+| `--scale <n>` | PNG pixel ratio (default `2`). |
 | `-q, --quiet` | Don't list written files. |
 
 Without `-o` or `--out-dir`, each output goes next to its input. Quote globs so
 every shell passes them through unchanged. Layout settings in the source's
 front-matter (`config.archify`) apply, as in the app. Exit codes: `0` ok, `1`
 a diagram failed (reported as `file:line: message`, and the rest of the batch
-still renders), `2` usage error. PNG is not produced headlessly: export SVG, or
-use the app's PNG export.
+still renders), `2` usage error.
+
+PNG goes through [resvg](https://github.com/linebender/resvg) (a native module,
+no browser): the SVG export's stylesheet and palette are resolved into plain
+attributes first, and JetBrains Mono ships with the package (`dist-node/fonts`).
+Labels that mix Latin with CJK or emoji are drawn entirely in a system fallback
+font at regular weight, where the app keeps the Latin part in JetBrains Mono.
 
 ```ts
-import { render, MermaidParseError } from 'mermaid-archify';
+import { render, svgToPng, MermaidParseError } from 'mermaid-archify';
 
 const { html, svg, scene } = await render(source, { theme: 'dark' });
+const png = await svgToPng(svg, 2); // Buffer
 // Optional layout overrides, on top of the front-matter:
 await render(source, { layout: { direction: 'TB', routing: 'splines' } });
 // Invalid input rejects with MermaidParseError (err.line is 1-based).
@@ -102,7 +110,7 @@ including the large, CJK, KaTeX and expanded-shape stress cases.
 | `e2e/corpus.spec.ts` | Every fixture rendered by the real app in Chrome with real fonts: rendered text fits its shapes and label masks, no `NaN` geometry, no console errors, diagram fits the viewport. |
 | `e2e/visual.spec.ts` | Pixel baselines for 22 curated diagrams in both themes (`e2e/visual.spec.ts-snapshots/`, macOS; skipped on CI). |
 | `e2e/app.spec.ts` | App flows: editing and errors, focus, finder, theme, share links, HTML/SVG/PNG export, offline export. |
-| `e2e/cli.spec.ts` | The CLI's HTML (byte-identical) and SVG match the app's exports for one diagram of each kind; batch globs, `file:line` errors, exit codes. |
+| `e2e/cli.spec.ts` | The CLI's HTML (byte-identical) and SVG match the app's exports for one diagram of each kind; its PNG matches Chrome's rendering of that SVG; batch globs, `file:line` errors, exit codes. |
 | `test/node.test.ts` | `render()` in plain Node, and CLI input/output path handling. |
 | `e2e/embed.spec.ts` | `embed.html`: several elements under hostile host CSS stay isolated (styles, keyboard, wheel), follow the host theme, render lazily; pages built with the remark and markdown-it plugins load only the viewer. |
 | `test/plugins.test.ts` | The Markdown plugins' output: HTML, MDX and Vue-safe markup, escaping, per-block options, `file:line` errors. |

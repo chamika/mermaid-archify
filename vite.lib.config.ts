@@ -18,7 +18,7 @@ export default defineConfig({
     minify: false,
     rollupOptions: {
       input: Object.fromEntries(
-        ['index', 'cli', 'remark', 'markdown-it', 'render-worker'].map((name) => [name, resolve(import.meta.dirname, `src/node/${name}.ts`)]),
+        ['index', 'cli', 'remark', 'markdown-it', 'render-worker', 'png'].map((name) => [name, resolve(import.meta.dirname, `src/node/${name}.ts`)]),
       ),
       output: {
         format: 'es',
