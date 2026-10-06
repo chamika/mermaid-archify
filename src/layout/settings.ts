@@ -9,12 +9,14 @@ import type { Direction } from '../ir/types';
 export type Routing = 'orthogonal' | 'polyline' | 'splines';
 export type Placement = 'network-simplex' | 'brandes-koepf' | 'linear-segments' | 'simple';
 /**
- * How subgraphs are coloured. `groups` gives each top-level subgraph its own
- * hue and tints its nodes and outgoing edges; `depth` shades subgraphs by
- * nesting level; `mono` keeps the neutral dashed look. `auto` picks `groups`
- * when no node has a component type (a process flow, not an architecture map).
+ * How a diagram is coloured beyond its component types. `groups` gives each
+ * top-level subgraph its own hue and tints its nodes and outgoing edges;
+ * `depth` shades subgraphs by nesting level; `regions` tints a flowchart's
+ * loops, decisions and failure paths; `mono` keeps the neutral look. `auto`
+ * applies only when no node has a component type (a process flow, not an
+ * architecture map): `groups` when there are subgraphs, else `regions`.
  */
-export type Palette = 'auto' | 'groups' | 'depth' | 'mono';
+export type Palette = 'auto' | 'groups' | 'depth' | 'regions' | 'mono';
 
 export interface LayoutSettings {
   /** Overrides the direction written in the source. */
@@ -33,7 +35,7 @@ export type Pins = Record<string, [number, number]>;
 export const DIRECTIONS: readonly Direction[] = ['LR', 'RL', 'TB', 'BT'];
 export const ROUTINGS: readonly Routing[] = ['orthogonal', 'polyline', 'splines'];
 export const PLACEMENTS: readonly Placement[] = ['network-simplex', 'brandes-koepf', 'linear-segments', 'simple'];
-export const PALETTES: readonly Palette[] = ['auto', 'groups', 'depth', 'mono'];
+export const PALETTES: readonly Palette[] = ['auto', 'groups', 'depth', 'regions', 'mono'];
 
 export const DEFAULTS = { nodeSpacing: 44, rankSpacing: 72, routing: 'orthogonal', placement: 'network-simplex', palette: 'auto' } as const;
 export const RANGES = { nodeSpacing: [12, 160], rankSpacing: [24, 240] } as const;

@@ -358,3 +358,94 @@ describe('subgraph palette', () => {
     expect(seq.nodes.some((n) => n.accent)).toBe(false);
   });
 });
+
+describe('region palette', () => {
+  const accent = (s: Scene, id: string) => s.nodes.find((n) => n.id === id)?.accent;
+  const edge = (s: Scene, from: string, to: string) => s.edges.find((e) => e.from === from && e.to === to)?.accent;
+  const legend = (s: Scene) => s.legend?.map((l) => l.label);
+  const tinted = (s: Scene) => [...s.groups, ...s.nodes, ...s.edges].some((b) => b.accent) || !!s.legend;
+  const [LOOP, DECISION, FAILURE] = ['tone-4', 'tone-2', 'tone-3'];
+
+  test("auto tints #24's loop body, decisions and failure path, with a legend", async () => {
+    const s = await scene(readFileSync(`${process.cwd()}/e2e/fixtures/process-regions.mmd`, 'utf8'));
+    const by = (tone: string | undefined) => s.nodes.filter((n) => n.accent === tone).map((n) => n.id).sort();
+    expect(by(LOOP)).toEqual(['EN', 'EQ', 'KIND', 'LOOP', 'MORE', 'NOP', 'PO', 'RES', 'SV', 'TD', 'TP']);
+    expect(by(FAILURE)).toEqual(['FAILOP', 'FR', 'FV', 'RBK']);
+    expect(by(DECISION)).toEqual(['SW']); // the other diamonds sit in the loop
+    expect(by(undefined)).toEqual(['CM2', 'LV', 'OKR', 'SWI', 'T']);
+    expect(edge(s, 'MORE', 'LOOP')).toBe(LOOP); // the back edge closes the coloured circuit
+    expect(edge(s, 'PO', 'FAILOP')).toBe(FAILURE); // labelled "exception"
+    expect(edge(s, 'CM2', 'FV')).toBe(FAILURE); // labelled "ConstraintViolationException"
+    expect(edge(s, 'RBK', 'FR')).toBe(FAILURE);
+    expect(edge(s, 'SW', 'LOOP')).toBeUndefined(); // into the loop, not inside it
+    expect(edge(s, 'MORE', 'LV')).toBeUndefined();
+    expect(legend(s)).toEqual(['loop', 'decision', 'failure path']);
+  });
+
+  test('a flow without loops or failures tints only its decisions', async () => {
+    const s = await scene('flowchart TD\n  A[Christmas] -->|Get money| B(Go shopping)\n  B --> C{Let me think}\n  C -->|One| D[Laptop]\n  C -->|Two| E[iPhone]');
+    expect(s.nodes.filter((n) => n.accent).map((n) => [n.id, n.accent])).toEqual([['C', DECISION]]);
+    expect(s.edges.some((e) => e.accent)).toBe(false);
+    expect(legend(s)).toEqual(['decision']);
+    expect(tinted(await scene('graph TB\n  A --> B'))).toBe(false);
+  });
+
+  test('a loop that covers most of the diagram is not a region; its decisions still are', async () => {
+    const s = await scene('flowchart LR\n  A --> B{ok?} -->|yes| C --> A\n  B -->|no| D --> A');
+    expect(s.nodes.map((n) => n.accent)).toEqual([undefined, DECISION, undefined, undefined]);
+    expect(legend(s)).toEqual(['decision']);
+  });
+
+  test('a failure edge back into the main flow is tinted, its target is not', async () => {
+    const s = await scene('flowchart LR\n  A --> B --> C\n  B -->|on error| A\n  C -->|timeout| X --> Y');
+    expect(edge(s, 'B', 'A')).toBe(FAILURE);
+    expect(accent(s, 'A')).toBe(LOOP); // A and B form a (retry) loop
+    expect(['X', 'Y'].map((id) => accent(s, id))).toEqual([FAILURE, FAILURE]);
+    expect(accent(s, 'C')).toBeUndefined();
+  });
+
+  test('negated failure words do not count; a self-loop is a loop', async () => {
+    const s = await scene('flowchart LR\n  A --> B -->|no errors| C\n  B -->|retry| B\n  C --> D');
+    expect(edge(s, 'B', 'C')).toBeUndefined();
+    expect(accent(s, 'C')).toBeUndefined();
+    expect(accent(s, 'B')).toBe(LOOP);
+    expect(edge(s, 'B', 'B')).toBe(LOOP);
+    expect(legend(s)).toEqual(['loop']);
+  });
+
+  test('separate loops share one hue; the link between them stays neutral', async () => {
+    const s = await scene('flowchart LR\n  S --> A --> B --> A\n  B --> C --> D --> C\n  D --> E\n  E --> F');
+    expect(['A', 'B', 'C', 'D'].map((id) => accent(s, id))).toEqual([LOOP, LOOP, LOOP, LOOP]);
+    expect(edge(s, 'B', 'C')).toBeUndefined();
+    expect(['S', 'E', 'F'].map((id) => accent(s, id))).toEqual([undefined, undefined, undefined]);
+  });
+
+  test('author styling wins, and edges follow the painted nodes', async () => {
+    const s = await scene('flowchart LR\n  S --> A --> B --> C --> A\n  C --> D\n  D --> E\n  classDef hot fill:#f96\n  class A hot\n  linkStyle 2 stroke:gold');
+    expect([accent(s, 'A'), accent(s, 'B'), accent(s, 'C')]).toEqual([undefined, LOOP, LOOP]);
+    expect([edge(s, 'A', 'B'), edge(s, 'C', 'A')]).toEqual([undefined, undefined]); // A is the author's
+    expect(edge(s, 'B', 'C')).toBeUndefined(); // linkStyle 2 set its stroke
+    // Fully author-styled (mermaid-demos/flowchart-054): nothing to add, so no legend either.
+    const styled = await scene('flowchart LR\n  A --> B{again?} -->|yes| A\n  B -->|no| C\n  C --> D\n  classDef on fill:#0CF\n  class A,B on');
+    expect(tinted(styled)).toBe(false);
+  });
+
+  test('a lone node is not a flow', async () => {
+    expect(tinted(await scene('flowchart LR\n  id1{This is the text in the box}'))).toBe(false);
+  });
+
+  test('forced regions: groups stay neutral, typed nodes keep their colour', async () => {
+    const s = await scene('flowchart LR\n  subgraph G\n  A --> B{again?} -->|yes| A\n  end\n  B -->|no| db[(Orders DB)]\n  db --> Z\n  Z --> Y', { palette: 'regions' });
+    expect(s.groups[0].accent).toBeUndefined();
+    expect([accent(s, 'A'), accent(s, 'B'), accent(s, 'db')]).toEqual([LOOP, LOOP, undefined]);
+    // Under auto the same diagram keeps today's look: it has subgraphs and a typed node.
+    expect(tinted(await scene('flowchart LR\n  subgraph G\n  A --> B{again?} -->|yes| A\n  end\n  B -->|no| db[(Orders DB)]'))).toBe(false);
+    expect(tinted(await scene('flowchart LR\n  A --> B{again?} -->|yes| A\n  B -->|no| db[(Orders DB)]'))).toBe(false);
+  });
+
+  test('regions only apply to flowcharts', async () => {
+    for (const src of ['stateDiagram-v2\n  [*] --> A\n  A --> B\n  B --> A\n  B --> Failed', sample('class'), 'sequenceDiagram\n  A->>B: error']) {
+      expect(tinted(await scene(src, { palette: 'regions' }))).toBe(false);
+    }
+  });
+});

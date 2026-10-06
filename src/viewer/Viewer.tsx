@@ -638,12 +638,18 @@ export function Viewer({
         />
       )}
 
-      {types.length > 0 && (
+      {(types.length > 0 || !!scene.legend?.length) && (
         <div class="ma-chrome ma-legend" aria-label="Legend">
           {types.map((t) => (
             <span key={t}>
               <i style={{ borderColor: `var(--${t}-stroke)`, background: `var(--${t}-fill)` }} />
               {scene.kind === 'state' ? STATE_TONE_LABEL[t] : TYPE_LABEL[t]}
+            </span>
+          ))}
+          {scene.legend?.map((l) => (
+            <span key={l.accent}>
+              <i style={{ borderColor: `var(--${l.accent}-stroke)`, background: `var(--${l.accent}-fill)` }} />
+              {l.label}
             </span>
           ))}
         </div>

@@ -100,6 +100,12 @@ export interface SceneSequence {
   footers: SceneNode[];
 }
 
+export interface SceneLegendEntry {
+  /** Token prefix in tokens.css, as on `accent`. */
+  accent: string;
+  label: string;
+}
+
 export interface Scene {
   version: 1;
   kind: DiagramKind;
@@ -110,6 +116,8 @@ export interface Scene {
   groups: SceneGroup[];
   edges: SceneEdge[];
   seq?: SceneSequence;
+  /** What palette tints mean (`regions`: loop, decision…), for the legend. Type colours are read off the nodes. */
+  legend?: SceneLegendEntry[];
   /** Icon path data, embedded so exported diagrams are self-contained. */
   icons?: IconSet;
 }

@@ -1,11 +1,11 @@
-import { classify } from '../ir/classify';
+import { FAILURE_WORDS, classify } from '../ir/classify';
 import type { DiagramIR, IREdge, IRGroup, IRNode, NodeShape, SemanticType } from '../ir/types';
 import { normalizeDirection } from './flowchart';
 import { cleanLabel } from './text';
 
 /** Lifecycle semantics: state names map onto the palette by outcome, not by component kind. */
 const STATE_TONES: [RegExp, SemanticType][] = [
-  [/fail|error|err\b|cancel|reject|abort|timeout|timed ?out|dead|crash|denied|invalid|expired/i, 'security'],
+  [FAILURE_WORDS, 'security'],
   [/done|success|succeed|complete|finish|approved|paid|delivered|resolved|closed|ready|active|healthy|ok\b/i, 'backend'],
   [/idle|wait|pending|queued|new|draft|created|init|sleep|paused|hold|blocked|scheduled/i, 'external'],
   [/run|process|fetch|load|build|deploy|sync|retry|review|progress|execut|work|send|upload|verif|test|check|valid|migrat|install|provision/i, 'frontend'],

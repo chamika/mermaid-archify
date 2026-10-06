@@ -1,0 +1,31 @@
+flowchart TD
+    T["adminPoint.runInTransactionContext (single transaction)"] --> SW{"modulesEnabled?"}
+    SW -- yes --> SWI["new VersionContextSwitcher(envId, currentPolicyModuleId)<br/>policy module = moduleManager.currentModuleId() or Default"]
+    SW -- no --> LOOP
+    SWI --> LOOP
+
+    LOOP["for each prepared Operation"] --> EN["switcher.enter(op)"]
+    EN --> EQ{"policy module is Default?"}
+    EQ -- yes --> PO
+    EQ -- no --> KIND{"op carries an apiServiceId?"}
+    KIND -- "no (environment-wide) and not already in Default" --> TD["getModuleVersion(env, DEFAULT_MODULE_ID)"]
+    KIND -- "yes (API Service) and currently in Default" --> TP["getModuleVersion(env, policy module)"]
+    KIND -- "same module as previous op" --> PO
+    TD --> PO
+    TP --> PO
+
+    PO{"operation type"}
+    PO -- "CREATE / UPDATE / CREATE_OR_UPDATE" --> SV["entitiesProcessingService.save(entity)"]
+    PO -- "DELETE" --> NOP["no-op, echo the entity back"]
+    SV --> RES
+    NOP --> RES
+    RES["record result: entityId, versionId, SUCCESS"] --> MORE{"more ops?"}
+    MORE -- yes --> LOOP
+    MORE -- no --> LV["switcher.leave()<br/>if the batch ended inside the Default module,<br/>switch back to the policy module"]
+    LV --> CM2["commit: integrity validation runs in the current module"]
+    CM2 -- ok --> OKR["OperationResponseDTO SUCCESS"]
+    CM2 -- "ConstraintViolationException" --> FV["FAILED with violation messages"]
+
+    PO -. "exception" .-> FAILOP["mark op FAILED, add error to results,<br/>throw BulkProcessingException"]
+    FAILOP --> RBK["transaction rolled back"]
+    RBK --> FR["FAILED response with partial results"]

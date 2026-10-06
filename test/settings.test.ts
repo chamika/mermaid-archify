@@ -28,6 +28,10 @@ describe('readLayoutSettings', () => {
     const written = writeLayoutSettings(BODY, { palette: 'mono' })!;
     expect(written).toContain('palette: mono');
     expect(readLayoutSettings(written)).toEqual({ palette: 'mono' });
+    const regions = writeLayoutSettings(BODY, { palette: 'regions' })!;
+    expect(regions).toContain('palette: regions');
+    expect(readLayoutSettings(regions)).toEqual({ palette: 'regions' });
+    expect(readLayoutSettings(writeLayoutSettings(regions, {})!)).toEqual({});
   });
 
   test('flow-style config is not read', () => {

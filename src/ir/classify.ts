@@ -91,7 +91,10 @@ function byKeyword(text: string): SemanticType | undefined {
 export const typed = ({ type, certainty }: Classification) => ({ type, certainty });
 
 /** Pseudo nodes that never carry a component type. */
-const STRUCTURAL = new Set(['start', 'end', 'junction', 'fork', 'note', 'text']);
+export const STRUCTURAL = new Set(['start', 'end', 'junction', 'fork', 'note', 'text']);
+
+/** Words that mark a failure outcome: state names in state diagrams, edge labels in flowcharts. */
+export const FAILURE_WORDS = /fail|error|err\b|cancel|reject|abort|timeout|timed ?out|dead|crash|denied|invalid|expired/i;
 
 /**
  * Keyword guesses are only trustworthy when the diagram as a whole reads as a

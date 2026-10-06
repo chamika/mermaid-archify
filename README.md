@@ -174,13 +174,19 @@ time and loaded only when a diagram uses icons; exported HTML embeds just the
 icons it uses. Icons © Fonticons, Inc., CC BY 4.0 (https://fontawesome.com/license/free).
 Like Mermaid, other diagram types ignore `fa:` tokens.
 
-**Subgraph colours.** In a diagram with subgraphs and no typed nodes (a
-process flow rather than a component map), each top-level subgraph gets its
-own hue, and its nodes and outgoing edges pick it up. Set
+**Process-flow colours.** In a diagram with no typed nodes (a process flow
+rather than a component map), each top-level subgraph gets its own hue, and
+its nodes and outgoing edges pick it up. A flowchart without subgraphs is
+coloured by structure instead, with a legend: loop bodies in one hue,
+decisions (`{…}` diamonds) in another, and failure paths in rose. A failure
+path is anything reached only through an edge labelled like `exception`,
+`error`, `fail` or `timeout`; "no errors" does not count. Where they overlap,
+failure path beats loop, and loop beats decision. Set
 `config.archify.palette` in the front-matter (or use the layout popover) to
 choose: `auto` (default), `groups`, `depth` (one hue, darker per nesting
-level) or `mono` (neutral dashed outlines). Author `style`/`classDef` colours
-still win.
+level), `regions` (the structural colours, even with subgraphs) or `mono`
+(neutral dashed outlines). Author `style`/`classDef`/`linkStyle` colours still
+win.
 
 Known gaps: KaTeX (`$$…$$`) labels show their LaTeX source.
 Mermaid's 40+ expanded node shapes are mapped onto shape families (storage,
