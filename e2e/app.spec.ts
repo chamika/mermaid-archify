@@ -156,11 +156,11 @@ test('PNG export produces an image', async ({ page }) => {
   expect(buf.length).toBeGreaterThan(20_000);
 });
 
-test('a plain process flow renders without type captions or legend', async ({ page }) => {
+test('a plain process flow renders without type captions; the legend names only its decision tint', async ({ page }) => {
   await replaceSource(page, 'flowchart TD\n  A[Christmas] -->|Get money| B(Go shopping)\n  B --> C{Let me think}\n  C -->|One| D[Laptop]\n  C -->|Two| E[iPhone]\n  C -->|Three| F[fa:fa-car Car]');
   await expect(page.locator('.ma-node')).toHaveCount(6);
   await expect(page.locator('.ma-node .caption')).toHaveCount(0);
-  await expect(page.locator('.ma-legend')).toHaveCount(0);
+  await expect(page.locator('.ma-legend span')).toHaveText(['decision']);
   await page.locator('.ma-node[data-id="C"]').click();
   await expect(page.locator('.ma-passport .kind')).toHaveText('decision');
 });

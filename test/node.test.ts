@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -66,6 +66,13 @@ describe('svgToPng()', () => {
     expect(baked).toMatch(/text-decoration="underline"/); // static member
     // Every marker reference points at a marker that exists.
     for (const [, id] of baked.matchAll(/marker-(?:start|end)="url\(#([^)]+)\)"/g)) expect(baked).toContain(`<marker id="${id}"`);
+  });
+
+  test('region tints are baked as plain colours', async () => {
+    const src = readFileSync(`${process.cwd()}/e2e/fixtures/process-regions.mmd`, 'utf8');
+    const baked = bakeStyles((await render(src)).svg);
+    // Dark theme tone strokes: loop (sky), decision (amber), failure path (rose).
+    for (const hex of ['#38bdf8', '#fbbf24', '#fb7185']) expect(baked).toContain(`stroke="${hex}"`);
   });
 
   test('group titles: uppercase text, letter-spacing in the title font size', async () => {

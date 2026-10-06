@@ -85,6 +85,11 @@ describe.each(fixtures)('%s', (name) => {
     expect(scene.nodes).toHaveLength(ir.nodes.length);
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
     checkScene(scene, name);
+    // Palette tints never reach a diagram with component types; region tints (#26) only group-free flowcharts.
+    const tinted = [...scene.groups, ...scene.nodes, ...scene.edges].filter((b) => b.accent).map((b) => b.id);
+    if (scene.nodes.some((n) => n.type !== 'plain')) expect(tinted, 'typed diagrams stay neutral').toEqual([]);
+    if (!scene.groups.length && scene.kind !== 'flowchart') expect(tinted).toEqual([]);
+    if (scene.groups.length || scene.kind !== 'flowchart') expect(scene.legend).toBeUndefined();
   });
 });
 

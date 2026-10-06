@@ -31,10 +31,11 @@ const PLACEMENT_LABEL: Record<Placement, string> = {
 };
 
 const PALETTE_TITLE: Record<Palette, string> = {
-  auto: 'Colour by subgraph when no node has a component type',
+  auto: 'When no node has a component type: colour by subgraph, or by loops, decisions and failure paths if there are none',
   groups: 'Each top-level subgraph gets its own hue',
   depth: 'Shade subgraphs by nesting level',
-  mono: 'Neutral dashed subgraphs',
+  regions: 'Tint loops, decisions and failure paths (flowcharts)',
+  mono: 'Neutral dashed subgraphs, no tints',
 };
 
 /** Toolbar popover that edits the `config.archify` layout settings. */
@@ -119,7 +120,7 @@ export function LayoutControls({ settings, onChange, disabled, ignoredPins = [] 
           </label>
 
           <fieldset>
-            <legend>Subgraph colours</legend>
+            <legend>Colours</legend>
             <div class="ma-seg">
               {PALETTES.map((p) => (
                 <button

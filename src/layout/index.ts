@@ -9,7 +9,7 @@ import type { LayoutSettings } from './settings';
 export type { ElkLike, LayoutSettings };
 export { applyPalette, applyPins };
 
-/** Sequence diagrams have their own layout and ignore `settings` (a palette has no groups to colour there). */
+/** Sequence diagrams have their own layout and ignore `settings` (a palette has nothing to colour there). */
 export async function layout(ir: DiagramIR, elk: ElkLike, settings: LayoutSettings = {}): Promise<Scene> {
   const scene = ir.kind === 'sequence' ? layoutSequence(ir) : await layoutGraph(ir, elk, settings);
   if (ir.icons) scene.icons = ir.icons;
