@@ -38,9 +38,9 @@ function baseOptions(direction: Direction, settings: LayoutSettings): LayoutOpti
     'elk.layered.spacing.edgeEdgeBetweenLayers': String(edgeEdge),
     'elk.layered.nodePlacement.strategy': elkConst(settings.placement ?? DEFAULTS.placement),
     'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-    // Break cycles by source order: an edge written "backwards" (retry, loop)
-    // is the one reversed, so the main path keeps its authored direction.
-    'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER', // backstop; backEdges() pre-breaks cycles
+    // backEdges() pre-breaks cycles and siblingOrder() agrees with every other
+    // edge, so this is a backstop for cycles only lifting to groups creates.
+    'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
     'elk.layered.crossingMinimization.forceNodeModelOrder': 'false',
     'elk.edgeLabels.placement': 'CENTER',
     'elk.layered.edgeLabels.sideSelection': 'SMART_DOWN',
@@ -111,8 +111,8 @@ export function toElkGraph(
 
   const parentOf = (id: string) =>
     ir.nodes.find((n) => n.id === id)?.parent ?? ir.groups.find((g) => g.id === id)?.parent;
-  // Model order = order of first appearance in the authored edges, then the rest.
-  // ELK uses it for cycle breaking and tie-breaks, so layout follows the source.
+  // Start from the order of first appearance in the authored edges, then the rest;
+  // backEdges() walks it to pick which edges close a cycle.
   const rank = new Map<string, number>();
   const bump = (id: string | undefined) => {
     while (id && !rank.has(id)) {
@@ -126,16 +126,10 @@ export function toElkGraph(
   }
   for (const id of elkNodes.keys()) bump(id);
   const back = backEdges(ir, rank);
-  // ER and class diagrams declare structure rather than a flow: the order things
-  // are first mentioned says nothing about direction. Rank them topologically
-  // so ELK's model-order cycle breaking reverses only true back-edges.
-  if (ir.kind === 'er' || ir.kind === 'class') {
-    const order = topoOrder(ir, rank, back);
-    rank.clear();
-    for (const id of order) bump(id);
-    for (const id of elkNodes.keys()) bump(id);
-  }
-  const ordered = [...elkNodes].sort((a, b) => rank.get(a[0])! - rank.get(b[0])!);
+  // Architecture edges name the sides they join (`a:L --> R:b` puts a right of
+  // b), not a direction of flow, so a topological order would misplace them.
+  const order = ir.kind === 'architecture' ? rank : siblingOrder(ir, rank, back, parentOf);
+  const ordered = [...elkNodes].sort((a, b) => order.get(a[0])! - order.get(b[0])!);
   for (const [id, elkNode] of ordered) {
     const parent = parentOf(id);
     const container = (parent && elkNodes.get(parent)) || root;
@@ -217,34 +211,55 @@ function layoutEnds(ir: DiagramIR, back: Set<string>): [string, string][] {
     });
 }
 
-/** Topological order of the (acyclic) layout edges, ties broken by first mention. */
-export function topoOrder(ir: DiagramIR, rank: Map<string, number>, back: Set<string>): string[] {
-  const ends = layoutEnds(ir, back);
+/**
+ * The model order ELK sees: each container's children in an order every layout
+ * edge between them follows. ELK's MODEL_ORDER cycle breaker reverses every edge
+ * whose target comes earlier among its siblings, not just the ones closing a
+ * cycle, so a node first mentioned early (EQ --> PO) but fed by nodes mentioned
+ * later (KIND --> PO) would be hoisted above them (#24). ELK lays out each group
+ * on its own, so an edge between groups counts between the sibling subtrees that
+ * hold its ends: `A --> TOP` puts A before the whole of TOP. Ties keep first mention.
+ */
+export function siblingOrder(
+  ir: DiagramIR,
+  rank: Map<string, number>,
+  back: Set<string>,
+  parentOf: (id: string) => string | undefined,
+): Map<string, number> {
+  const chain = (id: string) => {
+    const c: string[] = [];
+    for (let cur: string | undefined = id; cur; cur = parentOf(cur)) c.push(cur);
+    return c;
+  };
+  const out = new Map<string, Set<string>>();
   const indeg = new Map<string, number>();
-  const out = new Map<string, string[]>();
-  for (const id of rank.keys()) indeg.set(id, 0);
-  for (const [a, b] of ends) {
-    indeg.set(b, (indeg.get(b) ?? 0) + 1);
-    if (!indeg.has(a)) indeg.set(a, 0);
-    if (!out.has(a)) out.set(a, []);
-    out.get(a)!.push(b);
+  for (const [a, b] of layoutEnds(ir, back)) {
+    const [ca, cb] = [chain(a), chain(b)];
+    const ia = ca.findIndex((id) => cb.includes(id));
+    const ib = ia < 0 ? cb.length : cb.indexOf(ca[ia]);
+    if (ia === 0 || ib === 0) continue; // a node and a group around it: not siblings anywhere
+    const [x, y] = [ca[(ia < 0 ? ca.length : ia) - 1], cb[ib - 1]];
+    if (!out.has(x)) out.set(x, new Set());
+    if (out.get(x)!.has(y)) continue;
+    out.get(x)!.add(y);
+    indeg.set(y, (indeg.get(y) ?? 0) + 1);
   }
-  const byRank = (a: string, b: string) => (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity);
-  const ready = [...indeg].filter(([, d]) => d === 0).map(([id]) => id).sort(byRank);
-  const order: string[] = [];
-  while (ready.length) {
-    const id = ready.shift()!;
-    order.push(id);
-    for (const next of out.get(id) ?? []) {
-      indeg.set(next, indeg.get(next)! - 1);
-      if (indeg.get(next) === 0) {
-        ready.push(next);
-        ready.sort(byRank);
-      }
+  const siblings = new Map<string, string[]>();
+  for (const id of [...rank.keys()].sort((a, b) => rank.get(a)! - rank.get(b)!)) {
+    const parent = parentOf(id) ?? '';
+    if (!siblings.has(parent)) siblings.set(parent, []);
+    siblings.get(parent)!.push(id);
+  }
+  const order = new Map<string, number>();
+  for (const left of siblings.values()) {
+    while (left.length) {
+      // The first-mentioned child nothing still points at. Lifted edges can form
+      // a cycle (in and out of the same group): then just the first-mentioned one.
+      const [id] = left.splice(Math.max(0, left.findIndex((c) => (indeg.get(c) ?? 0) <= 0)), 1);
+      order.set(id, order.size);
+      for (const next of out.get(id) ?? []) indeg.set(next, indeg.get(next)! - 1);
     }
   }
-  // Anything left sits on a cycle backEdges missed (edges into groups); keep first-mention order.
-  for (const id of [...indeg.keys()].sort(byRank)) if (!order.includes(id)) order.push(id);
   return order;
 }
 

@@ -111,6 +111,29 @@ test('retry cycles keep the authored main direction', async () => {
   expect(y('Running')).toBeLessThan(y('Failed'));
 });
 
+test('a merge node sits below everything that feeds it, even when mentioned first (#24)', async () => {
+  const s = await scene(
+    'flowchart TD\n  EQ -- yes --> PO\n  EQ -- no --> KIND\n  KIND --> TD\n  KIND --> PO\n  TD --> PO\n  PO --> SV\n  SV --> MORE\n  MORE -- yes --> EQ',
+  );
+  const y = (id: string) => s.nodes.find((n) => n.id === id)!.y;
+  expect(y('KIND')).toBeLessThan(y('PO'));
+  expect(y('TD')).toBeLessThan(y('PO'));
+  // Only the loop's closing edge runs upward.
+  const up = s.edges.filter((e) => e.points[0].y > e.points.at(-1)!.y).map((e) => `${e.from}->${e.to}`);
+  expect(up).toEqual(['MORE->EQ']);
+  checkInvariants(s);
+});
+
+test('an edge into a subgraph puts its source before the whole group', async () => {
+  // The group's children are mentioned first, yet A --> TOP --> B still reads left to right.
+  const s = await scene('flowchart LR\n  subgraph TOP\n    i1 --> f1\n  end\n  A --> TOP --> B');
+  const box = (id: string) => s.nodes.find((n) => n.id === id) ?? s.groups.find((g) => g.id === id)!;
+  const [a, top, b] = ['A', 'TOP', 'B'].map(box);
+  expect(a.x + a.w).toBeLessThan(top.x);
+  expect(top.x + top.w).toBeLessThan(b.x);
+  checkInvariants(s);
+});
+
 test('invisible links steer layout but are not drawn', async () => {
   const s = await scene('flowchart LR\n  A ~~~ B');
   expect(s.edges).toHaveLength(0);
@@ -194,9 +217,13 @@ test('class relations keep their written layout order: parents above children', 
   checkInvariants(s);
 });
 
-test('ER/class layering ignores mention order: only real cycles are reversed', async () => {
-  // Customer is mentioned after Order, yet Customer o-- Order still puts Customer first.
-  const s = await scene('classDiagram\n  Order ..> Payment\n  Customer o-- Order');
+test.each([
+  ['class', 'classDiagram\n  Order ..> Payment\n  Customer o-- Order'],
+  ['flowchart', 'flowchart TD\n  Order --> Payment\n  Customer --> Order'],
+  ['state', 'stateDiagram-v2\n  Order --> Payment\n  Customer --> Order'],
+])('%s layering ignores mention order: only real cycles are reversed', async (_, src) => {
+  // Customer is mentioned after Order, yet Customer -> Order still puts Customer first.
+  const s = await scene(src);
   const y = (id: string) => s.nodes.find((n) => n.id === id)!.y;
   expect(y('Customer')).toBeLessThan(y('Order'));
   expect(y('Order')).toBeLessThan(y('Payment'));
