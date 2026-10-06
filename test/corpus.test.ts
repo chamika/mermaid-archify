@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import type { ElkNode } from 'elkjs/lib/elk-api.js';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { describeIcons } from '../src/icons/fa';
 import type { DiagramIR } from '../src/ir/types';
 import { layout } from '../src/layout';
+import { toElkGraph } from '../src/layout/elkGraph';
 import type { Routing } from '../src/layout/settings';
 import { MermaidParseError, parseMermaid } from '../src/parse';
 import { checkScene } from './helpers/invariants';
@@ -100,6 +102,29 @@ describe.each(ROUTINGS)('routing: %s', (routing) => {
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
     checkScene(scene, `${name} (${routing})`);
   });
+});
+
+/**
+ * ELK's MODEL_ORDER cycle breaker reverses every edge that runs against model
+ * order, so the order we hand it must agree with the layout edges: between
+ * siblings, a source always comes before its target (#24).
+ */
+const flows = graphs.filter((f) => !f.split('/')[1].startsWith('architecture')); // sides, not flow
+test.each(flows)('%s: model order agrees with the layout edges', async (name) => {
+  const { graph } = toElkGraph(await parseMermaid(read(name)));
+  const where = new Map<string, { parent: string; index: number }>();
+  const visit = (n: ElkNode) =>
+    (n.children ?? []).forEach((c, index) => {
+      where.set(c.id, { parent: n.id, index });
+      for (const p of c.ports ?? []) where.set(p.id, { parent: n.id, index });
+      visit(c);
+    });
+  visit(graph);
+  const against = (graph.edges ?? []).filter((e) => {
+    const [a, b] = [where.get(e.sources[0])!, where.get(e.targets[0])!];
+    return a.parent === b.parent && a.index > b.index;
+  });
+  expect(against.map((e) => e.id)).toEqual([]);
 });
 
 /**
