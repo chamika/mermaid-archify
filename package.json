@@ -38,7 +38,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:lib",
-    "build:lib": "vite build -c vite.lib.config.ts && vite build -c vite.element.config.ts && tsc -p tsconfig.lib.json && node scripts/lib-types.mjs",
+    "build:lib": "vite build -c vite.lib.config.ts && vite build -c vite.element.config.ts && tsc -p tsconfig.lib.json && node scripts/lib-types.mjs && node scripts/lib-fonts.mjs",
     "prepack": "npm run build:lib",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
@@ -50,6 +50,7 @@
     "corpus:sheets": "node scripts/contact-sheets.mjs"
   },
   "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "elkjs": "0.12.0",
     "happy-dom": "20.14.5",
     "mermaid": "12.0.0",

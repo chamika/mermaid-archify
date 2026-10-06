@@ -1,8 +1,8 @@
 import { glob, stat } from 'node:fs/promises';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 
-export type Format = 'html' | 'svg';
-export const FORMATS: readonly Format[] = ['html', 'svg'];
+export type Format = 'html' | 'svg' | 'png';
+export const FORMATS: readonly Format[] = ['html', 'svg', 'png'];
 
 export class UsageError extends Error {
   override name = 'UsageError';
@@ -69,9 +69,8 @@ export interface OutputOptions {
 export function formatFor(opts: OutputOptions): Format {
   const ext = opts.out && opts.out !== '-' ? extname(opts.out).slice(1).toLowerCase() : '';
   const f = (ext || opts.format || 'html').toLowerCase();
-  if (f === 'png') throw new UsageError("PNG output isn't supported; use .svg or .html");
   if (!FORMATS.includes(f as Format)) {
-    throw new UsageError(ext ? `Can't tell the format from ${opts.out}; use .html or .svg` : `Unknown format "${f}"; use html or svg`);
+    throw new UsageError(ext ? `Can't tell the format from ${opts.out}; use .html, .svg or .png` : `Unknown format "${f}"; use html, svg or png`);
   }
   return f as Format;
 }

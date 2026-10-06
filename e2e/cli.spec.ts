@@ -13,6 +13,7 @@ test.describe.configure({ mode: 'parallel' });
 
 const CLI = 'dist-node/cli.js';
 const cli = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' });
+const cliBytes = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args]);
 
 const SAMPLES = [
   'test/corpus/mermaid-demos/flowchart-001.mmd', // CJK labels, dense fan-out
@@ -99,8 +100,77 @@ test('batch: a glob renders into --out-dir, and invalid diagrams fail with file:
 
 test('usage errors exit 2', () => {
   expect(cli().status).toBe(2);
-  const png = cli('test/corpus/mermaid-demos/flowchart-001.mmd', '-o', 'x.png');
-  expect(png.status).toBe(2);
-  expect(png.stderr).toContain("PNG output isn't supported");
+  const pdf = cli('test/corpus/mermaid-demos/flowchart-001.mmd', '-o', 'x.pdf');
+  expect(pdf.status).toBe(2);
+  expect(pdf.stderr).toContain('use .html, .svg or .png');
+  expect(cli('test/corpus/mermaid-demos/flowchart-001.mmd', '-f', 'png', '--scale', '0').status).toBe(2);
   expect(cli('test/corpus/mermaid-demos/*.mmd', '-o', 'x.html').status).toBe(2);
 });
+
+/**
+ * The CLI rasterizes with resvg; the reference is Chrome drawing the same SVG
+ * (as the app's PNG export does) with JetBrains Mono embedded, since an SVG in
+ * <img> can't see the page's web fonts. Glyph anti-aliasing differs between
+ * the two rasterizers, so a pixel only counts when nothing within 1px of it in
+ * the other image matches. This is a coarse guard (an unresolved palette, a
+ * missing font or background shows up as 10-100%); small shapes such as
+ * markers are checked structurally in test/node.test.ts.
+ */
+const FONT_FACES = ['400-normal', '400-italic', '600-normal', '600-italic', '700-normal', '700-italic'];
+const fontFaces = () =>
+  FONT_FACES.map((face) => {
+    const [weight, style] = face.split('-');
+    const woff2 = readFileSync(`node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-${face}.woff2`).toString('base64');
+    return `@font-face{font-family:'JetBrains Mono';font-weight:${weight};font-style:${style};src:url(data:font/woff2;base64,${woff2})}`;
+  }).join('');
+
+function pngMismatch(page: Page, svg: string, png: Buffer): Promise<{ size: number[]; pct: number }> {
+  return page.evaluate(
+    async ([svgText, pngB64]) => {
+      const load = async (src: string) => {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        return img;
+      };
+      const ref = await load(URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' })));
+      const out = await load(`data:image/png;base64,${pngB64}`);
+      const [w, h] = [out.width, out.height];
+      const pixels = (draw: (ctx: OffscreenCanvasRenderingContext2D) => void) => {
+        const ctx = new OffscreenCanvas(w, h).getContext('2d')!;
+        draw(ctx);
+        return ctx.getImageData(0, 0, w, h).data;
+      };
+      const a = pixels((ctx) => (ctx.scale(2, 2), ctx.drawImage(ref, 0, 0)));
+      const b = pixels((ctx) => ctx.drawImage(out, 0, 0));
+      const close = (from: Uint8ClampedArray, i: number, to: Uint8ClampedArray, j: number) =>
+        Math.max(...[0, 1, 2, 3].map((k) => Math.abs(from[i + k] - to[j + k]))) <= 32;
+      const near = (x: number, y: number, from: Uint8ClampedArray, to: Uint8ClampedArray) => {
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const [X, Y] = [x + dx, y + dy];
+            if (X >= 0 && Y >= 0 && X < w && Y < h && close(from, (y * w + x) * 4, to, (Y * w + X) * 4)) return true;
+          }
+        return false;
+      };
+      let bad = 0;
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) if (!close(a, (y * w + x) * 4, b, (y * w + x) * 4) && !(near(x, y, a, b) && near(x, y, b, a))) bad++;
+      return { size: [ref.width * 2, ref.height * 2, w, h], pct: (100 * bad) / (w * h) };
+    },
+    [svg.replace('<style>', `<style>${fontFaces()}`), png.toString('base64')] as const,
+  );
+}
+
+for (const [file, theme] of [...SAMPLES.map((f) => [f, 'dark'] as const), ['test/corpus/mermaid-docs/architecture-004.mmd', 'light'] as const]) {
+  test(`PNG matches Chrome's rendering of the SVG: ${file} (${theme})`, async ({ page }) => {
+    const svg = cli(file, '-f', 'svg', '--theme', theme, '-o', '-');
+    const png = cliBytes(file, '-f', 'png', '--theme', theme, '-o', '-');
+    expect(png.status).toBe(0);
+    await page.setContent('<!doctype html><body></body>');
+    const { size, pct } = await pngMismatch(page, svg.stdout, png.stdout);
+    expect(size.slice(2), 'PNG is the SVG at 2×').toEqual(size.slice(0, 2));
+    // Measured 0.1–0.6% (text anti-aliasing; CJK labels fall back to a system font).
+    expect(pct, 'share of pixels that differ beyond anti-aliasing').toBeLessThan(1);
+  });
+}
