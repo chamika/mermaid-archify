@@ -79,8 +79,8 @@
   stroke: var(--arrow-emphasis);
   stroke-width: 2;
 }
-.ma-edge.lit .label-text {
-  fill: var(--text);
+.ma-edge.lit .label-bg {
+  stroke: var(--arrow-emphasis);
 }
 .ma-edge.on-route path.line {
   stroke: var(--route);
@@ -115,8 +115,8 @@
   stroke: var(--arrow-emphasis);
   stroke-width: 2.5;
 }
-.ma-edge.trace-now .label-text {
-  fill: var(--text);
+.ma-edge.trace-now .label-bg {
+  stroke: var(--arrow-emphasis);
 }
 .ma-edge.trace-done path.line {
   stroke: var(--arrow-emphasis);
