@@ -79,7 +79,9 @@
 .ma-node .ma-icon {
   fill: var(--u-ink, var(--text));
 }
-.ma-edge .ma-icon,
+.ma-edge .ma-icon {
+  fill: var(--text);
+}
 .ma-group .ma-icon {
   fill: var(--text-muted);
 }
@@ -105,12 +107,11 @@
 }
 .ma-edge .label-bg {
   fill: var(--mask);
-  opacity: 0.92;
-  stroke: var(--panel-border);
+  stroke: var(--lane-stroke);
   stroke-width: 1;
 }
 .ma-edge .label-text {
-  fill: var(--text-muted);
+  fill: var(--text);
   font-size: 11px;
 }
 .ma-marker {
@@ -126,7 +127,7 @@
   stroke-width: 1.5;
 }
 .ma-edge .end-label {
-  fill: var(--text-muted);
+  fill: var(--text);
   font-size: 11px;
   paint-order: stroke;
   stroke: var(--mask);

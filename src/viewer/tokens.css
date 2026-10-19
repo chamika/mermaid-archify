@@ -12,7 +12,7 @@
   --panel-border: #1e293b;
   --lane-fill: rgba(15, 23, 42, 0.22);
   --lane-stroke: #334155;
-  --arrow: #64748b;
+  --arrow: #94a3b8;
   --arrow-emphasis: #34d399;
   --route: #fbbf24;
   --mask: #0f172a;
@@ -93,7 +93,7 @@
     --panel-border: #e2e8f0;
     --lane-fill: rgba(248, 250, 252, 0.65);
     --lane-stroke: #cbd5e1;
-    --arrow: #94a3b8;
+    --arrow: #64748b;
     --arrow-emphasis: #059669;
     --route: #d97706;
     --mask: #ffffff;
@@ -173,7 +173,7 @@
   --panel-border: #e2e8f0;
   --lane-fill: rgba(248, 250, 252, 0.65);
   --lane-stroke: #cbd5e1;
-  --arrow: #94a3b8;
+  --arrow: #64748b;
   --arrow-emphasis: #059669;
   --route: #d97706;
   --mask: #ffffff;
