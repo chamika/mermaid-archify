@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { layout } from '../src/layout';
-import { textWidth } from '../src/layout/measure';
+import { fitGroupTitle, textWidth } from '../src/layout/measure';
 import { flattenBeziers, toElkGraph } from '../src/layout/elkGraph';
 import type { LayoutSettings } from '../src/layout/settings';
 import { parseMermaid } from '../src/parse';
@@ -527,4 +527,18 @@ describe('text measurement', () => {
     expect(cells('❤️')).toBe(2);
     expect(cells('负责')).toBe(4);
   });
+});
+
+test('a group is as wide as its title in every direction, without growing taller', async () => {
+  for (const dir of ['TB', 'BT', 'LR', 'RL']) {
+    const s = await layout(await parseMermaid(`flowchart ${dir}\n  subgraph G [Payments and settlement infrastructure cluster]\n    a[Ledger] --> b[Settlement]\n  end`), elk);
+    const g = s.groups[0];
+    expect(g.w, dir).toBeGreaterThanOrEqual(textWidth('Payments and settlement infrastructure cluster', 11));
+    const kids = s.nodes.filter((n) => n.parent === 'G');
+    const content = Math.max(...kids.map((n) => n.y + n.h)) - Math.min(...kids.map((n) => n.y));
+    expect(g.h, dir).toBeLessThan(content + 120);
+    // An empty group is wide enough for its own title too.
+    const empty = await layout(await parseMermaid(`flowchart ${dir}\n  subgraph E [Empty]\n  end\n  A --> E`), elk);
+    expect(fitGroupTitle('Empty', empty.groups[0].w), dir).toBe('Empty');
+  }
 });

@@ -1,6 +1,6 @@
 import type { ElkExtendedEdge, ElkNode, ElkPort, LayoutOptions } from 'elkjs/lib/elk-api.js';
 import { settleInk } from '../ir/style';
-import type { DiagramIR, Direction, Side } from '../ir/types';
+import type { DiagramIR, Direction, IRGroup, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { edgeLabelSize, groupTitleWidth, nodeSize } from './measure';
 import { DEFAULTS, type LayoutSettings } from './settings';
@@ -76,6 +76,12 @@ export function toElkGraph(
   const elkNodes = new Map<string, ElkNode>();
   const usesPorts = ir.kind === 'architecture';
 
+  // ELK applies the minimum size of a group with children transposed under vertical
+  // layouts (elkjs 0.12: a TB group asked for (373, 64) came out 172×373), so swap it
+  // there; an empty group, laid out as a plain node, takes it as given.
+  const vertical = direction === 'TB' || direction === 'BT';
+  const filled = new Set([...ir.nodes, ...ir.groups].flatMap((x) => (x.parent ? [x.parent] : [])));
+  const minimum = (g: IRGroup, w: number, h: number) => (vertical && filled.has(g.id) ? `(${h}, ${w})` : `(${w}, ${h})`);
   for (const g of ir.groups) {
     elkNodes.set(g.id, {
       id: g.id,
@@ -85,9 +91,10 @@ export function toElkGraph(
       layoutOptions: {
         'elk.padding': `[top=${GROUP_PAD.top},left=${GROUP_PAD.left},bottom=${GROUP_PAD.bottom},right=${GROUP_PAD.right}]`,
         ...groupSpacing(settings),
-        // Wide enough for its title, and never collapsed when empty.
+        // Wide enough for its title, and never collapsed when empty. The viewer still
+        // shortens a title that does not fit, should ELK not honour this.
         'elk.nodeSize.constraints': 'MINIMUM_SIZE',
-        'elk.nodeSize.minimum': `(${groupTitleWidth(g.label)}, ${GROUP_PAD.top + GROUP_PAD.bottom})`,
+        'elk.nodeSize.minimum': minimum(g, groupTitleWidth(g.label), GROUP_PAD.top + GROUP_PAD.bottom),
       },
     });
   }
