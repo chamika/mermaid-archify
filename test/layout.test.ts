@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { layout } from '../src/layout';
-import { textWidth } from '../src/layout/measure';
+import { fitGroupTitle, textWidth } from '../src/layout/measure';
 import { flattenBeziers, toElkGraph } from '../src/layout/elkGraph';
 import type { LayoutSettings } from '../src/layout/settings';
 import { parseMermaid } from '../src/parse';
@@ -448,4 +448,97 @@ describe('region palette', () => {
       expect(tinted(await scene(src, { palette: 'regions' }))).toBe(false);
     }
   });
+});
+
+describe('sequence: create, destroy and boxes', () => {
+  test('a created participant heads its lifeline on the creating row; a destroyed one ends with no footer', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  A->>B: hi\n  create participant C\n  B->>C: make\n  C->>B: ok\n  destroy C\n  B-xC: bye\n  B->>A: done');
+    const s = await layout(ir, elk);
+    checkInvariants(s);
+    const head = (id: string) => s.nodes.find((n) => n.id === id)!;
+    const line = (id: string) => s.seq!.lifelines.find((l) => l.actor === id)!;
+    const make = s.edges[1];
+    // The creating message ends on C's header, which sits on that row, below A's and B's.
+    expect(head('C').y).toBeGreaterThan(head('A').y + head('A').h);
+    expect(make.points[1].y).toBeGreaterThan(head('C').y);
+    expect(make.points[1].y).toBeLessThan(head('C').y + head('C').h);
+    expect(make.points[1].x).toBeCloseTo(head('C').x);
+    expect(line('C').y1).toBe(head('C').y + head('C').h);
+    // The destroying message ends C's lifeline; no footer for C.
+    expect(line('C')).toMatchObject({ destroyed: true, y2: s.edges[3].points[0].y });
+    expect(s.seq!.footers.map((f) => f.id)).toEqual(['A', 'B']);
+  });
+
+  test('boxes enclose their participants, with room for the label, and keep neighbours apart', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  box Aqua Front\n    participant A\n    participant B\n  end\n  box rgb(200 10 10) Back\n    participant C\n  end\n  A->>B: x\n  B->>C: y');
+    const s = await layout(ir, elk);
+    checkInvariants(s);
+    expect(s.groups.map((g) => [g.id, g.label, g.style?.fill])).toEqual([
+      ['box1', 'Front', 'aqua'],
+      ['box2', 'Back', '#c80a0a'],
+    ]);
+    const [front, back] = s.groups;
+    expect(front.x + front.w).toBeLessThan(back.x);
+    for (const n of s.nodes) expect(n.y).toBeGreaterThanOrEqual(front.y + 28);
+  });
+});
+
+describe('edge cases in sizing', () => {
+  test('settings passed in code are clamped like front-matter', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A --> B --> C');
+    const huge = await layout(ir, elk, { nodeSpacing: 1e7, rankSpacing: 1e7, routing: 'bogus' as never, direction: 'XX' as never });
+    const max = await layout(ir, elk, { nodeSpacing: 160, rankSpacing: 240 });
+    expect([huge.width, huge.height]).toEqual([max.width, max.height]);
+    expect((await layout(ir, elk, { nodeSpacing: Number.NaN })).width).toBe((await layout(ir, elk)).width);
+  });
+
+  test('an empty sequence note has a finite size', async () => {
+    for (const note of ['Note over A: <br>', 'Note right of A: #nbsp;', 'Note over A,B: <br>']) {
+      const s = await layout(await parseMermaid(`sequenceDiagram\n  A->>B: x\n  ${note}`), elk);
+      checkInvariants(s);
+      expect(Number.isFinite(s.width)).toBe(true);
+    }
+  });
+
+  test('empty groups keep a size, and group titles fit (or are shortened to fit)', async () => {
+    const s = await layout(await parseMermaid('flowchart LR\n  subgraph E [Empty]\n  end\n  subgraph G [Payments and settlement infrastructure cluster]\n    a\n  end\n  A --> E\n  E --> B'), elk);
+    checkInvariants(s);
+    const E = s.groups.find((g) => g.id === 'E')!;
+    expect(E.w).toBeGreaterThan(40);
+    expect(E.h).toBeGreaterThan(40);
+    expect(s.groups.find((g) => g.id === 'G')!.w).toBeGreaterThanOrEqual(textWidth('Payments and settlement infrastructure cluster', 11));
+  });
+
+  test('sequence blocks and boxes are as wide as their titles', async () => {
+    const long = 'x'.repeat(80);
+    const s = await layout(await parseMermaid(`sequenceDiagram\n  box Aqua ${long}\n    participant A\n  end\n  participant B\n  loop ${long}\n    A->>B: hi\n  end\n  alt ok\n    A->>B: a\n  else ${long}\n    B->>A: b\n  end`), elk);
+    checkInvariants(s);
+  });
+});
+
+describe('text measurement', () => {
+  test('cells are counted per grapheme: combining and zero-width take none, emoji take two', async () => {
+    const { cells } = await import('../src/layout/measure');
+    expect(cells('Café')).toBe(4);
+    expect(cells('a​b')).toBe(2);
+    expect(cells('☕✅⭐')).toBe(6);
+    expect(cells('👨‍👩‍👧')).toBe(2);
+    expect(cells('©')).toBe(1);
+    expect(cells('❤️')).toBe(2);
+    expect(cells('负责')).toBe(4);
+  });
+});
+
+test('a group is as wide as its title in every direction, without growing taller', async () => {
+  for (const dir of ['TB', 'BT', 'LR', 'RL']) {
+    const s = await layout(await parseMermaid(`flowchart ${dir}\n  subgraph G [Payments and settlement infrastructure cluster]\n    a[Ledger] --> b[Settlement]\n  end`), elk);
+    const g = s.groups[0];
+    expect(g.w, dir).toBeGreaterThanOrEqual(textWidth('Payments and settlement infrastructure cluster', 11));
+    const kids = s.nodes.filter((n) => n.parent === 'G');
+    const content = Math.max(...kids.map((n) => n.y + n.h)) - Math.min(...kids.map((n) => n.y));
+    expect(g.h, dir).toBeLessThan(content + 120);
+    // An empty group is wide enough for its own title too.
+    const empty = await layout(await parseMermaid(`flowchart ${dir}\n  subgraph E [Empty]\n  end\n  A --> E`), elk);
+    expect(fitGroupTitle('Empty', empty.groups[0].w), dir).toBe('Empty');
+  }
 });

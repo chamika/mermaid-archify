@@ -467,3 +467,95 @@ describe('concurrency', () => {
     expect(together.filter((o) => 'err' in o)).toHaveLength(1);
   });
 });
+
+describe('escaped text and directives', () => {
+  test('#lt;…#gt; is text: it survives in every diagram type', async () => {
+    const label = async (src: string, pick: (ir: Awaited<ReturnType<typeof parseMermaid>>) => string | undefined) => pick(await parseMermaid(src));
+    expect(await label('flowchart LR\n  A["Map#lt;K, V#gt;"]', (ir) => ir.nodes[0].label)).toBe('Map<K, V>');
+    expect(await label('flowchart LR\n  A -- "#lt;#lt;uses#gt;#gt;" --> B', (ir) => ir.edges[0].label)).toBe('<<uses>>');
+    expect(await label('sequenceDiagram\n  A->>B: get #lt;T#gt;', (ir) => ir.edges[0].label)).toBe('get <T>');
+    expect(await label('stateDiagram-v2\n  A --> B : a #lt;b#gt; c', (ir) => ir.edges[0].label)).toBe('a <b> c');
+    expect(await label('classDiagram\n  A --> B : uses #lt;T#gt;', (ir) => ir.edges[0].label)).toBe('uses <T>');
+    // Real markup is still dropped.
+    expect(await label('flowchart LR\n  A["<b>bold</b> and #lt;i#gt;"]', (ir) => ir.nodes[0].label)).toBe('bold and <i>');
+  });
+
+  test('multi-line %%{ }%% directives are skipped and keep line numbers', async () => {
+    const ir = await parseMermaid('%%{\n  init: {\n    "theme": "dark"\n  }\n}%%\nflowchart LR\n  A-->B');
+    expect(ir.nodes.map((n) => n.id)).toEqual(['A', 'B']);
+    const err = await parseMermaid('%%{\n  init: { "theme": "dark" }\n}%%\nflowchart LR\n  A-->').catch((e) => e);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBe(5);
+  });
+
+  test('code points out of range, controls and bidi overrides cannot reach a label', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A["x #1114112; y"] --> B["a#0;b#8238;c#55296;d"]');
+    expect(ir.nodes.map((n) => n.label)).toEqual(['x � y', 'abc�d']);
+  });
+});
+
+describe('author styling on states and groups', () => {
+  test('state classDef, class, ::: and style apply, accumulate and keep every description', async () => {
+    const ir = await parseMermaid(
+      'stateDiagram-v2\n  classDef bad fill:#f00,color:#fff\n  classDef loud stroke:#00f\n  A --> B\n  class A bad\n  class A loud\n  B:::bad\n  style B fill:#0f0\n  S2 : desc one\n  S2 : desc two',
+    );
+    const byId = Object.fromEntries(ir.nodes.map((n) => [n.id, n]));
+    expect(byId.A.classes).toEqual(['bad', 'loud']);
+    expect(byId.A.style).toMatchObject({ fill: '#f00', color: '#fff', stroke: '#00f' });
+    expect(byId.B.style).toMatchObject({ fill: '#0f0' });
+    expect(byId.S2.label).toBe('desc one\ndesc two');
+  });
+
+  test('flowchart subgraphs and composite states take style and class', async () => {
+    const flow = await parseMermaid('flowchart LR\n  classDef zone fill:#eef,stroke:#00f\n  subgraph G [Payments]\n    a --> b\n  end\n  subgraph H\n    c\n  end\n  class G zone\n  style H stroke:#f00');
+    expect(flow.groups.find((g) => g.id === 'G')).toMatchObject({ classes: ['zone'], style: { fill: '#eef', stroke: '#00f' } });
+    expect(flow.groups.find((g) => g.id === 'H')?.style).toMatchObject({ stroke: '#f00' });
+    const state = await parseMermaid('stateDiagram-v2\n  classDef zone fill:#eef\n  state C {\n    x --> y\n  }\n  class C zone');
+    expect(state.groups[0]).toMatchObject({ id: 'C', style: { fill: '#eef' } });
+  });
+});
+
+describe('state tones', () => {
+  const tones = async (names: string[]) => {
+    const ir = await parseMermaid(`stateDiagram-v2\n${names.map((n, i) => `  ${n} --> S${i}`).join('\n')}`);
+    return names.map((n) => ir.nodes.find((x) => x.id === n)!.type);
+  };
+  test('outcome words match at a word start, and negations cancel them', async () => {
+    expect(await tones(['Incomplete', 'Unhealthy', 'Inactive', 'Unpaid', 'Hook', 'Rerun', 'Latest'])).toEqual(Array(7).fill('plain'));
+    expect(await tones(['Completed', 'PaymentDone', 'order_paid', 'Retrying', 'Invalid'])).toEqual(['backend', 'backend', 'backend', 'frontend', 'security']);
+  });
+  test('pseudo-states take no tone from their composite', async () => {
+    const ir = await parseMermaid('stateDiagram-v2\n  state Active {\n    [*] --> Working\n    Working --> [*]\n  }');
+    expect(ir.nodes.filter((n) => n.shape === 'start' || n.shape === 'end').map((n) => n.type)).toEqual(['plain', 'plain']);
+  });
+});
+
+describe('component guesses', () => {
+  test('a keyword in a decision is not a component, and half typed is not a component map', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[Start] --> B{Is cache warm?}\n  B -->|yes| C[Return index]\n  B -->|no| D[Rebuild]');
+    expect(ir.nodes.map((n) => n.type)).toEqual(['plain', 'plain', 'plain', 'plain']);
+  });
+});
+
+describe('sequence features', () => {
+  const messages = async (src: string) => (await parseMermaid(src)).events!.filter((e) => e.kind === 'message');
+  test('autonumber numbers messages as Mermaid does: start, step, off', async () => {
+    const ms = await messages('sequenceDiagram\n  A->>B: one\n  autonumber 10 5\n  A->>B: two\n  B-->>A: three\n  autonumber off\n  A->>B: four\n  autonumber\n  A->>B: five');
+    expect(ms.map((m) => m.kind === 'message' && m.label)).toEqual(['one', '10 two', '15 three', 'four', '25 five']);
+  });
+  test('half arrows: stick heads are line heads, reverse ones point at the sender', async () => {
+    const ms = await messages('sequenceDiagram\n  A-|\\B: top\n  A-\\\\B: stick\n  A/|-B: back');
+    expect(ms.map((m) => m.kind === 'message' && [m.from, m.to, m.arrow])).toEqual([
+      ['A', 'B', 'arrow'],
+      ['A', 'B', 'async'],
+      ['B', 'A', 'arrow'],
+    ]);
+  });
+  test('create, destroy and box are read', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  box Aqua Front\n    participant A\n  end\n  A->>B: hi\n  create participant C\n  B->>C: make\n  destroy C\n  C-xB: bye');
+    const ms = ir.events!.filter((e) => e.kind === 'message');
+    expect(ms.map((m) => m.kind === 'message' && [m.creates, m.destroys])).toEqual([[undefined, undefined], ['C', undefined], [undefined, 'C']]);
+    expect(ir.groups).toEqual([{ id: 'box1', label: 'Front', hint: 'box', style: { fill: 'aqua' } }]);
+    expect(ir.nodes.map((n) => n.parent)).toEqual(['box1', undefined, undefined]);
+  });
+});

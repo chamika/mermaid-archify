@@ -163,6 +163,10 @@ export interface IRGroup {
   label: string;
   parent?: string;
   hint?: string;
+  /** `class G c` / `classDef` names on the subgraph or composite state. */
+  classes?: string[];
+  /** Author styling (`style G …`, `classDef`), already sanitized. */
+  style?: IRStyle;
 }
 
 /* ---------- sequence-specific ---------- */
@@ -179,6 +183,10 @@ export interface SeqMessage {
   stroke: 'solid' | 'dotted';
   arrow: SeqArrow;
   bidirectional: boolean;
+  /** `create participant X` just before: this message brings X in, and X's header is drawn here. */
+  creates?: string;
+  /** `destroy X` just before: X's lifeline ends with this message. */
+  destroys?: string;
 }
 
 export interface SeqNote {

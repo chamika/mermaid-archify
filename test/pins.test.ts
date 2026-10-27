@@ -124,3 +124,20 @@ describe('layout() with pins', () => {
     expect((await laid(src, { pins: { Browser: [0, 100] } })).scene).toEqual((await laid(src)).scene);
   });
 });
+
+test('a node with a self-loop can be pinned; the loop and its label move with it', async () => {
+  const ir = await parseMermaid('flowchart LR\n  A -->|retry| A\n  A --> B');
+  const auto = await layout(ir, elk);
+  const loop = auto.edges.find((e) => e.from === 'A' && e.to === 'A')!;
+  for (const pin of [[0, 150], [0, 300], [400, 200]] as [number, number][]) {
+    const { scene, ignored } = applyPins(auto, { A: pin }, { ir });
+    expect(ignored, `pin ${pin}`).toEqual([]);
+    checkScene(scene);
+    const moved = scene.edges.find((e) => e.id === loop.id)!;
+    const a0 = auto.nodes.find((n) => n.id === 'A')!;
+    const a1 = scene.nodes.find((n) => n.id === 'A')!;
+    // Same loop shape, relative to its node.
+    const rel = (pts: { x: number; y: number }[], n: { x: number; y: number }) => pts.map((p) => [Math.round(p.x - n.x), Math.round(p.y - n.y)]);
+    expect(rel(moved.points, a1)).toEqual(rel(loop.points, a0));
+  }
+});

@@ -92,12 +92,13 @@ export function Editor({ value, onChange, errorLine, errorMessage, onCursorLine,
     return () => view.current?.destroy();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // External value changes (sample picker, share link).
+  // External value changes (sample picker, share link, layout controls, pins). Only the
+  // span that differs is replaced, so the cursor stays on the text it was on when, say,
+  // a layout control rewrites the front-matter above it.
   useEffect(() => {
     const v = view.current;
-    if (v && v.state.doc.toString() !== value) {
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value } });
-    }
+    const doc = v?.state.doc.toString();
+    if (v && doc !== undefined && doc !== value) v.dispatch({ changes: minimalChange(doc, value) });
   }, [value]);
 
   useEffect(() => {
@@ -127,4 +128,13 @@ export function Editor({ value, onChange, errorLine, errorMessage, onCursorLine,
   }, [reveal]);
 
   return <div ref={host} class="editor-host" />;
+}
+
+/** The single replacement turning `a` into `b`: everything between their common prefix and suffix. */
+export function minimalChange(a: string, b: string): { from: number; to: number; insert: string } {
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let end = 0;
+  while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
+  return { from: start, to: a.length - end, insert: b.slice(start, b.length - end) };
 }

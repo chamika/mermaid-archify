@@ -6,26 +6,26 @@
   fill: var(--text);
 }
 .ma-group rect {
-  fill: var(--lane-fill);
-  stroke: var(--lane-stroke);
-  stroke-width: 1.25;
-  stroke-dasharray: 6 4;
+  fill: var(--u-fill, var(--lane-fill));
+  stroke: var(--u-stroke, var(--lane-stroke));
+  stroke-width: var(--u-sw, 1.25);
+  stroke-dasharray: var(--u-dash, 6 4);
 }
 .ma-group text {
-  fill: var(--text-muted);
+  fill: var(--u-ink, var(--text-muted));
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .ma-group.tinted rect {
-  fill: var(--a-fill);
-  stroke: var(--a-stroke);
-  stroke-dasharray: none;
+  fill: var(--u-fill, var(--a-fill));
+  stroke: var(--u-stroke, var(--a-stroke));
+  stroke-dasharray: var(--u-dash, none);
   stroke-opacity: 0.55;
 }
 .ma-group.tinted text {
-  fill: var(--a-ink);
+  fill: var(--u-ink, var(--a-ink));
 }
 .ma-node .mask {
   fill: var(--mask);
@@ -165,13 +165,19 @@
   font-style: italic;
 }
 .ma-node .row .c-keys {
-  fill: var(--u-ink, var(--cloud-stroke));
+  fill: var(--u-ink, var(--cloud-ink));
   font-weight: 700;
 }
 .ma-lifeline {
   stroke: var(--lane-stroke);
   stroke-width: 1.25;
   stroke-dasharray: 4 5;
+}
+.ma-destroyed {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 .ma-activation {
   fill: var(--panel-solid);
