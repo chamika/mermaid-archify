@@ -3,13 +3,31 @@ import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from
 const STORE_KEY = 'mermaid-archify:source';
 const LINK_KEY = 'mermaid-archify:link';
 
-export function readHash(): { src?: string; focus?: string } {
-  const params = new URLSearchParams(location.hash.slice(1));
+/**
+ * lz-string can expand a short string enormously (30 KB of hash → 100M characters),
+ * so links are capped both packed and unpacked. Real diagrams are far smaller.
+ */
+const MAX_PACKED = 32_768;
+const MAX_SOURCE = 500_000;
+
+/** Source and focus from a share link. A missing, truncated or oversized `src` reads as no source. */
+export function readHash(hash = location.hash): { src?: string; focus?: string } {
+  const params = new URLSearchParams(hash.slice(1));
   const packed = params.get('src');
-  return {
-    src: packed ? (decompressFromEncodedURIComponent(packed) ?? undefined) : undefined,
-    focus: params.get('focus') ?? undefined,
-  };
+  let src: string | undefined;
+  if (packed && packed.length <= MAX_PACKED) {
+    const text = decompressFromEncodedURIComponent(packed);
+    if (text && text.length <= MAX_SOURCE && text.trim()) src = text;
+  }
+  return { src, focus: params.get('focus') ?? undefined };
+}
+
+/** The current URL without a share link's `src`, so a reload shows the autosaved edits rather than the link. */
+export function urlWithoutSource(): string {
+  const params = new URLSearchParams(location.hash.slice(1));
+  params.delete('src');
+  const rest = params.toString();
+  return `${location.pathname}${location.search}${rest ? `#${rest}` : ''}`;
 }
 
 export function shareUrl(source: string, focus?: string): string {

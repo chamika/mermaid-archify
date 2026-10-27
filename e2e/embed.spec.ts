@@ -156,6 +156,31 @@ test.describe('pages built with the Markdown plugins', () => {
       return String(await unified().use(remarkParse).use(plugin).use(remarkRehype).use(rehypeStringify).process(MD));
     }],
   ] as const) {
+    test(`${name}: text that could end a <script> renders intact, at build time and in the browser`, async ({ page: p }) => {
+      // Build mode embeds a Scene; client mode embeds the source, here as a JSON string.
+      const md = '```mermaid\nsequenceDiagram\n  A->>B: open <!-- x </script y\n```\n';
+      const remark = name === 'remark';
+      const render = async (mode: 'build' | 'client') => {
+        if (!remark) {
+          const { default: MarkdownIt } = await import('markdown-it');
+          const { default: plugin } = await import(pathToFileURL('dist-node/markdown-it.js').href);
+          return new MarkdownIt().use(plugin, { mode }).render(md);
+        }
+        const [{ unified }, { default: remarkParse }, { default: remarkRehype }, { default: rehypeStringify }] = await Promise.all([
+          import('unified'), import('remark-parse'), import('remark-rehype'), import('rehype-stringify'),
+        ]);
+        const { default: plugin } = await import(pathToFileURL('dist-node/remark.js').href);
+        return String(await unified().use(remarkParse).use(plugin, { mode }).use(remarkRehype).use(rehypeStringify).process(md));
+      };
+      await open(p, page((await render('build')) + (await render('client'))));
+      const diagrams = p.locator('mermaid-archify');
+      await expect(diagrams).toHaveCount(2);
+      for (const i of [0, 1]) {
+        await diagrams.nth(i).scrollIntoViewIfNeeded();
+        await expect(diagrams.nth(i).locator('.ma-edge').first()).toContainText('open <!-- x </script y', { timeout: 20_000 });
+      }
+    });
+
     test(`${name}: diagrams laid out at build time, viewer only at runtime`, async ({ page: p }) => {
       const html = await build();
       expect(html).not.toContain('```');

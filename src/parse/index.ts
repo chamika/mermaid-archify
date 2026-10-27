@@ -34,21 +34,37 @@ function loadMermaid(): Promise<MermaidModule> {
 
 const SUPPORTED = 'flowchart, graph, sequenceDiagram, stateDiagram-v2, erDiagram, classDiagram, architecture-beta';
 
+/**
+ * Mermaid keeps one db per diagram type and some parsers (architecture's
+ * Langium) are async, so overlapping parses read each other's statements.
+ * Parses therefore run one at a time.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+
+function exclusive<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 export async function parseMermaid(text: string): Promise<DiagramIR> {
   if (!text.trim()) throw new MermaidParseError('The diagram is empty.');
   const mermaid = await loadMermaid();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let diagram: any;
   const prepared = prepareSource(text);
-  try {
-    diagram = await mermaid.mermaidAPI.getDiagramFromText(prepared);
-  } catch (err) {
-    const e = toParseError(err);
-    // Mermaid trims leading blank lines (including our blanked frontmatter).
-    if (e.line !== undefined) throw new MermaidParseError(e.message, e.line + leadingBlankLines(prepared));
-    throw e;
-  }
-  const ir = toIR(diagram.type, diagram.db);
+  const ir = await exclusive(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let diagram: any;
+    try {
+      diagram = await mermaid.mermaidAPI.getDiagramFromText(prepared);
+    } catch (err) {
+      const e = toParseError(err);
+      // Mermaid trims leading blank lines (including our blanked frontmatter).
+      if (e.line !== undefined) throw new MermaidParseError(e.message, e.line + leadingBlankLines(prepared));
+      throw e;
+    }
+    // Read the db before releasing it to the next parse.
+    return toIR(diagram.type, diagram.db);
+  });
   if (ir.kind !== 'state') settleTypes(ir.nodes);
   await attachIcons(ir);
   ir.title ??= frontmatterTitle(text);

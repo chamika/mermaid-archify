@@ -176,9 +176,10 @@ function RichText({
     let cursor = align === 'middle' ? x - (cells(line) * cw) / 2 : x;
     runs(line).forEach((r, j) => {
       if ('icon' in r) {
-        const def = icons[r.icon];
+        // Scenes can come from outside (exported HTML, scene-json); draw only well-formed icons.
+        const def = Object.hasOwn(icons, r.icon) ? icons[r.icon] : undefined;
         const slot = ICON_CELLS * cw;
-        if (def) {
+        if (Array.isArray(def) && def.length === 3) {
           const [vw, vh, d] = def;
           const s = Math.min((size * 0.95) / vh, (slot * 0.92) / vw);
           const ix = cursor + (slot - vw * s) / 2;

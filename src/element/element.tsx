@@ -165,9 +165,11 @@ export class MermaidArchifyElement extends Base {
       const sceneUrl = this.getAttribute('scene');
       const inline = this.getAttribute('scene-json') ?? this.querySelector(':scope > script[type="application/json"]')?.textContent;
       if (sceneUrl) return done(await fetchText(sceneUrl).then(JSON.parse));
-      if (inline) return done(JSON.parse(inline));
+      // Inline JSON is a Scene, or a JSON string of Mermaid source that could not go in a text/mermaid script.
+      const json: unknown = inline ? JSON.parse(inline) : undefined;
+      if (json !== undefined && typeof json !== 'string') return done(json as Scene);
       const src = this.getAttribute('src');
-      const source = src ? await fetchText(src) : sourceText(this);
+      const source = typeof json === 'string' ? json : src ? await fetchText(src) : sourceText(this);
       if (!source.trim()) return done(undefined, 'No diagram: set scene, src, or put Mermaid source inside the element.');
       this.#paint(undefined, 'Rendering…');
       const { renderScene } = await import('./render');

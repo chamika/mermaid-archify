@@ -184,6 +184,11 @@ describe('label cleanup', () => {
     expect(ir.nodes.map((n) => plainText(n.label))).toEqual(['forbidden', 'GitHub']);
     expect(ir.nodes.map((n) => iconKeys(n.label))).toEqual([['fa:ban'], ['fab:github']]);
   });
+  test('icon names that are Object.prototype members are unknown icons, not crashes', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A[fa:fa-constructor Car] --> B[fa:fa-__proto__ x] --> C[fa:fa-toString y] --> D[fa:fa-car z]');
+    expect(ir.nodes.map((n) => plainText(n.label))).toEqual(['Car', 'x', 'y', 'z']);
+    expect(Object.keys(ir.icons ?? {})).toEqual(['fa:car']);
+  });
   test('Mermaid entity codes are decoded', async () => {
     const ir = await parseMermaid('sequenceDiagram\n  A->>B: I #9829; you #infin; times #quot;more#quot;');
     expect(ir.edges[0].label).toBe('I ♥ you ∞ times "more"');
@@ -445,5 +450,20 @@ describe('classDiagram', () => {
       ['free note', undefined],
     ]);
     expect(ir.edges.find((e) => e.to === 'Square' && e.stroke === 'dotted')).toBeDefined();
+  });
+});
+
+describe('concurrency', () => {
+  // Mermaid's dbs are shared per diagram type and architecture's parser is async.
+  const arch = (i: number) => `architecture-beta\n  service s${i}(server)[S${i}]\n  service d${i}(database)[D${i}]\n  s${i}:R --> L:d${i}`;
+  const sources = [arch(1), 'flowchart LR\n  a1 --> b1', arch(2), 'sequenceDiagram\n  A->>B: hi', arch(3), 'flowchart LR\n  A -->'];
+
+  test('overlapping parses give the same results as sequential ones', async () => {
+    const outcome = (p: Promise<unknown>) => p.then((ir) => ({ ir }), (err: Error) => ({ err: err.message }));
+    const together = await Promise.all(sources.map((s) => outcome(parseMermaid(s))));
+    const apart = [];
+    for (const s of sources) apart.push(await outcome(parseMermaid(s)));
+    expect(together).toEqual(apart);
+    expect(together.filter((o) => 'err' in o)).toHaveLength(1);
   });
 });

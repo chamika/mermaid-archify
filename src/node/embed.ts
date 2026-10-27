@@ -1,4 +1,4 @@
-import { escapeHtml, escapeScript } from '../export/html';
+import { escapeHtml, scriptJson, scriptText } from '../export/html';
 import type { LayoutSettings } from '../layout/settings';
 import type { Scene } from '../scene/types';
 
@@ -61,11 +61,16 @@ export function elementHtml(attrs: Attrs, content: { scene: Scene } | { source: 
     return `<${open}>${'source' in content ? escapeHtml(content.source) : ''}</mermaid-archify>\n`;
   }
   const open = ['mermaid-archify', ...attrs.map(([k, v]) => `${k}="${escapeHtml(v)}"`)].join(' ');
-  const body =
-    'scene' in content
-      ? `<script type="application/json">${escapeScript(JSON.stringify(content.scene))}</script>`
-      : `<script type="text/mermaid">${escapeScript(content.source)}</script>`;
-  return `<${open}>${body}</mermaid-archify>\n`;
+  const { type, text } = scriptPayload(content);
+  return `<${open}><script type="${type}">${text}</script></mermaid-archify>\n`;
+}
+
+/**
+ * The element's child `<script>`: the Scene as JSON, or the source as
+ * `text/mermaid`, or as a JSON string when the source could close the script.
+ */
+export function scriptPayload(content: { scene: Scene } | { source: string }): { type: string; text: string } {
+  return 'scene' in content ? { type: 'application/json', text: scriptJson(content.scene) } : scriptText(content.source, 'text/mermaid');
 }
 
 /** `file:line: message` for a diagram that failed to render. `line` is the fence's first line (1-based). */

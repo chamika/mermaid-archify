@@ -24,6 +24,14 @@ describe('render()', () => {
     expect(html).toContain('<script type="text/plain" id="ma-source">flowchart LR');
   });
 
+  test('exported HTML keeps text that could end its scripts', async () => {
+    const src = 'sequenceDiagram\n  A->>B: open <!-- here </script> done\n';
+    const { html, scene } = await render(src);
+    const json = (id: string) => JSON.parse(new RegExp(`<script type="application/json" id="${id}">(.*?)</script>`, 's').exec(html)![1]);
+    expect(json('ma-scene')).toEqual(scene);
+    expect(json('ma-source')).toBe(src);
+  });
+
   test('light theme', async () => {
     const { svg, html } = await render(flow, { theme: 'light' });
     expect(svg).toContain('--bg:#f8fafc');
