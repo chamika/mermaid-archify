@@ -192,10 +192,9 @@ export function Viewer({
       return { ...h, lit: { nodes: new Set(routeEnds), edges: new Set() }, mode: 'dimmed' };
     }
     if (focus) return { ...h, lit: neighbourhood(adj, focus), mode: 'dimmed', focused: focus };
-    if (pinnedEdge) {
-      const e = scene.edges.find((x) => x.id === pinnedEdge)!;
-      return { ...h, lit: { nodes: new Set([e.from, e.to]), edges: new Set([e.id]) }, mode: 'dimmed' };
-    }
+    // The scene can lose the pinned edge before the cleanup effect above runs (a live edit).
+    const pinned = pinnedEdge ? scene.edges.find((x) => x.id === pinnedEdge) : undefined;
+    if (pinned) return { ...h, lit: { nodes: new Set([pinned.from, pinned.to]), edges: new Set([pinned.id]) }, mode: 'dimmed' };
     if (linkedLit) return { ...h, lit: linkedLit, mode: 'dimmed' };
     if (traceStep !== undefined) return h;
     if (hoverNode) return { ...h, lit: neighbourhood(adj, hoverNode), mode: 'previewing' };

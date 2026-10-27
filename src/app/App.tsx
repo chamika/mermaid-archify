@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
+import { useCallback, useEffect, useErrorBoundary, useMemo, useRef, useState } from 'preact/hooks';
 import { imageExports } from '../export/actions';
 import { download, slug } from '../export/download';
 import { buildStandaloneHtml } from '../export/html';
@@ -12,7 +13,7 @@ import type { Scene } from '../scene/types';
 import { type ExportAction, Viewer } from '../viewer/Viewer';
 import { Editor } from './Editor';
 import { LayoutControls } from './LayoutControls';
-import { loadLinking, loadSaved, readHash, save, saveLinking, shareUrl } from './share';
+import { loadLinking, loadSaved, readHash, save, saveLinking, shareUrl, urlWithoutSource } from './share';
 import { buildSourceMap } from './sourceMap';
 
 interface Problem {
@@ -72,7 +73,30 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the pin-free source on purpose
   }, [layoutKey]);
 
-  useEffect(() => save(source), [source]);
+  // A share link's diagram is autosaved only once it is edited, so opening a link
+  // never replaces the user's own work. The first edit also drops the link's `src`
+  // from the URL, so a reload shows those edits rather than the link again.
+  const linkSource = useRef(initial.src);
+  useEffect(() => {
+    if (linkSource.current !== undefined && source === linkSource.current) return;
+    if (linkSource.current !== undefined || new URLSearchParams(location.hash.slice(1)).has('src')) {
+      history.replaceState(null, '', urlWithoutSource());
+    }
+    linkSource.current = undefined;
+    save(source);
+  }, [source]);
+
+  // Pasting another share link into an open tab only changes the hash.
+  useEffect(() => {
+    const onHash = () => {
+      const { src } = readHash();
+      if (src === undefined) return;
+      linkSource.current = src;
+      setSource(src);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   // Pins (and a live drag) apply on top of the automatic layout, instantly.
   const pins = useMemo<Pins | undefined>(() => {
@@ -298,24 +322,26 @@ export function App() {
         )}
         <section class="canvas-pane" aria-label="Diagram">
           {scene ? (
-            <Viewer
-              scene={scene}
-              initialFocus={initial.focus}
-              onFocusChange={onFocusChange}
-              onEdgePin={revealDefinition}
-              linked={linkActive ? linked : undefined}
-              linkFor={(id) => shareUrl(source, id)}
-              exports={exportsList}
-              arrange={{ pins: pins ?? {}, onPin }}
-              toolbarExtra={
-                <LayoutControls
-                  settings={layoutSettings}
-                  onChange={changeLayout}
-                  disabled={scene.kind === 'sequence'}
-                  ignoredPins={pinned?.ignored ?? []}
-                />
-              }
-            />
+            <ViewerBoundary scene={scene}>
+              <Viewer
+                scene={scene}
+                initialFocus={initial.focus}
+                onFocusChange={onFocusChange}
+                onEdgePin={revealDefinition}
+                linked={linkActive ? linked : undefined}
+                linkFor={(id) => shareUrl(source, id)}
+                exports={exportsList}
+                arrange={{ pins: pins ?? {}, onPin }}
+                toolbarExtra={
+                  <LayoutControls
+                    settings={layoutSettings}
+                    onChange={changeLayout}
+                    disabled={scene.kind === 'sequence'}
+                    ignoredPins={pinned?.ignored ?? []}
+                  />
+                }
+              />
+            </ViewerBoundary>
           ) : (
             <div class="empty">{problem ? 'Fix the error to render the diagram.' : 'Rendering…'}</div>
           )}
@@ -323,6 +349,19 @@ export function App() {
       </main>
     </div>
   );
+}
+
+/**
+ * A viewer crash shows a message in the canvas instead of unmounting the app
+ * (with the editor) for good; the next scene, e.g. after an edit, mounts a fresh viewer.
+ */
+function ViewerBoundary({ scene, children }: { scene: Scene; children: ComponentChildren }) {
+  const [error, reset] = useErrorBoundary((err) => console.error(err));
+  useEffect(() => {
+    if (error) reset();
+  }, [scene]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (error) return <div class="empty">The diagram could not be drawn: {(error as Error).message ?? String(error)}</div>;
+  return <>{children}</>;
 }
 
 function firstLine(msg: string) {

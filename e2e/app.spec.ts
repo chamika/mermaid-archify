@@ -121,6 +121,63 @@ test('share link round-trips the source', async ({ page, context }) => {
   await expect(fresh.locator('.ma-node[data-id="X"]')).toBeVisible({ timeout: 20_000 });
 });
 
+test('a share link leaves the autosaved diagram alone until it is edited', async ({ page, context }) => {
+  await replaceSource(page, 'flowchart LR\n  mine[My own work] --> kept');
+  await expect(page.locator('.ma-node[data-id="mine"]')).toBeVisible();
+  await replaceSource(page, 'flowchart LR\n  S[Shared] --> T');
+  await page.getByRole('button', { name: 'Copy share link' }).click();
+  const link = page.url();
+  expect(link).toContain('#src=');
+  await replaceSource(page, 'flowchart LR\n  mine[My own work] --> kept');
+  await expect(page).not.toHaveURL(/src=/); // editing drops the stale link from the URL
+
+  // Opening the link shows it, and a plain visit afterwards still has the user's own diagram.
+  const other = await context.newPage();
+  await other.goto(link);
+  await expect(other.locator('.ma-node[data-id="S"]')).toBeVisible({ timeout: 20_000 });
+  await other.goto('/');
+  await expect(other.locator('.ma-node[data-id="mine"]')).toBeVisible({ timeout: 20_000 });
+
+  // A truncated link is ignored rather than wiping the autosave.
+  await other.goto('/#src=abc');
+  await other.reload();
+  await expect(other.locator('.ma-node[data-id="mine"]')).toBeVisible({ timeout: 20_000 });
+
+  // Editing a linked diagram makes it the autosave, and a reload keeps the edit.
+  await other.goto(link);
+  await expect(other.locator('.ma-node[data-id="S"]')).toBeVisible({ timeout: 20_000 });
+  await replaceSource(other, 'flowchart LR\n  S[Shared, edited] --> T');
+  await expect(other.locator('.ma-node[data-id="S"]')).toContainText('edited');
+  await expect(other).not.toHaveURL(/src=/);
+  await other.reload();
+  await expect(other.locator('.ma-node[data-id="S"]')).toContainText('edited', { timeout: 20_000 });
+});
+
+test('pasting another share link into an open tab loads it', async ({ page }) => {
+  await replaceSource(page, 'flowchart LR\n  P[Pasted] --> Q');
+  await page.getByRole('button', { name: 'Copy share link' }).click();
+  const hash = new URL(page.url()).hash;
+  await replaceSource(page, 'flowchart LR\n  other --> thing');
+  await expect(page.locator('.ma-node[data-id="other"]')).toBeVisible();
+  await page.evaluate((h) => (location.hash = h), hash);
+  await expect(page.locator('.ma-node[data-id="P"]')).toBeVisible();
+});
+
+test('a scene change under a pinned edge, or a bad icon name, does not take the app down', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('mermaid-archify:link', 'off'));
+  await page.reload();
+  await replaceSource(page, 'flowchart LR\n  A --> B\n  B --> C');
+  await expect(page.locator('.ma-edge')).toHaveCount(2);
+  await page.locator('.ma-edge[data-id="L_B_C_0"] path').last().click({ force: true });
+  await expect(page.locator('.ma-edge[data-id="L_B_C_0"]')).toHaveClass(/pinned/);
+  await replaceSource(page, 'flowchart LR\n  A --> B');
+  await expect(page.locator('.ma-edge')).toHaveCount(1);
+
+  await replaceSource(page, 'flowchart LR\n  A[fa:fa-constructor Car] --> B[fa:fa-car Bus]');
+  await expect(page.locator('.ma-node[data-id="A"]')).toContainText('Car');
+  await expect(page.locator('.ma-icon')).toHaveCount(1);
+});
+
 test('exported HTML works offline with focus and exports', async ({ page, context }) => {
   await pickSample(page, 'sequence');
   await expect(page.locator('.ma-node')).toHaveCount(10);

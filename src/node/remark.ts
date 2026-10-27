@@ -1,6 +1,5 @@
 import { render } from './index';
-import { type Attrs, DEFAULT_LANGUAGES, type EmbedOptions, cacheKey, diagramError, elementAttrs } from './embed';
-import { escapeScript } from '../export/html';
+import { type Attrs, DEFAULT_LANGUAGES, type EmbedOptions, cacheKey, diagramError, elementAttrs, scriptPayload } from './embed';
 import type { Scene } from '../scene/types';
 
 export type { EmbedOptions };
@@ -99,14 +98,14 @@ function usesMdx(processor: ProcessorLike | undefined): boolean {
 
 /** An mdast node that mdast-util-to-hast turns into the element (via `data.hName`), with no raw HTML. */
 function hastNode(attrs: Attrs, content: { scene: Scene } | { source: string }): MdNode {
-  const [type, text] = 'scene' in content ? ['application/json', JSON.stringify(content.scene)] : ['text/mermaid', content.source];
+  // hast-util-to-html writes script text verbatim, so the payload must not be able to close it.
+  const { type, text } = scriptPayload(content);
   return {
     type: 'mermaidArchify',
     data: {
       hName: 'mermaid-archify',
       hProperties: Object.fromEntries(attrs),
-      // hast-util-to-html writes script text verbatim, so it is escaped here.
-      hChildren: [{ type: 'element', tagName: 'script', properties: { type }, children: [{ type: 'text', value: escapeScript(text) }] }],
+      hChildren: [{ type: 'element', tagName: 'script', properties: { type }, children: [{ type: 'text', value: text }] }],
     },
   };
 }

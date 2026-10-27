@@ -7,6 +7,7 @@ import remarkRehype from 'remark-rehype';
 import { unified } from 'unified';
 import { describe, expect, test } from 'vitest';
 import { render } from '../src/node';
+import { elementHtml } from '../src/node/embed';
 import markdownItMermaidArchify from '../src/node/markdown-it';
 import remarkMermaidArchify, { type RemarkOptions } from '../src/node/remark';
 import type { Scene } from '../src/scene/types';
@@ -38,6 +39,16 @@ describe('remark plugin', () => {
     const html = await remarkHtml(doc('mermaid', 'flowchart LR\n  a["</script><!--"] --> b\n'));
     const script = /<script type="application\/json">(.*?)<\/script>/s.exec(html)![1];
     expect(script).not.toMatch(/<\/script|<!--/i);
+  });
+
+  test('text that could end the script survives: the scene parses and the source is unchanged', async () => {
+    const source = 'sequenceDiagram\n  A->>B: open <!-- here </script> done';
+    const raw = (html: string) => JSON.parse(/<script type="application\/json">(.*?)<\/script>/s.exec(html)![1]);
+    const built = await remarkHtml(doc('mermaid', `${source}\n`));
+    expect(raw(built)).toEqual((await render(source)).scene);
+    expect(raw(await remarkHtml(doc('mermaid', `${source}\n`), { mode: 'client' }))).toBe(source);
+    expect(raw(elementHtml([], { source }))).toBe(source);
+    expect(raw(elementHtml([], { scene: (await render(source)).scene }))).toEqual((await render(source)).scene);
   });
 
   test('client mode emits the source, without rendering', async () => {
@@ -85,9 +96,11 @@ describe('markdown-it plugin', () => {
     expect(calls).toEqual([FLOW]); // cached
   });
 
-  test('client mode escapes the source', () => {
+  test('client mode: a source that could close its script travels as a JSON string, unchanged', () => {
     const md = new MarkdownIt().use(markdownItMermaidArchify, { mode: 'client' });
-    expect(md.render(doc('mermaid', 'flowchart LR\n  a["</script>"] --> b\n'))).toContain('a["<\\/script>"]');
+    const html = md.render(doc('mermaid', 'flowchart LR\n  a["</script>"] --> b\n'));
+    const json = /<script type="application\/json">(.*?)<\/script>/s.exec(html)![1];
+    expect(JSON.parse(json)).toBe('flowchart LR\n  a["</script>"] --> b\n');
   });
 
   test('vue: no <script>, scene in an attribute, compilation skipped', async () => {

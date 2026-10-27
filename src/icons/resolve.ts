@@ -20,12 +20,15 @@ const SHIM_STYLE: Record<string, 'solid' | 'regular' | 'brands'> = { fas: 'solid
 let table: Promise<Table> | undefined;
 const loadTable = () => (table ??= import('virtual:fa-icons').then((m) => m.default as unknown as Table));
 
+/** Own keys only: label text such as `fa:fa-constructor` must not find Object.prototype members. */
+const own = <V>(o: Record<string, V> | undefined, key: string): V | undefined => (o && Object.hasOwn(o, key) ? o[key] : undefined);
+
 function lookup(t: Table, style: string, name: string): IconDef | undefined {
-  for (const s of SEARCH[style] ?? []) if (t[s][name]) return t[s][name];
-  const shim = t.shims[name];
+  for (const s of own(SEARCH, style) ?? []) if (own(t[s], name)) return t[s][name];
+  const shim = own(t.shims, name);
   if (shim) {
-    const styles = shim[0] ? [SHIM_STYLE[shim[0]]] : (SEARCH[style] ?? []);
-    for (const s of styles) if (t[s]?.[shim[1]]) return t[s][shim[1]];
+    const styles = shim[0] ? [SHIM_STYLE[shim[0]]] : (own(SEARCH, style) ?? []);
+    for (const s of styles) if (own(t[s], shim[1])) return t[s][shim[1]];
   }
   return undefined;
 }
