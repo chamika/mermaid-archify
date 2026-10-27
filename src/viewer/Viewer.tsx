@@ -286,6 +286,9 @@ export function Viewer({
       const k = pzRef.current.t.k;
       let moved = false;
       let last: [number, number] = [bx, by];
+      // Re-applying pins (re-routing edges) on every pointermove is costly on large
+      // diagrams: preview at most once per frame.
+      let frame = 0;
       const move = (ev: PointerEvent) => {
         const dx = ev.clientX - start.x;
         const dy = ev.clientY - start.y;
@@ -293,9 +296,13 @@ export function Viewer({
         if (!moved) setDragging(id);
         moved = true;
         last = [Math.round(bx + dx / k), Math.round(by + dy / k)];
-        arrange!.onPin(id, last, false);
+        frame ||= requestAnimationFrame(() => {
+          frame = 0;
+          arrange!.onPin(id, last, false);
+        });
       };
       const up = () => {
+        cancelAnimationFrame(frame);
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
         window.removeEventListener('pointercancel', up);
