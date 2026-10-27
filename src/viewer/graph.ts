@@ -15,8 +15,8 @@ export function adjacency(scene: Scene): Adjacency {
     if (!incoming.has(e.to)) incoming.set(e.to, []);
     outgoing.get(e.from)!.push(e);
     incoming.get(e.to)!.push(e);
-    // Bidirectional edges are walkable both ways.
-    if (e.arrowStart && e.arrowEnd) {
+    // Bidirectional edges, and plain lines (`---`) that point neither way, are walkable both ways.
+    if ((e.arrowStart && e.arrowEnd) || (!e.arrowStart && !e.arrowEnd && !e.ends && e.from !== e.to)) {
       if (!outgoing.has(e.to)) outgoing.set(e.to, []);
       if (!incoming.has(e.from)) incoming.set(e.from, []);
       outgoing.get(e.to)!.push(e);

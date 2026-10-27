@@ -414,18 +414,19 @@ function Shape({ n }: { n: SceneNode }) {
   }
 }
 
-function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers }) {
+function NodeViewImpl({ n, kind, cls, h, tabbable = true }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers; tabbable?: boolean }) {
   // A caption names the component type, so only typed nodes get one.
   const withCaption =
     kind !== 'state' && n.type !== 'plain' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note', 'compartment'].includes(n.shape);
-  const interactive = n.shape !== 'fork';
+  // A sequence participant's footer repeats its header: clickable, but one tab stop is enough.
+  const interactive = n.shape !== 'fork' && tabbable;
   return (
     <g
       class={`ma-node ${cls}`}
       data-id={n.id}
       tabIndex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
-      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type]}${n.link ? ', has link' : ''}` : undefined}
+      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type] ?? n.type}${n.link ? ', has link' : ''}` : undefined}
       style={userVars(n.style)}
       onClick={(e) => h.onNodeClick?.(n.id, e as unknown as MouseEvent)}
       onKeyDown={(e) => {
@@ -446,7 +447,10 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
   );
 }
 
-function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers }) {
+/** Re-rendered only when the node, its classes or the handlers change, not on every hover elsewhere. */
+const NodeView = memo(NodeViewImpl);
+
+function EdgeViewImpl({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers }) {
   const d = pathD(e.points);
   const styled: Record<string, string> = { cross: 'url(#ma-cross)', async: 'url(#ma-async)', circle: 'url(#ma-circle)' };
   const marker = (e.arrowStyle && styled[e.arrowStyle]) || 'url(#ma-arrow)';
@@ -495,6 +499,8 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
     </g>
   );
 }
+
+const EdgeView = memo(EdgeViewImpl);
 
 /** Accept only plain CSS colour syntax from diagram source; anything else gets the neutral tint. */
 const safeColor = (c: string): string => (isSafeColor(c) ? c.trim() : 'var(--lane-stroke)');
@@ -589,7 +595,10 @@ export interface DiagramProps {
   svgRef?: (el: SVGSVGElement | null) => void;
 }
 
-function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: DiagramProps) {
+const NO_HANDLERS: DiagramHandlers = Object.freeze({});
+
+function DiagramImpl({ scene, highlight = {}, handlers: given, overlay, svgRef }: DiagramProps) {
+  const handlers = given ?? NO_HANDLERS;
   const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep, animating, pinnedNodes } = highlight;
   const nodeCls = (id: string) =>
     [lit?.nodes.has(id) && 'lit', focused === id && 'focused', routeEnds?.includes(id) && 'route-end', pinnedNodes?.has(id) && 'pinned']
@@ -615,7 +624,9 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
       viewBox={`0 0 ${scene.width} ${scene.height}`}
       width={scene.width}
       height={scene.height}
-      role="img"
+      // Interactive, its nodes are buttons, which an `img` would hide from assistive tech.
+      role={given ? 'group' : 'img'}
+      aria-roledescription={given ? 'diagram' : undefined}
       aria-label={scene.title ?? `${scene.kind} diagram`}
     >
       <IconContext.Provider value={scene.icons ?? {}}>
@@ -635,7 +646,7 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
           <NodeView key={n.id} n={n} kind={scene.kind} cls={nodeCls(n.id)} h={handlers} />
         ))}
         {scene.seq?.footers.map((n) => (
-          <NodeView key={`${n.id}__foot`} n={n} kind={scene.kind} cls={nodeCls(n.id)} h={handlers} />
+          <NodeView key={`${n.id}__foot`} n={n} kind={scene.kind} cls={nodeCls(n.id)} h={handlers} tabbable={false} />
         ))}
       </g>
       {overlay && <g class="ma-overlay">{overlay}</g>}

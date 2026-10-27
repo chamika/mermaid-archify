@@ -45,7 +45,8 @@
   cursor: pointer;
 }
 .ma-node:focus-visible {
-  outline: none;
+  outline: 2px solid var(--arrow-emphasis);
+  outline-offset: 4px;
 }
 /* Arranging: nodes are draggable; hand-placed ones get a dashed outline. */
 .ma-viewer.arranging .ma-node {
@@ -64,6 +65,11 @@
 }
 .ma-node:focus-visible .body {
   stroke-width: 2.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ma-stage {
+    transition: none !important;
+  }
 }
 .dimmed .ma-node:not(.lit),
 .dimmed .ma-edge:not(.lit),

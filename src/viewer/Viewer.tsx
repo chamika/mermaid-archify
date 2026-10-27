@@ -114,6 +114,21 @@ export function Viewer({
   const viewportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pz = usePanZoom(viewportRef, embedded ? { wheelPans: () => hasFocusWithin(viewportRef.current) } : undefined);
+  // Callbacks read pan/zoom through a ref: depending on `pz` (new on every pan tick) would
+  // re-create them, and with them every node's handlers, while panning.
+  const pzRef = useRef(pz);
+  pzRef.current = pz;
+  /** Timeouts cleared on unmount. */
+  const timers = useRef(new Set<number>());
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  const later = useCallback((fn: () => void, ms: number) => {
+    const t = window.setTimeout(() => {
+      timers.current.delete(t);
+      fn();
+    }, ms);
+    timers.current.add(t);
+    return t;
+  }, []);
   const adj = useMemo(() => adjacency(scene), [scene]);
   const nodeById = useMemo(() => new Map(scene.nodes.map((n) => [n.id, n])), [scene]);
 
@@ -157,7 +172,7 @@ export function Viewer({
       pz.fit({ w: scene.width, h: scene.height });
       if (initialFocus && nodeById.has(initialFocus)) {
         const n = nodeById.get(initialFocus)!;
-        window.setTimeout(() => pz.centerOn(n, { minK: 1, offsetX: 320 }), 50);
+        later(() => pzRef.current.centerOn(n, { minK: 1, offsetX: 320 }), 50);
       }
     }
   }, [scene, pz.size.w]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -244,9 +259,9 @@ export function Viewer({
       setLinkedLit(undefined);
       setFocus(id);
       const n = nodeById.get(id);
-      if (center && n) pz.centerOn(n, { minK: 0.9, offsetX: pz.size.w > 700 ? 320 : 0 });
+      if (center && n) pzRef.current.centerOn(n, { minK: 0.9, offsetX: pzRef.current.size.w > 700 ? 320 : 0 });
     },
-    [nodeById, pz, setFocus],
+    [nodeById, setFocus],
   );
 
   // --- arranging: drag nodes to pin them ---
@@ -258,7 +273,7 @@ export function Viewer({
       e.stopPropagation(); // not a pan
       const start = { x: e.clientX, y: e.clientY };
       const [bx, by] = pinOf(id);
-      const k = pz.t.k;
+      const k = pzRef.current.t.k;
       let moved = false;
       let last: [number, number] = [bx, by];
       const move = (ev: PointerEvent) => {
@@ -286,7 +301,7 @@ export function Viewer({
       window.addEventListener('pointercancel', up);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [arrangeOn, arrange, pz.t.k],
+    [arrangeOn, arrange],
   );
   const onNodeDoubleClick = useCallback(
     (id: string) => {
@@ -321,7 +336,7 @@ export function Viewer({
   const onNodeClick = useCallback(
     (id: string, e: MouseEvent) => {
       if (dragged.current) return e.stopPropagation(); // keep focus through a drag
-      if (pz.didPan()) return;
+      if (pzRef.current.didPan()) return;
       e.stopPropagation();
       setMenuOpen(false);
       setLinkedLit(undefined);
@@ -346,12 +361,12 @@ export function Viewer({
       setPinnedEdge(undefined);
       setFocus(focus === id ? undefined : id);
     },
-    [focus, nodeById, pz, routeEnds, setFocus],
+    [focus, nodeById, routeEnds, setFocus],
   );
 
   const onEdgeClick = useCallback(
     (id: string, e: MouseEvent) => {
-      if (pz.didPan()) return;
+      if (pzRef.current.didPan()) return;
       e.stopPropagation();
       setFocus(undefined);
       setRouteEnds([]);
@@ -359,7 +374,7 @@ export function Viewer({
       if (pinnedEdge !== id) onEdgePin?.(id);
       setPinnedEdge(pinnedEdge === id ? undefined : id);
     },
-    [pz, pinnedEdge, setFocus, onEdgePin],
+    [pinnedEdge, setFocus, onEdgePin],
   );
 
   const handlers = useMemo(
@@ -402,47 +417,51 @@ export function Viewer({
 
   const flash = (msg: string) => {
     setToast(msg);
-    window.setTimeout(() => setToast((m) => (m === msg ? undefined : m)), 2200);
+    later(() => setToast((m) => (m === msg ? undefined : m)), 2200);
   };
 
-  // --- keyboard ---
+  // --- keyboard: one listener per target, calling the latest handler ---
+  const onKeyRef = useRef<(e: KeyboardEvent) => void>();
+  onKeyRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      clearAll();
+      setTraceStep(undefined);
+      setAnimating(false);
+      return;
+    }
+    if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isTyping(e.target))) {
+      e.preventDefault();
+      setFinderOpen(true);
+      return;
+    }
+    if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+    const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (nudge && arrangeOn && focus && nodeById.has(focus)) {
+      e.preventDefault();
+      const step = e.shiftKey ? 32 : 8;
+      const [x, y] = pinOf(focus);
+      const next: [number, number] = [x + nudge[0] * step, y + nudge[1] * step];
+      arrange!.onPin(focus, next[0] || next[1] ? next : undefined, true);
+      return;
+    }
+    if (e.key === '+' || e.key === '=') pz.zoomBy(1.25);
+    else if (e.key === '-') pz.zoomBy(0.8);
+    else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
+    else if (e.key === 't') toggleTrace();
+    else if (e.key === ' ') {
+      // A focused button, link or menu item keeps Space for itself (activation).
+      if ((e.target as Element | null)?.closest?.('button, a[href], [role="menuitem"], summary, select')) return;
+      e.preventDefault(); // no page scroll
+      toggleAnimate();
+    }
+  };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        clearAll();
-        setTraceStep(undefined);
-        setAnimating(false);
-        return;
-      }
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isTyping(e.target))) {
-        e.preventDefault();
-        setFinderOpen(true);
-        return;
-      }
-      if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-      const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-      if (nudge && arrangeOn && focus && nodeById.has(focus)) {
-        e.preventDefault();
-        const step = e.shiftKey ? 32 : 8;
-        const [x, y] = pinOf(focus);
-        const next: [number, number] = [x + nudge[0] * step, y + nudge[1] * step];
-        arrange!.onPin(focus, next[0] || next[1] ? next : undefined, true);
-        return;
-      }
-      if (e.key === '+' || e.key === '=') pz.zoomBy(1.25);
-      else if (e.key === '-') pz.zoomBy(0.8);
-      else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
-      else if (e.key === 't') toggleTrace();
-      else if (e.key === ' ') {
-        e.preventDefault(); // no page scroll, and a focused button is not clicked as well
-        toggleAnimate();
-      }
-    };
     // Embedded, several viewers share a page: each only hears keys while it has focus.
     const target: HTMLElement | Window | null = embedded ? viewportRef.current : window;
-    target?.addEventListener('keydown', onKey as EventListener);
-    return () => target?.removeEventListener('keydown', onKey as EventListener);
-  });
+    const onKey = (e: Event) => onKeyRef.current?.(e as KeyboardEvent);
+    target?.addEventListener('keydown', onKey);
+    return () => target?.removeEventListener('keydown', onKey);
+  }, [embedded]);
 
   const types = useMemo(() => {
     const seen = new Set<SemanticType>();
