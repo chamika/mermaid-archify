@@ -41,6 +41,7 @@ export async function expandInputs(args: string[], cwd = process.cwd()): Promise
       if (!matches.length) throw new UsageError(`No files match ${arg}`);
       for (const m of matches.sort()) add(m, globBase(arg));
     } else {
+      if (await isDirectory(resolve(cwd, arg))) throw new UsageError(`${arg} is a directory; pass a quoted glob such as "${join(arg, '**/*.mmd')}"`);
       if (!(await isFile(resolve(cwd, arg)))) throw new UsageError(`No such file: ${arg}`);
       add(arg, dirname(arg));
     }
@@ -56,6 +57,14 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 export interface OutputOptions {
   /** `-o`: explicit output file, or `-` for stdout (single input only). */
   out?: string;
@@ -65,14 +74,38 @@ export interface OutputOptions {
   format?: string;
 }
 
-/** Output format: from `-o`'s extension, else `--format`, else html. */
+/** Output format: from `-o`'s extension, else `--format`, else html. The two must not disagree. */
 export function formatFor(opts: OutputOptions): Format {
   const ext = opts.out && opts.out !== '-' ? extname(opts.out).slice(1).toLowerCase() : '';
-  const f = (ext || opts.format || 'html').toLowerCase();
-  if (!FORMATS.includes(f as Format)) {
-    throw new UsageError(ext ? `Can't tell the format from ${opts.out}; use .html, .svg or .png` : `Unknown format "${f}"; use html, svg or png`);
+  const flag = opts.format?.toLowerCase();
+  if (flag && !FORMATS.includes(flag as Format)) throw new UsageError(`Unknown format "${opts.format}"; use html, svg or png`);
+  if (FORMATS.includes(ext as Format)) {
+    if (flag && flag !== ext) throw new UsageError(`-o ${opts.out} is ${ext}, but --format says ${flag}`);
+    return ext as Format;
   }
-  return f as Format;
+  if (flag) return flag as Format;
+  if (ext) throw new UsageError(`Can't tell the format from ${opts.out}; use .html, .svg or .png, or --format`);
+  return 'html';
+}
+
+/**
+ * Every input's output path, decided before anything is written: two inputs
+ * writing one file (`a/x.mmd b/x.mmd --out-dir out`), or an output replacing
+ * its own input (`x.svg -f svg`), is a usage error rather than lost work.
+ */
+export function planOutputs(inputs: Input[], format: Format, opts: OutputOptions, cwd = process.cwd()): string[] {
+  const targets = inputs.map((input) => outputPath(input, format, opts));
+  const owner = new Map<string, string>();
+  targets.forEach((target, i) => {
+    if (target === '-') return;
+    const key = resolve(cwd, target);
+    const input = inputs[i].path;
+    if (input !== '-' && resolve(cwd, input) === key) throw new UsageError(`Writing ${target} would replace its own input; use -o or --out-dir`);
+    const other = owner.get(key);
+    if (other !== undefined) throw new UsageError(`${other} and ${input} would both be written to ${target}; use -o or --out-dir`);
+    owner.set(key, input);
+  });
+  return targets;
 }
 
 /** Where `input` is written; `-` means stdout. */

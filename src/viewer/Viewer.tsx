@@ -60,12 +60,22 @@ type Theme = 'light' | 'dark';
 /** Everything the viewer needs to look right; the element puts it in its shadow root. */
 export const VIEWER_CSS = tokensCss + diagramCss + viewerCss;
 
+let cssInjected = false;
+
+/** Page-level viewer styles: a constructed sheet where supported (allowed by a strict CSP), else a `<style>`. */
 function injectCss() {
-  if (typeof document === 'undefined' || document.getElementById('ma-viewer-css')) return;
-  const style = document.createElement('style');
-  style.id = 'ma-viewer-css';
-  style.textContent = VIEWER_CSS;
-  document.head.appendChild(style);
+  if (typeof document === 'undefined' || cssInjected || document.getElementById('ma-viewer-css')) return;
+  cssInjected = true;
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(VIEWER_CSS);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  } catch {
+    const style = document.createElement('style');
+    style.id = 'ma-viewer-css';
+    style.textContent = VIEWER_CSS;
+    document.head.appendChild(style);
+  }
 }
 
 function currentTheme(): Theme {

@@ -8,7 +8,7 @@ import { type LayoutSettings, readLayoutSettings } from '../layout/settings';
 import { MermaidParseError, parseMermaid } from '../parse';
 import type { Scene } from '../scene/types';
 import { Diagram } from '../viewer/Diagram';
-import { ensureDom } from './dom';
+import { withDom } from './dom';
 
 export { MermaidParseError };
 export { svgToPng } from './png';
@@ -35,13 +35,14 @@ export interface RenderResult {
 let elk: ElkLike | undefined;
 
 /** Render Mermaid source headlessly. Rejects with `MermaidParseError` (with `.line`) on invalid input. */
-export async function render(source: string, options: RenderOptions = {}): Promise<RenderResult> {
-  ensureDom();
-  const theme = options.theme ?? 'dark';
-  const ir = await parseMermaid(source);
-  elk ??= new ELK();
-  const scene = await layout(ir, elk, { ...readLayoutSettings(source), ...options.layout });
-  return { scene, svg: sceneToSvg(scene, theme), html: buildStandaloneHtml(scene, source, viewerJs, theme) };
+export function render(source: string, options: RenderOptions = {}): Promise<RenderResult> {
+  return withDom(async () => {
+    const theme = options.theme ?? 'dark';
+    const ir = await parseMermaid(source);
+    elk ??= new ELK();
+    const scene = await layout(ir, elk, { ...readLayoutSettings(source), ...options.layout });
+    return { scene, svg: sceneToSvg(scene, theme), html: buildStandaloneHtml(scene, source, viewerJs, theme) };
+  });
 }
 
 /** Draw the Scene with the viewer's own Diagram component, then serialize it like the app does. */

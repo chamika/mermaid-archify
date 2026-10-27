@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import type { Direction } from '../ir/types';
 import { DIRECTIONS } from '../layout/settings';
 import { MermaidParseError, type Theme, render, svgToPng } from './index';
-import { type Input, UsageError, expandInputs, formatFor, outputPath } from './outputs';
+import { type Input, UsageError, expandInputs, formatFor, planOutputs } from './outputs';
 
 declare const __VERSION__: string;
 
@@ -17,7 +17,7 @@ Options:
   -d, --out-dir <dir>    Write every output here, mirroring each input's path below its glob.
   -f, --format <fmt>     html (default), svg or png, when -o doesn't name one.
   -t, --theme <theme>    dark (default) or light.
-      --direction <dir>  Override the diagram direction: LR, RL, TB or BT.
+      --direction <dir>  Override the diagram direction: LR, RL, TB (or TD) or BT.
       --scale <n>        PNG pixel ratio (default 2, like the app's export).
   -q, --quiet            Don't list written files.
   -h, --help             Show this help.
@@ -53,9 +53,11 @@ export async function main(argv: string[]): Promise<number> {
   if (values.version) return (process.stdout.write(__VERSION__ + '\n'), 0);
 
   let inputs: Input[];
+  let targets: string[];
   let format;
   const theme = (values.theme ?? 'dark').toLowerCase() as Theme;
-  const direction = values.direction?.toUpperCase() as Direction | undefined;
+  // TD is Mermaid's spelling of TB.
+  const direction = values.direction?.toUpperCase().replace(/^TD$/, 'TB') as Direction | undefined;
   const scale = Number(values.scale ?? 2);
   const opts = { out: values.out, outDir: values['out-dir'], format: values.format };
   try {
@@ -67,19 +69,20 @@ export async function main(argv: string[]): Promise<number> {
     format = formatFor(opts);
     inputs = await expandInputs(positionals);
     if (opts.out && inputs.length > 1) throw new UsageError(`-o takes a single input (got ${inputs.length}); use --out-dir`);
+    targets = planOutputs(inputs, format, opts);
   } catch (err) {
     if (err instanceof UsageError) return usage(err.message);
     throw err;
   }
 
   let failed = 0;
-  for (const input of inputs) {
+  for (const [i, input] of inputs.entries()) {
     const name = input.path === '-' ? '<stdin>' : input.path;
     try {
       const source = input.path === '-' ? await readStdin() : await readFile(input.path, 'utf8');
       const result = await render(source, { theme, layout: direction ? { direction } : undefined });
       const output = format === 'png' ? await svgToPng(result.svg, scale) : result[format];
-      const target = outputPath(input, format, opts);
+      const target = targets[i];
       if (target === '-') {
         process.stdout.write(output);
       } else {

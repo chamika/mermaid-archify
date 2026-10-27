@@ -37,14 +37,16 @@ cat diagram.mmd | npx mermaid-archify - -f svg -o - > out.svg # stdin → stdout
 |---|---|
 | `-o, --out <file\|->` | Output file for a single input; its extension picks the format. `-` is stdout. |
 | `-d, --out-dir <dir>` | Write every output here, mirroring each input's path below its glob. |
-| `-f, --format html\|svg\|png` | Format when `-o` doesn't name one (default `html`). |
+| `-f, --format html\|svg\|png` | Format when `-o` doesn't name one (default `html`); if both do, they must agree. |
 | `-t, --theme dark\|light` | Palette (default `dark`). |
-| `--direction LR\|RL\|TB\|BT` | Override the diagram direction. |
+| `--direction LR\|RL\|TB\|BT` | Override the diagram direction (`TD` means `TB`). |
 | `--scale <n>` | PNG pixel ratio (default `2`). |
 | `-q, --quiet` | Don't list written files. |
 
 Without `-o` or `--out-dir`, each output goes next to its input. Quote globs so
-every shell passes them through unchanged. Layout settings in the source's
+every shell passes them through unchanged. Output paths are checked before
+anything renders: two inputs that would write the same file, or an output that
+would replace its own input, are a usage error. Layout settings in the source's
 front-matter (`config.archify`) apply, as in the app. Exit codes: `0` ok, `1`
 a diagram failed (reported as `file:line: message`, and the rest of the batch
 still renders), `2` usage error.

@@ -31,6 +31,9 @@ test('renders each content source', async ({ page }) => {
   for (const id of VISIBLE) expect(await page.locator(id).evaluate((el) => el.shadowRoot!.querySelectorAll('.ma-viewer').length)).toBe(1);
   // Nothing leaks into the document.
   expect(await page.evaluate(() => document.getElementById('ma-viewer-css'))).toBeNull();
+  expect(await page.evaluate(() => document.adoptedStyleSheets.length)).toBe(0);
+  // One stylesheet, shared by every diagram on the page.
+  expect(await page.evaluate(() => new Set([...document.querySelectorAll('mermaid-archify')].flatMap((el) => el.shadowRoot!.adoptedStyleSheets)).size)).toBe(1);
 });
 
 test('host CSS does not reach the diagram', async ({ page }) => {

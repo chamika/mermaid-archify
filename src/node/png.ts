@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
-import { ensureDom } from './dom';
+import { withDomSync } from './dom';
 
 /**
  * PNG without a browser: resvg rasterizes the SVG export. resvg reads presentation
@@ -75,7 +75,10 @@ function letterSpacing(el: Element, rules: CSSStyleRule[], fontSize: string): st
 
 /** The SVG export with its stylesheet and palette resolved into presentation attributes. */
 export function bakeStyles(svgText: string): string {
-  ensureDom();
+  return withDomSync(() => bake(svgText));
+}
+
+function bake(svgText: string): string {
   const parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml');
   const svg = document.importNode(parsed.documentElement, true) as unknown as SVGSVGElement;
   document.body.appendChild(svg);

@@ -1,5 +1,6 @@
 import { render } from 'preact';
 import { imageExports } from '../export/actions';
+import { normalizeScene } from '../scene/normalize';
 import type { Scene } from '../scene/types';
 import { VIEWER_CSS, Viewer } from '../viewer/Viewer';
 
@@ -39,6 +40,26 @@ function watchHostTheme(fn: () => void): () => void {
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', notify);
   }
   return () => themeListeners.delete(fn);
+}
+
+/**
+ * The viewer's stylesheet, shared by every element: a constructed sheet when the
+ * browser has them (a host CSP without `style-src 'unsafe-inline'` allows those),
+ * else a `<style>` per shadow root.
+ */
+let sheet: CSSStyleSheet | undefined;
+function adoptStyles(root: ShadowRoot) {
+  try {
+    if (!sheet) {
+      sheet = new CSSStyleSheet();
+      sheet.replaceSync(VIEWER_CSS + SHADOW_CSS);
+    }
+    root.adoptedStyleSheets = [sheet];
+  } catch {
+    const style = document.createElement('style');
+    style.textContent = VIEWER_CSS + SHADOW_CSS;
+    root.prepend(style);
+  }
 }
 
 /** Starts work only once the element is near the viewport. */
@@ -91,25 +112,31 @@ export class MermaidArchifyElement extends Base {
   #started = false;
   #load = 0;
   #unwatch?: () => void;
+  /** Inline content (source text or a child script) replaced after the first render, e.g. by a framework re-render. */
+  #content?: MutationObserver;
 
   connectedCallback() {
     if (!this.shadowRoot) {
       const root = this.attachShadow({ mode: 'open' });
-      const style = document.createElement('style');
-      style.textContent = VIEWER_CSS + SHADOW_CSS;
       this.#mount = document.createElement('div');
       this.#mount.className = 'ma-embed';
       this.#mount.setAttribute('part', 'viewer');
-      root.append(style, this.#mount);
+      root.append(this.#mount);
+      adoptStyles(root);
     }
     this.#applyHeight();
     this.#unwatch = watchHostTheme(() => this.#paint());
+    this.#content ??= new MutationObserver(() => {
+      if (this.#started && !this.hasAttribute('scene') && !this.hasAttribute('scene-json')) this.#start();
+    });
+    this.#content.observe(this, { childList: true, characterData: true, subtree: true });
     this.#paint();
     if (!this.#started) whenVisible(this, () => this.#start());
   }
 
   disconnectedCallback() {
     cancelVisible(this);
+    this.#content?.disconnect();
     this.#unwatch?.();
     this.#unwatch = undefined;
     // Unmount so listeners and timers go; reconnecting (moving the element) renders again.
@@ -131,18 +158,37 @@ export class MermaidArchifyElement extends Base {
     return this.#scene;
   }
 
-  /** Render a Scene directly (e.g. one produced by the `mermaid-archify` library). */
-  set scene(scene: Scene | undefined) {
+  /**
+   * Render a Scene directly (e.g. one produced by the `mermaid-archify` library).
+   * A string is the `scene` attribute's URL: frameworks (React 19, Preact, Vue) set
+   * a property rather than an attribute when the element has one by that name.
+   */
+  set scene(scene: Scene | string | undefined) {
+    if (typeof scene === 'string') {
+      this.setAttribute('scene', scene);
+      return;
+    }
     this.#load++;
-    this.#scene = scene;
     this.#started = true;
     cancelVisible(this);
-    this.#paint();
+    try {
+      this.#scene = scene === undefined ? undefined : normalizeScene(scene);
+      this.#paint();
+    } catch (err) {
+      this.#scene = undefined;
+      this.#paint((err as Error).message);
+    }
   }
 
   get theme(): Theme {
     const attr = this.getAttribute('theme');
     return this.#userTheme ?? (attr === 'light' || attr === 'dark' ? attr : hostTheme());
+  }
+
+  /** The `theme` attribute, as a property (frameworks set properties when one exists). */
+  set theme(value: 'auto' | Theme | undefined) {
+    if (value === undefined || value === 'auto') this.removeAttribute('theme');
+    else this.setAttribute('theme', value);
   }
 
   #applyHeight() {
@@ -164,10 +210,10 @@ export class MermaidArchifyElement extends Base {
     try {
       const sceneUrl = this.getAttribute('scene');
       const inline = this.getAttribute('scene-json') ?? this.querySelector(':scope > script[type="application/json"]')?.textContent;
-      if (sceneUrl) return done(await fetchText(sceneUrl).then(JSON.parse));
+      if (sceneUrl) return done(normalizeScene(await fetchText(sceneUrl).then(JSON.parse)));
       // Inline JSON is a Scene, or a JSON string of Mermaid source that could not go in a text/mermaid script.
       const json: unknown = inline ? JSON.parse(inline) : undefined;
-      if (json !== undefined && typeof json !== 'string') return done(json as Scene);
+      if (json !== undefined && typeof json !== 'string') return done(normalizeScene(json));
       const src = this.getAttribute('src');
       const source = typeof json === 'string' ? json : src ? await fetchText(src) : sourceText(this);
       if (!source.trim()) return done(undefined, 'No diagram: set scene, src, or put Mermaid source inside the element.');
@@ -176,7 +222,8 @@ export class MermaidArchifyElement extends Base {
       done(await renderScene(source));
     } catch (err) {
       const e = err as Error & { line?: number };
-      done(undefined, e.line ? `Line ${e.line}: ${e.message}` : e.message);
+      const message = e?.message || String(err);
+      done(undefined, e?.line ? `Line ${e.line}: ${message}` : message);
     }
   }
 

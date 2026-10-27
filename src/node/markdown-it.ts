@@ -56,24 +56,45 @@ export default function markdownItMermaidArchify(md: MarkdownItLike, options: Ma
 }
 
 let worker: { port: MessagePort; worker: Worker } | undefined;
+let lastId = 0;
+const TIMEOUT_MS = 60_000;
+
+function startWorker() {
+  const { port1, port2 } = new MessageChannel();
+  const w = new Worker(new URL('./render-worker.js', import.meta.url), { workerData: { port: port2 }, transferList: [port2] });
+  w.unref();
+  port1.unref();
+  return { port: port1, worker: w };
+}
 
 /**
  * Mermaid's parser and ELK are async, markdown-it is not: render in a worker
  * and block on a shared flag until it answers. The worker is unref'd, so it
- * never keeps the process alive.
+ * never keeps the process alive. A worker that times out is terminated (its late
+ * reply must not answer the next diagram), and one that dies is noticed within a
+ * second rather than after the timeout; either way the next diagram starts a new one.
  */
 export function renderSceneSync(source: string, layout?: LayoutSettings): Scene {
-  if (!worker) {
-    const { port1, port2 } = new MessageChannel();
-    const w = new Worker(new URL('./render-worker.js', import.meta.url), { workerData: { port: port2 }, transferList: [port2] });
-    w.unref();
-    port1.unref();
-    worker = { port: port1, worker: w };
-  }
+  const w = (worker ??= startWorker());
+  const id = ++lastId;
   const signal = new Int32Array(new SharedArrayBuffer(4));
-  worker.port.postMessage({ source, layout, signal });
-  if (Atomics.wait(signal, 0, 0, 60_000) === 'timed-out') throw new Error('Timed out rendering diagram');
-  const reply = receiveMessageOnPort(worker.port)?.message as { scene?: Scene; error?: { message: string; line?: number } } | undefined;
+  w.port.postMessage({ id, source, layout, signal });
+  for (let waited = 0; Atomics.load(signal, 0) === 0; waited += 1000) {
+    if (w.worker.threadId === -1) {
+      worker = undefined;
+      throw new Error('The render worker stopped');
+    }
+    if (waited >= TIMEOUT_MS) {
+      void w.worker.terminate();
+      worker = undefined;
+      throw new Error('Timed out rendering diagram');
+    }
+    Atomics.wait(signal, 0, 0, 1000);
+  }
+  type Reply = { id: number; scene?: Scene; error?: { message: string; line?: number } };
+  let reply: Reply | undefined;
+  do reply = receiveMessageOnPort(w.port)?.message as Reply | undefined;
+  while (reply && reply.id !== id);
   if (!reply) throw new Error('No reply from the render worker');
   if (reply.error) throw Object.assign(new Error(reply.error.message), { line: reply.error.line });
   return reply.scene!;
