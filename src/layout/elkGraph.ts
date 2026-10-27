@@ -317,6 +317,7 @@ export function fromElk(
     label: g.label,
     parent: g.parent,
     depth: depthOf(g.parent),
+    ...(g.style && { style: settleInk(g.style) }),
     ...boxes.get(g.id)!,
   }));
 

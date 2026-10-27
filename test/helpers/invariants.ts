@@ -26,12 +26,21 @@ const finite = (...vs: number[]) => vs.every((v) => Number.isFinite(v));
 /** Markup or Mermaid internals that must never reach a rendered label. */
 const LEAKS = /ﬂ°|¶ß|<\/?(br|b|i|em|strong|span|div|sub|sup)\b[^>]*>|&(amp|lt|gt|quot|nbsp|#\d+);/i;
 
+/** Markup the author wrote escaped (`#lt;br#gt;`), which labels show as text, as in Mermaid. */
+export const escapedMarkup = (source: string) => [...source.matchAll(/#lt;([^#\n]*)#gt;/g)].map((m) => `<${m[1]}>`);
+
+export interface CheckOptions {
+  /** Literal markup the labels may show (see `escapedMarkup`). */
+  escaped?: string[];
+}
+
 /**
  * Geometry and content invariants every laid-out Scene must satisfy. `where`
  * prefixes messages so a corpus failure names its fixture.
  */
-export function checkScene(s: Scene, where = '') {
+export function checkScene(s: Scene, where = '', { escaped = [] }: CheckOptions = {}) {
   const at = (msg: string) => `${where}${where ? ': ' : ''}${msg}`;
+  const leaks = (text: string) => LEAKS.test(escaped.reduce((t, e) => t.replaceAll(e, ''), text));
   expect(finite(s.width, s.height) && s.width > 0 && s.height > 0, at('canvas size')).toBe(true);
   const canvas = { x: 0, y: 0, w: s.width, h: s.height };
   const boxes = new Map<string, Box>([...s.groups, ...s.nodes].map((n) => [n.id, n]));
@@ -44,7 +53,7 @@ export function checkScene(s: Scene, where = '') {
 
   // Content: no leaked markup, labels fit their boxes.
   for (const n of s.nodes) {
-    expect(LEAKS.test(n.label), at(`node ${n.id} label leaks markup: ${JSON.stringify(n.label)}`)).toBe(false);
+    expect(leaks(n.label), at(`node ${n.id} label leaks markup: ${JSON.stringify(n.label)}`)).toBe(false);
     if (['rect', 'rounded', 'cylinder', 'subroutine', 'hexagon', 'participant', 'actor', 'document', 'parallelogram', 'trapezoid', 'note', 'text'].includes(n.shape)) {
       const widest = Math.max(0, ...n.lines.map((l) => textWidth(l, FONT.label)));
       expect(widest, at(`node ${n.id} label wider than its box`)).toBeLessThanOrEqual(n.w - 16);
@@ -63,7 +72,7 @@ export function checkScene(s: Scene, where = '') {
       const sec = m.sections[i];
       expect(sec.y + sec.h, at(`section ${i} of ${n.id} below its box`)).toBeLessThanOrEqual(n.h + 0.5);
       for (const r of c.rows) {
-        expect(LEAKS.test(r.cells.join(' ')), at(`row of ${n.id} leaks markup: ${JSON.stringify(r.cells)}`)).toBe(false);
+        expect(leaks(r.cells.join(' ')), at(`row of ${n.id} leaks markup: ${JSON.stringify(r.cells)}`)).toBe(false);
         r.cells.forEach((cell, k) => {
           const right = sec.colX[k] + textWidth(fitCell(cell), ROW.size);
           expect(right, at(`row ${JSON.stringify(cell)} of ${n.id} wider than its box`)).toBeLessThanOrEqual(n.w - ROW.padX + 0.5);
@@ -72,9 +81,9 @@ export function checkScene(s: Scene, where = '') {
     });
   }
   for (const e of s.edges) {
-    if (e.label) expect(LEAKS.test(e.label), at(`edge ${e.id} label leaks markup: ${JSON.stringify(e.label)}`)).toBe(false);
+    if (e.label) expect(leaks(e.label), at(`edge ${e.id} label leaks markup: ${JSON.stringify(e.label)}`)).toBe(false);
   }
-  for (const g of s.groups) expect(LEAKS.test(g.label), at(`group ${g.id} label leaks markup`)).toBe(false);
+  for (const g of s.groups) expect(leaks(g.label), at(`group ${g.id} label leaks markup`)).toBe(false);
 
   // Icons: no raw Font Awesome token survives, and every inline icon has path data.
   for (const text of [...s.nodes.map((n) => n.label), ...s.edges.map((e) => e.label ?? ''), ...s.groups.map((g) => g.label)]) {
@@ -139,24 +148,38 @@ export const maxLabelGap = 12;
 
 function checkSequence(s: Scene, at: (m: string) => string) {
   const seq = s.seq!;
-  const lifeline = new Map(seq.lifelines.map((l) => [l.actor, l.x]));
-  // Participants left to right in declared order, headers and footers aligned.
+  const lifeline = new Map(seq.lifelines.map((l) => [l.actor, l]));
+  const head = new Map(s.nodes.map((n) => [n.id, n]));
+  // Participants left to right in declared order, footers under their headers.
   for (let i = 1; i < s.nodes.length; i++)
     expect(s.nodes[i].x, at(`participant ${s.nodes[i].id} out of order`)).toBeGreaterThan(s.nodes[i - 1].x + s.nodes[i - 1].w);
-  seq.footers.forEach((f, i) => expect(f.x, at('footer misaligned')).toBe(s.nodes[i].x));
+  for (const f of seq.footers) expect(f.x, at(`footer ${f.id} misaligned`)).toBe(head.get(f.id)!.x);
+  // Lifelines hang from their header; a destroyed one has no footer.
+  for (const l of seq.lifelines) {
+    const h = head.get(l.actor)!;
+    expect(l.y1, at(`lifeline ${l.actor} detached from its header`)).toBe(h.y + h.h);
+    expect(l.y2, at(`lifeline ${l.actor} ends above its start`)).toBeGreaterThan(l.y1 - 1);
+    expect(seq.footers.some((f) => f.id === l.actor), at(`footer of ${l.actor}`)).toBe(!l.destroyed);
+  }
 
   let lastY = -Infinity;
+  /** A message end sits on its participant's lifeline while it lives (allowing for activation bars), or on the header a `create` message draws. */
+  const attached = (p: Pt, actor: string) => {
+    const l = lifeline.get(actor)!;
+    return (Math.abs(p.x - l.x) <= 24 && p.y > l.y1 && p.y <= l.y2 + 0.5) || onBoundary(p, head.get(actor)!);
+  };
   for (const e of s.edges) {
     const [a, b] = [e.points[0], e.points.at(-1)!];
     expect(finite(a.x, a.y, b.x, b.y), at(`message ${e.id} non-finite`)).toBe(true);
     // Messages run top to bottom, in authored order.
     expect(a.y, at(`message ${e.id} out of order`)).toBeGreaterThan(lastY);
     lastY = a.y;
-    // Anchored to lifelines (allowing for activation bar offsets).
-    expect(Math.abs(a.x - lifeline.get(e.from)!), at(`message ${e.id} detached from ${e.from}`)).toBeLessThanOrEqual(24);
-    expect(Math.abs(b.x - lifeline.get(e.to)!), at(`message ${e.id} detached from ${e.to}`)).toBeLessThanOrEqual(24);
-    expect(a.y > seq.lifelines[0].y1 && a.y < seq.lifelines[0].y2, at(`message ${e.id} outside the lifelines`)).toBe(true);
+    expect(attached(a, e.from), at(`message ${e.id} detached from ${e.from}`)).toBe(true);
+    expect(attached(b, e.to), at(`message ${e.id} detached from ${e.to}`)).toBe(true);
   }
+  // Boxes enclose their participants' headers.
+  for (const g of s.groups)
+    for (const n of s.nodes) if (n.parent === g.id) expect(inside(n, g), at(`participant ${n.id} outside box ${g.id}`)).toBe(true);
   const labels = s.edges.flatMap((e) => (e.labelBox ? [{ id: e.id, b: e.labelBox }] : []));
   for (let i = 0; i < labels.length; i++)
     for (let j = i + 1; j < labels.length; j++)

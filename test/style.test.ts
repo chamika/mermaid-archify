@@ -17,8 +17,18 @@ describe('parseStyle', () => {
   });
 
   test('rejects values that are not plain colours', () => {
-    for (const bad of ['url(#x)', 'var(--text)', 'expression(alert(1))', '#12', '#gggggg', 'notacolour', 'red;fill:blue', 'rgb(1,2,3)'])
+    for (const bad of ['url(#x)', 'var(--text)', 'expression(alert(1))', '#12', '#gggggg', 'notacolour', 'red;fill:blue', 'rgb(300,0,0)', 'rgb(1,2)', 'hsl(1,2,3)', 'rgb(1,2,3);x:url(a)'])
       expect(parseStyle([`fill:${bad}`]), bad).toBeUndefined();
+  });
+
+  test('rgb() and hsl() become hex', () => {
+    const fill = (v: string) => parseStyle([`fill:${v}`])?.fill;
+    expect(fill('rgb(255 0 0)')).toBe('#ff0000');
+    expect(fill('rgba(0,128,255,0.25)')).toBe('#0080ff40');
+    expect(fill('rgb(255 0 0 / 50%)')).toBe('#ff000080');
+    expect(fill('rgb(10%,20%,30%)')).toBe('#1a334d');
+    expect(fill('hsl(120, 100%, 50%)')).toBe('#00ff00');
+    expect(fill('hsl(240deg 100% 25%)')).toBe('#000080');
   });
 
   test('clamps stroke width and restricts dasharray to numbers', () => {

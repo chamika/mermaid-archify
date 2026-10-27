@@ -449,3 +449,36 @@ describe('region palette', () => {
     }
   });
 });
+
+describe('sequence: create, destroy and boxes', () => {
+  test('a created participant heads its lifeline on the creating row; a destroyed one ends with no footer', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  A->>B: hi\n  create participant C\n  B->>C: make\n  C->>B: ok\n  destroy C\n  B-xC: bye\n  B->>A: done');
+    const s = await layout(ir, elk);
+    checkInvariants(s);
+    const head = (id: string) => s.nodes.find((n) => n.id === id)!;
+    const line = (id: string) => s.seq!.lifelines.find((l) => l.actor === id)!;
+    const make = s.edges[1];
+    // The creating message ends on C's header, which sits on that row, below A's and B's.
+    expect(head('C').y).toBeGreaterThan(head('A').y + head('A').h);
+    expect(make.points[1].y).toBeGreaterThan(head('C').y);
+    expect(make.points[1].y).toBeLessThan(head('C').y + head('C').h);
+    expect(make.points[1].x).toBeCloseTo(head('C').x);
+    expect(line('C').y1).toBe(head('C').y + head('C').h);
+    // The destroying message ends C's lifeline; no footer for C.
+    expect(line('C')).toMatchObject({ destroyed: true, y2: s.edges[3].points[0].y });
+    expect(s.seq!.footers.map((f) => f.id)).toEqual(['A', 'B']);
+  });
+
+  test('boxes enclose their participants, with room for the label, and keep neighbours apart', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  box Aqua Front\n    participant A\n    participant B\n  end\n  box rgb(200 10 10) Back\n    participant C\n  end\n  A->>B: x\n  B->>C: y');
+    const s = await layout(ir, elk);
+    checkInvariants(s);
+    expect(s.groups.map((g) => [g.id, g.label, g.style?.fill])).toEqual([
+      ['box1', 'Front', 'aqua'],
+      ['box2', 'Back', '#c80a0a'],
+    ]);
+    const [front, back] = s.groups;
+    expect(front.x + front.w).toBeLessThan(back.x);
+    for (const n of s.nodes) expect(n.y).toBeGreaterThanOrEqual(front.y + 28);
+  });
+});

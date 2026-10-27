@@ -216,7 +216,7 @@ const accentVars = (accent: string | undefined): Record<string, string> | undefi
 
 function GroupView({ g }: { g: SceneGroup }) {
   return (
-    <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={accentVars(g.accent)}>
+    <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={{ ...accentVars(g.accent), ...userVars(g.style) }}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
       {g.label && <RichText lines={[g.label]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
     </g>
@@ -517,6 +517,11 @@ function SequenceBackdrop({ scene }: { scene: Scene }) {
       {seq.lifelines.map((l) => (
         <line class="ma-lifeline" key={l.actor} data-actor={l.actor} x1={l.x} x2={l.x} y1={l.y1} y2={l.y2} />
       ))}
+      {seq.lifelines
+        .filter((l) => l.destroyed)
+        .map((l) => (
+          <path class="ma-destroyed" key={`x-${l.actor}`} d={`M${l.x - 8},${l.y2 - 8}L${l.x + 8},${l.y2 + 8}M${l.x + 8},${l.y2 - 8}L${l.x - 8},${l.y2 + 8}`} />
+        ))}
       {seq.activations.map((a, i) => (
         <rect class="ma-activation" key={i} x={a.x} y={a.y} width={a.w} height={Math.max(a.h, 8)} rx={2} />
       ))}

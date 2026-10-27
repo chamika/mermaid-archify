@@ -50,11 +50,37 @@ const NAMED: Record<string, string> = Object.fromEntries(
 
 const HEX = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
-/** A colour we can emit verbatim: hex, a CSS named colour, or `transparent`. */
+/** A colour we can emit verbatim: hex, a CSS named colour, or `transparent`; `rgb()`/`hsl()` become hex. */
 function authorColor(v: string): string | undefined {
   const c = v.trim().toLowerCase();
   if (HEX.test(c) || NAMED[c] || c === 'transparent') return c;
-  return undefined;
+  return functionalColor(c);
+}
+
+/** `rgb()`/`rgba()`/`hsl()`/`hsla()`, comma or space syntax, as `#rrggbb[aa]`; undefined when malformed. */
+function functionalColor(c: string): string | undefined {
+  const m = /^(rgb|hsl)a?\(\s*([^()]*?)\s*\)$/.exec(c);
+  if (!m) return undefined;
+  const parts = m[2].split(/\s*[,/]\s*|\s+/);
+  if (parts.length < 3 || parts.length > 4) return undefined;
+  /** A number, a percentage of `scale`, or (hue) degrees. */
+  const num = (p: string, scale: number) => {
+    const v = /^(\d+(?:\.\d+)?|\.\d+)(%|deg)?$/.exec(p);
+    return !v ? NaN : v[2] === '%' ? (Number(v[1]) / 100) * scale : Number(v[1]);
+  };
+  let rgb: number[];
+  if (m[1] === 'rgb') rgb = parts.slice(0, 3).map((p) => num(p, 255));
+  else {
+    const [h, s, l] = [num(parts[0], 360) % 360, num(parts[1], 1), num(parts[2], 1)];
+    if (![s, l].every((x) => parts[1].endsWith('%') && parts[2].endsWith('%') && x <= 1)) return undefined;
+    const k = (n: number) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    rgb = [0, 8, 4].map((n) => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+  }
+  const alpha = parts[3] === undefined ? 1 : num(parts[3], 1);
+  if (![...rgb, alpha].every(Number.isFinite) || rgb.some((x) => x > 255) || alpha > 1) return undefined;
+  const hex = (x: number) => Math.round(x).toString(16).padStart(2, '0');
+  return `#${rgb.map(hex).join('')}${alpha < 1 ? hex(alpha * 255) : ''}`;
 }
 
 /**

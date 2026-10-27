@@ -2907,19 +2907,19 @@ exports[`mermaid-demos/sequence-001 > parses, lays out, and satisfies scene inva
 {
   "direction": "LR",
   "edges": [
-    "Alice -> Bob "Hello Bob, how are you?"",
-    "Bob -> John "How about you John?"",
-    "Bob -> Alice "I am good thanks!"",
-    "Bob -> John "I am good thanks!"",
-    "Bob -> Alice "Checking with John..."",
-    "Bob -> John "Hey John - we're still waiting to know\\nhow you're doing"",
-    "Bob -> John "John! Are you still debating about how you're doing? How long does it take??"",
+    "Alice -> Bob "10 Hello Bob, how are you?"",
+    "Bob -> John "20 How about you John?"",
+    "Bob -> Alice "30 I am good thanks!"",
+    "Bob -> John "40 I am good thanks!"",
+    "Bob -> Alice "50 Checking with John..."",
+    "Bob -> John "60 Hey John - we're still waiting to know\\nhow you're doing"",
+    "Bob -> John "70 John! Are you still debating about how you're doing? How long does it take??"",
     "Alice -> John "Yes"",
     "John -> Alice "OK"",
-    "Alice -> John "No"",
-    "Alice -> John "Maybe"",
-    "Alice -> Bob "Parallel message 1"",
-    "Alice -> John "Parallel message 2"",
+    "Alice -> John "100 No"",
+    "Alice -> John "110 Maybe"",
+    "Alice -> Bob "200 Parallel message 1"",
+    "Alice -> John "201 Parallel message 2"",
   ],
   "events": "blockStart blockStart message message blockEnd message message note message note message note message note blockEnd blockStart message activate message deactivate blockSection message blockSection message blockEnd blockStart message blockSection message blockEnd",
   "groups": [],
@@ -2994,19 +2994,19 @@ exports[`mermaid-demos/sequence-004 > parses, lays out, and satisfies scene inva
 {
   "direction": "LR",
   "edges": [
-    "1 -> 2 "multiline\\nusing"",
-    "2 -> 3 "multiline\\nusing"",
-    "3 -> 4 "multiline\\nusing"",
-    "4 -> 1 "multiline\\nusing"",
+    "1 -> 2 "multiline\\nusing <br>"",
+    "2 -> 3 "multiline\\nusing <br/>"",
+    "3 -> 4 "multiline\\nusing <br />"",
+    "4 -> 1 "multiline\\nusing <br />"",
   ],
   "events": "message note message note message note message note",
   "groups": [],
   "kind": "sequence",
   "nodes": [
-    "1[participant] "multiline\\nusing"",
-    "2[participant] "multiline\\nusing"",
-    "3[participant] "multiline\\nusing"",
-    "4[participant] "multiline\\nusing"",
+    "1[participant] "multiline\\nusing <br>"",
+    "2[participant] "multiline\\nusing <br/>"",
+    "3[participant] "multiline\\nusing <br />"",
+    "4[participant] "multiline\\nusing <br />"",
   ],
   "title": undefined,
   "types": {
@@ -3019,9 +3019,9 @@ exports[`mermaid-demos/sequence-005 > parses, lays out, and satisfies scene inva
 {
   "direction": "LR",
   "edges": [
-    "Alice -> John "Hello John,\\nhow are you?"",
-    "Alice -> John "John,\\ncan you hear me?"",
-    "John -> Alice "Hi Alice,\\nI can hear you!"",
+    "Alice -> John "1 Hello John,\\nhow are you?"",
+    "Alice -> John "50 John,\\ncan you hear me?"",
+    "John -> Alice "60 Hi Alice,\\nI can hear you!"",
     "John -> Alice "I feel great!"",
   ],
   "events": "message message message message",
@@ -3047,12 +3047,15 @@ exports[`mermaid-demos/sequence-006 > parses, lays out, and satisfies scene inva
     "A -> B "Hello Bob, how are you ?"",
   ],
   "events": "message message message",
-  "groups": [],
+  "groups": [
+    "box1 "Alice & John"",
+    "box2 "Group very very long description not wrapped"",
+  ],
   "kind": "sequence",
   "nodes": [
-    "A[participant] "A"",
-    "J[participant] "J"",
-    "B[participant] "B"",
+    "A[participant in box1] "A"",
+    "J[participant in box1] "J"",
+    "B[participant in box2] "B"",
   ],
   "title": undefined,
   "types": {
@@ -3112,7 +3115,7 @@ exports[`mermaid-demos/sequence-009 > parses, lays out, and satisfies scene inva
     "1 -> 2 "$$\\\\sqrt{2}$$"",
     "2 -> 3 "$$\\\\frac{\\\\lim_{x\\\\rightarrow0}{\\\\frac{1}{x}}}{\\\\frac{-b\\\\pm\\\\sqrt{b^2-4ac}}{2a}}$$"",
     "3 -> 4 "$$\\\\lim_{x\\\\rightarrow0}{\\\\frac{1}{x}}$$"",
-    "4 -> 1 "multiline\\nusing"",
+    "4 -> 1 "multiline\\nusing <br />"",
   ],
   "events": "message note message note message note message note",
   "groups": [],
@@ -3364,8 +3367,8 @@ exports[`mermaid-demos/state-008 > parses, lays out, and satisfies scene invaria
   ],
   "title": undefined,
   "types": {
-    "backend": 1,
     "external": 1,
+    "plain": 1,
   },
 }
 `;
@@ -7240,12 +7243,12 @@ exports[`mermaid-docs/sequence-002 > parses, lays out, and satisfies scene invar
 {
   "direction": "LR",
   "edges": [
-    "Customer -> Web "Place order"",
-    "Web -> API "POST /orders"",
-    "API -> Bank "Authorise payment"",
-    "Bank -> API "Approved"",
-    "API -> Web "201 Created"",
-    "Web -> Customer "Order confirmed"",
+    "Customer -> Web "1 Place order"",
+    "Web -> API "2 POST /orders"",
+    "API -> Bank "3 Authorise payment"",
+    "Bank -> API "4 Approved"",
+    "API -> Web "5 201 Created"",
+    "Web -> Customer "6 Order confirmed"",
   ],
   "events": "message message activate message message message deactivate message note",
   "groups": [],
@@ -7269,12 +7272,12 @@ exports[`mermaid-docs/sequence-003 > parses, lays out, and satisfies scene invar
 {
   "direction": "LR",
   "edges": [
-    "Customer -> Web "Place order"",
-    "Web -> API "POST /orders"",
-    "API -> Bank "Authorise payment"",
-    "Bank -> API "Approved"",
-    "API -> Web "201 Created"",
-    "Web -> Customer "Order confirmed"",
+    "Customer -> Web "1 Place order"",
+    "Web -> API "2 POST /orders"",
+    "API -> Bank "3 Authorise payment"",
+    "Bank -> API "4 Approved"",
+    "API -> Web "5 201 Created"",
+    "Web -> Customer "6 Order confirmed"",
   ],
   "events": "message message activate message message message deactivate message note",
   "groups": [],
@@ -7597,13 +7600,16 @@ exports[`mermaid-docs/sequence-017 > parses, lays out, and satisfies scene invar
     "B -> C "Hello Charley, how are you?"",
   ],
   "events": "message message message message",
-  "groups": [],
+  "groups": [
+    "box1 "Alice & John"",
+    "box2 "Group"",
+  ],
   "kind": "sequence",
   "nodes": [
-    "A[participant] "A"",
-    "J[participant] "J"",
-    "B[participant] "B"",
-    "C[participant] "C"",
+    "A[participant in box1] "A"",
+    "J[participant in box1] "J"",
+    "B[participant in box2] "B"",
+    "C[participant in box2] "C"",
   ],
   "title": undefined,
   "types": {
@@ -8010,11 +8016,11 @@ exports[`mermaid-docs/sequence-036 > parses, lays out, and satisfies scene invar
 {
   "direction": "LR",
   "edges": [
-    "Alice -> John "Hello John, how are you?"",
-    "John -> John "Fight against hypochondria"",
-    "John -> Alice "Great!"",
-    "John -> Bob "How about you?"",
-    "Bob -> John "Jolly good!"",
+    "Alice -> John "1 Hello John, how are you?"",
+    "John -> John "2 Fight against hypochondria"",
+    "John -> Alice "3 Great!"",
+    "John -> Bob "4 How about you?"",
+    "Bob -> John "5 Jolly good!"",
   ],
   "events": "message blockStart message blockEnd note message message message",
   "groups": [],
@@ -8164,8 +8170,7 @@ exports[`mermaid-docs/state-003 > parses, lays out, and satisfies scene invarian
   "title": undefined,
   "types": {
     "external": 1,
-    "frontend": 1,
-    "plain": 6,
+    "plain": 7,
   },
 }
 `;
@@ -8201,8 +8206,7 @@ exports[`mermaid-docs/state-004 > parses, lays out, and satisfies scene invarian
   "title": undefined,
   "types": {
     "external": 1,
-    "frontend": 1,
-    "plain": 6,
+    "plain": 7,
   },
 }
 `;
@@ -8334,7 +8338,7 @@ exports[`mermaid-docs/state-011 > parses, lays out, and satisfies scene invarian
   "events": undefined,
   "groups": [
     "First "First"",
-    "NamedComposite "NamedComposite"",
+    "NamedComposite "Another Composite"",
   ],
   "kind": "state",
   "nodes": [

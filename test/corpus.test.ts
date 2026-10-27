@@ -8,7 +8,7 @@ import { layout } from '../src/layout';
 import { toElkGraph } from '../src/layout/elkGraph';
 import type { Routing } from '../src/layout/settings';
 import { MermaidParseError, parseMermaid } from '../src/parse';
-import { checkScene } from './helpers/invariants';
+import { checkScene, escapedMarkup } from './helpers/invariants';
 
 /**
  * Every diagram from Mermaid's own docs and demo pages (test/corpus, refreshed by
@@ -84,7 +84,7 @@ describe.each(fixtures)('%s', (name) => {
     const scene = await layout(ir, elk);
     expect(scene.nodes).toHaveLength(ir.nodes.length);
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
-    checkScene(scene, name);
+    checkScene(scene, name, { escaped: escapedMarkup(src) });
     // Palette tints never reach a diagram with component types; region tints (#26) only group-free flowcharts.
     const tinted = [...scene.groups, ...scene.nodes, ...scene.edges].filter((b) => b.accent).map((b) => b.id);
     if (scene.nodes.some((n) => n.type !== 'plain')) expect(tinted, 'typed diagrams stay neutral').toEqual([]);
@@ -102,10 +102,11 @@ const graphs = fixtures.filter((f) => !INVALID[f] && !f.split('/')[1].startsWith
 
 describe.each(ROUTINGS)('routing: %s', (routing) => {
   test.each(graphs)('%s satisfies scene invariants', async (name) => {
-    const ir = await parseMermaid(read(name));
+    const src = read(name);
+    const ir = await parseMermaid(src);
     const scene = await layout(ir, elk, { routing });
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
-    checkScene(scene, `${name} (${routing})`);
+    checkScene(scene, `${name} (${routing})`, { escaped: escapedMarkup(src) });
   });
 });
 
@@ -139,12 +140,13 @@ test.each(flows)('%s: model order agrees with the layout edges', async (name) =>
  */
 describe.each<Routing>(['orthogonal', 'polyline', 'splines'])('pinned, routing: %s', (routing) => {
   test.each(graphs)('%s satisfies scene invariants', async (name) => {
-    const ir = await parseMermaid(read(name));
+    const src = read(name);
+    const ir = await parseMermaid(src);
     const id = ir.nodes.find((n) => ir.edges.some((e) => !e.invisible && (e.from === n.id || e.to === n.id)))?.id;
     if (!id) return;
     const pins = { [id]: [37, 53] as [number, number] };
     const scene = await layout(ir, elk, { routing, pins });
     expect(scene.nodes).toHaveLength(ir.nodes.length);
-    checkScene(scene, `${name} (${routing}, ${id} pinned)`);
+    checkScene(scene, `${name} (${routing}, ${id} pinned)`, { escaped: escapedMarkup(src) });
   });
 });

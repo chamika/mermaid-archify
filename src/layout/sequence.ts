@@ -1,5 +1,6 @@
-import type { DiagramIR, SeqBlockType } from '../ir/types';
-import type { Pt, Scene, SceneActivation, SceneBlock, SceneEdge, SceneNode, SceneNote } from '../scene/types';
+import { settleInk } from '../ir/style';
+import type { DiagramIR, IRNode, SeqBlockType } from '../ir/types';
+import type { Pt, Scene, SceneActivation, SceneBlock, SceneEdge, SceneGroup, SceneNode, SceneNote } from '../scene/types';
 import { CAPTION_H, FONT, edgeLabelSize, textWidth, wrap } from './measure';
 
 const MARGIN = 32;
@@ -8,6 +9,9 @@ const SELF_W = 44;
 const ACT_W = 10;
 const BLOCK_PAD = 18;
 const NOTE_MAX = 30;
+/** Space between a `box` band and the participants in it, and above them for its label. */
+const BOX_PAD = 14;
+const BOX_LABEL = 30;
 
 /** Deterministic sequence layout: participant columns, one row per event. */
 export function layoutSequence(ir: DiagramIR): Scene {
@@ -16,9 +20,14 @@ export function layoutSequence(ir: DiagramIR): Scene {
   const headLines = ir.nodes.map((n) => wrap(n.label, 24));
   const widths = headLines.map((lines) => Math.max(120, Math.ceil(Math.max(...lines.map((l) => textWidth(l, FONT.label))) + 36)));
   const HEAD_H = Math.max(56, Math.ceil(Math.max(1, ...headLines.map((l) => l.length)) * FONT.label * FONT.lineHeight + CAPTION_H + 26));
+  const boxes = ir.groups.filter((g) => g.hint === 'box');
+  /** Top of the participant headers: below the box labels when there are boxes. */
+  const TOP = MARGIN + (boxes.length ? BOX_LABEL : 0);
 
   // --- columns: minimum centre distance between neighbours ---
-  const need: number[] = ir.nodes.map((_, i) => (i === 0 ? 0 : (widths[i - 1] + widths[i]) / 2 + COL_GAP));
+  const need: number[] = ir.nodes.map((n, i) =>
+    i === 0 ? 0 : (widths[i - 1] + widths[i]) / 2 + COL_GAP + (n.parent !== ir.nodes[i - 1].parent ? BOX_PAD * 2 : 0),
+  );
   const spans: { a: number; b: number; w: number }[] = [];
   for (const ev of events) {
     if (ev.kind === 'message') {
@@ -48,21 +57,30 @@ export function layoutSequence(ir: DiagramIR): Scene {
     for (let i = s.a + 1; i < cx.length; i++) cx[i] += per * Math.min(i - s.a, s.b - s.a);
   }
 
-  const header = (y: number): SceneNode[] =>
-    ir.nodes.map((n, i) => ({
-      id: n.id,
-      label: n.label,
-      lines: headLines[i],
-      type: n.type,
-      shape: n.shape,
-      x: cx[i] - widths[i] / 2,
-      y,
-      w: widths[i],
-      h: HEAD_H,
-    }));
+  /** Header y of participants brought in by a `create` message; the others head the diagram. */
+  const createdAt = new Map<string, number>();
+  /** Where `destroy`ed participants' lifelines end. */
+  const destroyedAt = new Map<string, number>();
+  /** Participant boxes at `y`; headers (`created`) of created participants sit on their creating row instead. */
+  const header = (y: number, which: IRNode[], created: boolean): SceneNode[] =>
+    which.map((n) => {
+      const i = index.get(n.id)!;
+      return {
+        id: n.id,
+        label: n.label,
+        lines: headLines[i],
+        type: n.type,
+        shape: n.shape,
+        ...(n.parent && { parent: n.parent }),
+        x: cx[i] - widths[i] / 2,
+        y: created ? (createdAt.get(n.id) ?? y) : y,
+        w: widths[i],
+        h: HEAD_H,
+      };
+    });
 
   // --- rows ---
-  let y = MARGIN + HEAD_H + 28;
+  let y = TOP + HEAD_H + 28;
   const edges: SceneEdge[] = [];
   const notes: SceneNote[] = [];
   const blocks: SceneBlock[] = [];
@@ -121,16 +139,25 @@ export function layoutSequence(ir: DiagramIR): Scene {
         } else {
           const right = b > a;
           y += labelH + 4;
-          const x1 = cx[a] + actOffset(ev.from, right);
-          const x2 = cx[b] + actOffset(ev.to, !right);
+          // A `create` message ends on the new participant's header, drawn on this row.
+          const made = ev.creates === ev.to || ev.creates === ev.from ? ev.creates : undefined;
+          if (made) {
+            y += HEAD_H / 2;
+            createdAt.set(made, y - HEAD_H / 2);
+          }
+          const end = (col: number, actor: string, towardsRight: boolean) =>
+            actor === made ? cx[col] + (towardsRight ? widths[col] / 2 : -widths[col] / 2) : cx[col] + actOffset(actor, towardsRight);
+          const x1 = end(a, ev.from, right);
+          const x2 = end(b, ev.to, !right);
           points = [
             { x: x1, y },
             { x: x2, y },
           ];
           if (ev.label) labelBox = { x: (x1 + x2) / 2 - label.w / 2, y: y - label.h - 3, w: label.w, h: label.h };
           lastMessageY = y;
-          y += 30;
+          y += made ? HEAD_H / 2 + 30 : 30;
         }
+        if (ev.destroys) destroyedAt.set(ev.destroys, lastMessageY);
         reach(Math.min(...points.map((p) => p.x)), Math.max(...points.map((p) => p.x)));
         if (labelBox) reach(labelBox.x, labelBox.x + labelBox.w);
         edges.push({
@@ -232,12 +259,27 @@ export function layoutSequence(ir: DiagramIR): Scene {
   }
 
   const footY = y + 10;
-  const nodes = header(MARGIN);
-  const footers = header(footY);
-  const lifelines = ir.nodes.map((n, i) => ({ actor: n.id, x: cx[i], y1: MARGIN + HEAD_H, y2: footY }));
+  const nodes = header(TOP, ir.nodes, true);
+  // A destroyed participant's lifeline ends at its `destroy` message, with a cross and no footer.
+  const footers = header(footY, ir.nodes.filter((n) => !destroyedAt.has(n.id)), false);
+  const lifelines = ir.nodes.map((n, i) => ({
+    actor: n.id,
+    x: cx[i],
+    y1: (createdAt.get(n.id) ?? TOP) + HEAD_H,
+    y2: destroyedAt.get(n.id) ?? footY,
+    ...(destroyedAt.has(n.id) && { destroyed: true }),
+  }));
+  const groups: SceneGroup[] = boxes.flatMap((g) => {
+    const cols = ir.nodes.flatMap((n, i) => (n.parent === g.id ? [i] : []));
+    if (!cols.length) return [];
+    const x = Math.min(...cols.map((i) => cx[i] - widths[i] / 2)) - BOX_PAD;
+    const right = Math.max(...cols.map((i) => cx[i] + widths[i] / 2)) + BOX_PAD;
+    return [{ id: g.id, label: g.label, depth: 0, x, y: MARGIN, w: right - x, h: footY + HEAD_H + BOX_PAD - MARGIN, ...(g.style && { style: settleInk(g.style) }) }];
+  });
 
   const extents = [
     ...nodes.map((n) => n.x + n.w),
+    ...groups.map((g) => g.x + g.w),
     ...notes.map((n) => n.x + n.w),
     ...blocks.map((b) => b.x + b.w),
     ...edges.flatMap((e) => e.points.map((p) => p.x)),
@@ -246,7 +288,7 @@ export function layoutSequence(ir: DiagramIR): Scene {
   const minX = Math.min(MARGIN, ...notes.map((n) => n.x), ...blocks.map((b) => b.x));
   const shift = minX < MARGIN ? MARGIN - minX : 0;
   if (shift) {
-    for (const n of [...nodes, ...footers, ...notes, ...blocks, ...activations]) n.x += shift;
+    for (const n of [...nodes, ...footers, ...notes, ...blocks, ...activations, ...groups]) n.x += shift;
     for (const l of lifelines) l.x += shift;
     for (const e of edges) {
       e.points = e.points.map((p) => ({ x: p.x + shift, y: p.y }));
@@ -259,9 +301,9 @@ export function layoutSequence(ir: DiagramIR): Scene {
     kind: 'sequence',
     title: ir.title,
     width: Math.ceil(Math.max(...extents) + shift + MARGIN),
-    height: Math.ceil(footY + HEAD_H + MARGIN),
+    height: Math.ceil(footY + HEAD_H + MARGIN + (groups.length ? BOX_PAD : 0)),
     nodes,
-    groups: [],
+    groups,
     edges,
     seq: { lifelines, activations, notes, blocks, footers },
   };
