@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { FONT, ROW, compartmentMetrics, edgeLabelSize, fitCell, textWidth } from '../../src/layout/measure';
+import { FONT, ROW, blockTitleWidth, compartmentMetrics, edgeLabelSize, fitCell, fitGroupTitle, groupTitleWidth, textWidth } from '../../src/layout/measure';
 import { iconKeys } from '../../src/icons/fa';
 import { nearestOnPath } from '../../src/layout/elkGraph';
 import type { Box, Pt, Scene } from '../../src/scene/types';
@@ -84,6 +84,14 @@ export function checkScene(s: Scene, where = '', { escaped = [] }: CheckOptions 
     if (e.label) expect(leaks(e.label), at(`edge ${e.id} label leaks markup: ${JSON.stringify(e.label)}`)).toBe(false);
   }
   for (const g of s.groups) expect(leaks(g.label), at(`group ${g.id} label leaks markup`)).toBe(false);
+  // Titles fit their frames.
+  for (const g of s.groups) {
+    expect(groupTitleWidth(fitGroupTitle(g.label, g.w)), at(`title of group ${g.id} wider than the group`)).toBeLessThanOrEqual(g.w + 0.5);
+    if (g.label) expect(fitGroupTitle(g.label, g.w).length, at(`group ${g.id} has no room for its title`)).toBeGreaterThan(0);
+  }
+  for (const b of s.seq?.blocks ?? [])
+    if (b.type !== 'rect')
+      expect(b.w + 0.5, at(`title of block ${b.id} wider than the block`)).toBeGreaterThanOrEqual(blockTitleWidth(b.type, b.label, b.sections.map((x) => x.label)));
 
   // Icons: no raw Font Awesome token survives, and every inline icon has path data.
   for (const text of [...s.nodes.map((n) => n.label), ...s.edges.map((e) => e.label ?? ''), ...s.groups.map((g) => g.label)]) {

@@ -57,11 +57,21 @@ function tryPin(s: Scene, id: string, [dx, dy]: [number, number], opts: PinOptio
   node.y += dy;
   const grown = growGroups(s, node);
   const changed = new Set([id, ...grown]);
+  // A self-loop moves with its node, keeping ELK's loop and label; re-routing one between
+  // two sides of the same box would leave a stub with its label on the node.
+  const loops = s.edges.filter((e) => e.from === id && e.to === id);
+  for (const e of loops) translateEdge(e, dx, dy);
   const reroute = s.edges.filter(
-    (e) => changed.has(e.from) || changed.has(e.to) || (e.from !== id && e.to !== id && pathHits(e.points, node)),
+    (e) => !loops.includes(e) && (changed.has(e.from) || changed.has(e.to) || (e.from !== id && e.to !== id && pathHits(e.points, node))),
   );
   route(s, reroute, opts);
-  return valid(s, node, grown, reroute);
+  return valid(s, node, grown, [...reroute, ...loops]);
+}
+
+function translateEdge(e: SceneEdge, dx: number, dy: number) {
+  e.points = e.points.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+  if (e.labelBox) e.labelBox = { ...e.labelBox, x: e.labelBox.x + dx, y: e.labelBox.y + dy };
+  e.endLabels = e.endLabels?.map((l) => ({ ...l, x: l.x + dx, y: l.y + dy }));
 }
 
 /* ---------- groups ---------- */

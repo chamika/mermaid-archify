@@ -4,7 +4,7 @@ import { useContext } from 'preact/hooks';
 import { ICON_CELLS, type IconSet, hasIcons, plainText, runs } from '../icons/fa';
 import { type IRStyle, isSafeColor } from '../ir/style';
 import type { EndMark } from '../ir/types';
-import { CAPTION_H, FONT, ROW, cells, charWidth, compartmentMetrics, edgeLabelSize, fitCell, textWidth } from '../layout/measure';
+import { CAPTION_H, FONT, ROW, blockTabWidth, cells, charWidth, compartmentMetrics, condLabelWidth, edgeLabelSize, fitCell, fitGroupTitle, textWidth } from '../layout/measure';
 import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { TYPE_ICON, TYPE_LABEL } from './icons';
 
@@ -215,10 +215,12 @@ const accentVars = (accent: string | undefined): Record<string, string> | undefi
   accent ? { '--a-stroke': `var(--${accent}-stroke)`, '--a-fill': `var(--${accent}-fill)`, '--a-ink': `var(--${accent}-ink)` } : undefined;
 
 function GroupView({ g }: { g: SceneGroup }) {
+  const title = g.label && fitGroupTitle(g.label, g.w);
   return (
     <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={{ ...accentVars(g.accent), ...userVars(g.style) }}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
-      {g.label && <RichText lines={[g.label]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
+      {title && <RichText lines={[title]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
+      {title !== g.label && <title>{plainText(g.label)}</title>}
     </g>
   );
 }
@@ -499,7 +501,7 @@ const safeColor = (c: string): string => (isSafeColor(c) ? c.trim() : 'var(--lan
 
 /** Block condition text on a mask so lifelines never cross it. */
 function CondLabel({ x, y, text }: { x: number; y: number; text: string }) {
-  const w = textWidth(`[${text}]`, FONT.edge) + 8;
+  const w = condLabelWidth(text);
   return (
     <>
       <rect class="cond-bg" x={x - 4} y={y - 11} width={w} height={15} rx={3} />
@@ -535,7 +537,7 @@ function SequenceBackdrop({ scene }: { scene: Scene }) {
           );
         }
         const kw = b.type;
-        const tabW = kw.length * 6.6 + 16;
+        const tabW = blockTabWidth(kw);
         return (
           <g class="ma-block" key={b.id}>
             <rect class="frame" x={b.x} y={b.y} width={b.w} height={b.h} rx={6} />

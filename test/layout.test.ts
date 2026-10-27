@@ -482,3 +482,49 @@ describe('sequence: create, destroy and boxes', () => {
     for (const n of s.nodes) expect(n.y).toBeGreaterThanOrEqual(front.y + 28);
   });
 });
+
+describe('edge cases in sizing', () => {
+  test('settings passed in code are clamped like front-matter', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A --> B --> C');
+    const huge = await layout(ir, elk, { nodeSpacing: 1e7, rankSpacing: 1e7, routing: 'bogus' as never, direction: 'XX' as never });
+    const max = await layout(ir, elk, { nodeSpacing: 160, rankSpacing: 240 });
+    expect([huge.width, huge.height]).toEqual([max.width, max.height]);
+    expect((await layout(ir, elk, { nodeSpacing: Number.NaN })).width).toBe((await layout(ir, elk)).width);
+  });
+
+  test('an empty sequence note has a finite size', async () => {
+    for (const note of ['Note over A: <br>', 'Note right of A: #nbsp;', 'Note over A,B: <br>']) {
+      const s = await layout(await parseMermaid(`sequenceDiagram\n  A->>B: x\n  ${note}`), elk);
+      checkInvariants(s);
+      expect(Number.isFinite(s.width)).toBe(true);
+    }
+  });
+
+  test('empty groups keep a size, and group titles fit (or are shortened to fit)', async () => {
+    const s = await layout(await parseMermaid('flowchart LR\n  subgraph E [Empty]\n  end\n  subgraph G [Payments and settlement infrastructure cluster]\n    a\n  end\n  A --> E\n  E --> B'), elk);
+    checkInvariants(s);
+    const E = s.groups.find((g) => g.id === 'E')!;
+    expect(E.w).toBeGreaterThan(40);
+    expect(E.h).toBeGreaterThan(40);
+    expect(s.groups.find((g) => g.id === 'G')!.w).toBeGreaterThanOrEqual(textWidth('Payments and settlement infrastructure cluster', 11));
+  });
+
+  test('sequence blocks and boxes are as wide as their titles', async () => {
+    const long = 'x'.repeat(80);
+    const s = await layout(await parseMermaid(`sequenceDiagram\n  box Aqua ${long}\n    participant A\n  end\n  participant B\n  loop ${long}\n    A->>B: hi\n  end\n  alt ok\n    A->>B: a\n  else ${long}\n    B->>A: b\n  end`), elk);
+    checkInvariants(s);
+  });
+});
+
+describe('text measurement', () => {
+  test('cells are counted per grapheme: combining and zero-width take none, emoji take two', async () => {
+    const { cells } = await import('../src/layout/measure');
+    expect(cells('Café')).toBe(4);
+    expect(cells('a​b')).toBe(2);
+    expect(cells('☕✅⭐')).toBe(6);
+    expect(cells('👨‍👩‍👧')).toBe(2);
+    expect(cells('©')).toBe(1);
+    expect(cells('❤️')).toBe(2);
+    expect(cells('负责')).toBe(4);
+  });
+});

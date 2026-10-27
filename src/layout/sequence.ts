@@ -1,7 +1,7 @@
 import { settleInk } from '../ir/style';
 import type { DiagramIR, IRNode, SeqBlockType } from '../ir/types';
 import type { Pt, Scene, SceneActivation, SceneBlock, SceneEdge, SceneGroup, SceneNode, SceneNote } from '../scene/types';
-import { CAPTION_H, FONT, edgeLabelSize, textWidth, wrap } from './measure';
+import { CAPTION_H, FONT, blockTitleWidth, edgeLabelSize, groupTitleWidth, textWidth, wrap } from './measure';
 
 const MARGIN = 32;
 const COL_GAP = 48;
@@ -39,7 +39,7 @@ export function layoutSequence(ir: DiagramIR): Scene {
       } else spans.push({ a: Math.min(a, b), b: Math.max(a, b), w });
     } else if (ev.kind === 'note') {
       const ids = ev.over.map((id) => index.get(id)!).sort((x, y) => x - y);
-      const w = Math.max(...wrap(ev.text, NOTE_MAX).map((l) => textWidth(l, FONT.note))) + 28;
+      const w = Math.max(0, ...wrap(ev.text, NOTE_MAX).map((l) => textWidth(l, FONT.note))) + 28;
       if (ev.placement === 'right' && ids[0] + 1 < need.length) need[ids[0] + 1] = Math.max(need[ids[0] + 1], w + 24);
       if (ev.placement === 'left' && ids[0] > 0) need[ids[0]] = Math.max(need[ids[0]], w + 24);
       if (ids.length > 1) spans.push({ a: ids[0], b: ids.at(-1)!, w: w - 40 });
@@ -62,6 +62,16 @@ export function layoutSequence(ir: DiagramIR): Scene {
   /** Where `destroy`ed participants' lifelines end. */
   const destroyedAt = new Map<string, number>();
   /** Participant boxes at `y`; headers (`created`) of created participants sit on their creating row instead. */
+  // A box is at least as wide as its label: widen its last gap, pushing later columns right.
+  for (const g of boxes) {
+    const cols = ir.nodes.flatMap((n, i) => (n.parent === g.id ? [i] : []));
+    if (!cols.length) continue;
+    const [lo, hi] = [cols[0], cols.at(-1)!];
+    const span = cx[hi] + widths[hi] / 2 - (cx[lo] - widths[lo] / 2) + BOX_PAD * 2;
+    const extra = groupTitleWidth(g.label) - span;
+    if (extra > 0) for (let i = hi + 1; i < cx.length; i++) cx[i] += extra;
+  }
+
   const header = (y: number, which: IRNode[], created: boolean): SceneNode[] =>
     which.map((n) => {
       const i = index.get(n.id)!;
@@ -179,7 +189,7 @@ export function layoutSequence(ir: DiagramIR): Scene {
         const cols = ev.over.map((id) => index.get(id)!).sort((p, q) => p - q);
         touch(...cols);
         const lines = wrap(ev.text, NOTE_MAX);
-        const w = Math.max(...lines.map((l) => textWidth(l, FONT.note))) + 24;
+        const w = Math.max(0, ...lines.map((l) => textWidth(l, FONT.note))) + 24;
         const h = lines.length * FONT.note * FONT.lineHeight + 16;
         let x: number;
         let width = w;
@@ -218,7 +228,11 @@ export function layoutSequence(ir: DiagramIR): Scene {
         const inset = nesting * 8;
         // Cover the participants involved, and anything drawn inside that reaches further.
         const left = Math.min(cx[lo] - Math.max(widths[lo] / 2, 60) + inset - BLOCK_PAD + 12, b.minX - 10);
-        const right = Math.max(cx[hi] + Math.max(widths[hi] / 2, 60) - inset + BLOCK_PAD - 12, b.maxX + 10);
+        const right = Math.max(
+          cx[hi] + Math.max(widths[hi] / 2, 60) - inset + BLOCK_PAD - 12,
+          b.maxX + 10,
+          left + blockTitleWidth(b.type === 'rect' ? '' : b.type, b.type === 'rect' ? '' : b.label, b.sections.map((s) => s.label)),
+        );
         blocks.push({
           id: b.id,
           type: b.type,
@@ -273,7 +287,7 @@ export function layoutSequence(ir: DiagramIR): Scene {
     const cols = ir.nodes.flatMap((n, i) => (n.parent === g.id ? [i] : []));
     if (!cols.length) return [];
     const x = Math.min(...cols.map((i) => cx[i] - widths[i] / 2)) - BOX_PAD;
-    const right = Math.max(...cols.map((i) => cx[i] + widths[i] / 2)) + BOX_PAD;
+    const right = Math.max(x + groupTitleWidth(g.label), ...cols.map((i) => cx[i] + widths[i] / 2 + BOX_PAD));
     return [{ id: g.id, label: g.label, depth: 0, x, y: MARGIN, w: right - x, h: footY + HEAD_H + BOX_PAD - MARGIN, ...(g.style && { style: settleInk(g.style) }) }];
   });
 

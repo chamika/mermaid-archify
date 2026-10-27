@@ -50,7 +50,8 @@ const KEYS = ['direction', 'nodeSpacing', 'rankSpacing', 'routing', 'placement',
 /** Keep only known keys with valid values; numbers are rounded and clamped; defaults are dropped. */
 export function normalize(raw: Record<string, unknown>): LayoutSettings {
   const out: LayoutSettings = {};
-  const dir = String(raw.direction ?? '').toUpperCase();
+  // `TD` is Mermaid's spelling of top-down.
+  const dir = String(raw.direction ?? '').toUpperCase().replace(/^TD$/, 'TB');
   if (DIRECTIONS.includes(dir as Direction)) out.direction = dir as Direction;
   for (const key of ['nodeSpacing', 'rankSpacing'] as const) {
     const v = Number(raw[key]);
@@ -89,9 +90,54 @@ const pinKey = (id: string) => (/^[A-Za-z_][\w-]*$/.test(id) ? id : JSON.stringi
 
 /** The archify block's entries as lines relative to its own indent. */
 function entryLines(clean: LayoutSettings): string[] {
-  const lines = KEYS.filter((k) => clean[k] !== undefined).map((k) => `${k}: ${clean[k]}`);
-  if (clean.pins) lines.push('pins:', ...Object.entries(clean.pins).map(([id, [dx, dy]]) => `  ${pinKey(id)}: [${dx}, ${dy}]`));
-  return lines;
+  return [...KEYS.filter((k) => clean[k] !== undefined).map((k) => `${k}: ${clean[k]}`), ...pinLines(clean)];
+}
+
+const pinLines = (clean: LayoutSettings) =>
+  clean.pins ? ['pins:', ...Object.entries(clean.pins).map(([id, [dx, dy]]) => `  ${pinKey(id)}: [${dx}, ${dy}]`)] : [];
+
+/** A trailing `# comment` on a line, with the space before it. */
+const trailingComment = (text: string) => /\s+#.*$/.exec(text)?.[0] ?? '';
+
+/**
+ * The archify block rewritten for `clean`: known keys are updated in place (keeping
+ * their trailing comments) or dropped; comments, blank lines and keys we do not
+ * know, with anything nested under them, are kept; new keys go at the end.
+ */
+function rewriteBlock(lines: Line[], at: number, clean: LayoutSettings): { block: string[]; empty: boolean } {
+  const end = blockEnd(lines, at);
+  const indent = lines.slice(at + 1, end).find((l) => !blank(l))?.indent ?? lines[at].indent + 2;
+  const pad = ' '.repeat(indent);
+  const out: string[] = [];
+  const done = new Set<string>();
+  let kept = false;
+  for (let i = at + 1; i < end; i++) {
+    const l = lines[i];
+    if (blank(l) || l.indent !== indent || !l.key) {
+      out.push(l.text);
+      continue;
+    }
+    const sub = blockEnd(lines, i);
+    if ((KEYS as readonly string[]).includes(l.key)) {
+      const k = l.key as (typeof KEYS)[number];
+      if (clean[k] !== undefined && !done.has(k)) out.push(`${pad}${k}: ${clean[k]}${trailingComment(l.value ?? '')}`);
+      done.add(k);
+    } else if (l.key === 'pins') {
+      if (!done.has('pins')) out.push(...pinLines(clean).map((p) => pad + p));
+      done.add('pins');
+    } else {
+      out.push(...lines.slice(i, sub).map((x) => x.text));
+      kept = true;
+    }
+    i = sub - 1;
+  }
+  for (const k of KEYS) if (clean[k] !== undefined && !done.has(k)) out.push(`${pad}${k}: ${clean[k]}`);
+  if (!done.has('pins')) out.push(...pinLines(clean).map((p) => pad + p));
+  // Trailing blank lines belong after the block, not inside it.
+  let tail = out.length;
+  while (tail > 0 && !out[tail - 1].trim()) tail--;
+  const block = [lines[at].text, ...out.slice(0, tail)];
+  return { block: [...block, ...out.slice(tail)], empty: !kept && !entryLines(clean).length };
 }
 
 interface Line {
@@ -106,7 +152,9 @@ function parseLine(text: string): Line {
   // Keys are bare identifiers or quoted strings (pin ids can hold anything).
   const m = /^[ \t]*("(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z_][\w.-]*)[ \t]*:(?:[ \t]+(.*?))?[ \t]*$/.exec(text);
   if (!m || text.trimStart().startsWith('#')) return { text, indent };
-  return { text, indent, key: unquoteKey(m[1]), value: m[2] };
+  // `config: # layout` has no value: in YAML a `#` after a space starts a comment.
+  const value = m[2]?.startsWith('#') ? undefined : m[2];
+  return { text, indent, key: unquoteKey(m[1]), value };
 }
 
 function unquoteKey(k: string): string {
@@ -223,12 +271,16 @@ export function writeLayoutSettings(source: string, settings: LayoutSettings): s
   if (lines.at(-1) === '') lines.pop();
 
   if (loc.archify >= 0) {
-    const pad = ' '.repeat(loc.lines[loc.archify].indent + 2);
     const end = blockEnd(loc.lines, loc.archify);
-    const block = entries.length ? [loc.lines[loc.archify].text, ...entries.map((e) => pad + e)] : [];
-    lines.splice(loc.archify, end - loc.archify, ...block);
-    // Drop `config:` if removing archify left it empty.
-    if (!entries.length && blockEnd(parseAll(lines), loc.config) === loc.config + 1) lines.splice(loc.config, 1);
+    const { block, empty } = rewriteBlock(loc.lines, loc.archify, clean);
+    lines.splice(loc.archify, end - loc.archify, ...(empty ? [] : block));
+    // Drop `config:` if removing archify left nothing but comments under it.
+    const after = parseAll(lines);
+    if (empty && blockEnd(after, loc.config) === loc.config + 1) {
+      let stop = loc.config + 1;
+      while (stop < after.length && after[stop].text.trim() && blank(after[stop]) && after[stop].indent > after[loc.config].indent) stop++;
+      lines.splice(loc.config, stop - loc.config);
+    }
   } else if (entries.length) {
     if (loc.config >= 0) {
       const end = blockEnd(loc.lines, loc.config);
