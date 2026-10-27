@@ -34,6 +34,14 @@ describe('render()', () => {
     expect(browserish()).toBe(false);
   });
 
+  test('bakeStyles gives an SVG without CSS variables, for tools that lack them', async () => {
+    const { svg } = await render(flow);
+    expect(svg).toContain('var(--');
+    const flat = bakeStyles(svg);
+    expect(flat).not.toContain('var(--');
+    expect(flat).not.toContain('context-stroke');
+  });
+
   test('exported HTML keeps text that could end its scripts', async () => {
     const src = 'sequenceDiagram\n  A->>B: open <!-- here </script> done\n';
     const { html, scene } = await render(src);

@@ -73,7 +73,10 @@ function letterSpacing(el: Element, rules: CSSStyleRule[], fontSize: string): st
   return em ? `${+em[1] * parseFloat(fontSize)}px` : undefined;
 }
 
-/** The SVG export with its stylesheet and palette resolved into presentation attributes. */
+/**
+ * The SVG export with its stylesheet and palette resolved into presentation
+ * attributes: no CSS variables or `context-stroke`, for tools that lack them.
+ */
 export function bakeStyles(svgText: string): string {
   return withDomSync(() => bake(svgText));
 }

@@ -41,6 +41,7 @@ cat diagram.mmd | npx mermaid-archify - -f svg -o - > out.svg # stdin → stdout
 | `-t, --theme dark\|light` | Palette (default `dark`). |
 | `--direction LR\|RL\|TB\|BT` | Override the diagram direction (`TD` means `TB`). |
 | `--scale <n>` | PNG pixel ratio (default `2`). |
+| `--inline-styles` | SVG with its styles and palette as plain attributes (no CSS variables), for Illustrator, Figma, Office and other tools without CSS support. |
 | `-q, --quiet` | Don't list written files. |
 
 Without `-o` or `--out-dir`, each output goes next to its input. Quote globs so

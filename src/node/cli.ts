@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Direction } from '../ir/types';
 import { DIRECTIONS } from '../layout/settings';
-import { MermaidParseError, type Theme, render, svgToPng } from './index';
+import { MermaidParseError, type Theme, bakeStyles, render, svgToPng } from './index';
 import { type Input, UsageError, expandInputs, formatFor, planOutputs } from './outputs';
 
 declare const __VERSION__: string;
@@ -19,6 +19,8 @@ Options:
   -t, --theme <theme>    dark (default) or light.
       --direction <dir>  Override the diagram direction: LR, RL, TB (or TD) or BT.
       --scale <n>        PNG pixel ratio (default 2, like the app's export).
+      --inline-styles    SVG with styles and palette as plain attributes, for tools
+                         without CSS variable support (Illustrator, Figma, Office).
   -q, --quiet            Don't list written files.
   -h, --help             Show this help.
   -v, --version          Show the version.
@@ -41,6 +43,7 @@ export async function main(argv: string[]): Promise<number> {
         theme: { type: 'string', short: 't' },
         direction: { type: 'string' },
         scale: { type: 'string' },
+        'inline-styles': { type: 'boolean' },
         quiet: { type: 'boolean', short: 'q' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
@@ -81,7 +84,8 @@ export async function main(argv: string[]): Promise<number> {
     try {
       const source = input.path === '-' ? await readStdin() : await readFile(input.path, 'utf8');
       const result = await render(source, { theme, layout: direction ? { direction } : undefined });
-      const output = format === 'png' ? await svgToPng(result.svg, scale) : result[format];
+      const output =
+        format === 'png' ? await svgToPng(result.svg, scale) : format === 'svg' && values['inline-styles'] ? bakeStyles(result.svg) : result[format];
       const target = targets[i];
       if (target === '-') {
         process.stdout.write(output);
