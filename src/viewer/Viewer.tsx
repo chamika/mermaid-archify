@@ -144,6 +144,16 @@ export function Viewer({
   const [showMap, setShowMap] = useState(true);
   const [ownTheme, setTheme] = useState<Theme>(() => themeProp ?? currentTheme());
   const theme = themeProp ?? ownTheme;
+  // Until a theme is chosen (toggle, saved, or set by the page), follow the OS as it changes.
+  useEffect(() => {
+    if (themeProp) return;
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const onChange = () => {
+      if (!document.documentElement.dataset.theme) setTheme(mq!.matches ? 'light' : 'dark');
+    };
+    mq?.addEventListener?.('change', onChange);
+    return () => mq?.removeEventListener?.('change', onChange);
+  }, [themeProp]);
   const [toast, setToast] = useState<string>();
   const [linkedLit, setLinkedLit] = useState<Lit>();
   const [arranging, setArranging] = useState(false);
@@ -469,14 +479,21 @@ export function Viewer({
     return [...seen];
   }, [scene]);
 
-  const pulse =
-    traceStep !== undefined
-      ? scene.edges
-          .filter((e) => e.order === traceStep)
-          .map((e) => (
-            <TracePulse key={`${e.id}-${traceStep}`} path={pathD(e.points)} />
-          ))
-      : null;
+  // Stable between trace steps, so the memoised Diagram is not re-rendered by a pan.
+  const overlay = useMemo(
+    () =>
+      traceStep === undefined ? null : (
+        <g>
+          {scene.edges
+            .filter((e) => e.order === traceStep)
+            .map((e) => (
+              <TracePulse key={`${e.id}-${traceStep}`} path={pathD(e.points)} />
+            ))}
+        </g>
+      ),
+    [scene, traceStep],
+  );
+  const setSvg = useCallback((el: SVGSVGElement | null) => (svgRef.current = el), []);
 
   const status = (() => {
     if (routeEnds.length === 1 && !routeEnds[0]) return <>Route probe: click the start node</>;
@@ -525,7 +542,7 @@ export function Viewer({
           transition: pz.animating ? 'transform 300ms cubic-bezier(.2,.8,.2,1)' : undefined,
         }}
       >
-        <Diagram scene={scene} highlight={highlight} handlers={handlers} overlay={pulse && <g>{pulse}</g>} svgRef={(el) => (svgRef.current = el)} />
+        <Diagram scene={scene} highlight={highlight} handlers={handlers} overlay={overlay} svgRef={setSvg} />
       </div>
 
       {showTitle && scene.title && (
@@ -683,7 +700,7 @@ export function Viewer({
         </div>
       )}
 
-      {showMap && pz.size.w > 0 && <Minimap scene={scene} t={pz.t} size={pz.size} onPan={pz.panTo} />}
+      {showMap && pz.size.w > 0 && scene.width > 0 && scene.height > 0 && <Minimap scene={scene} t={pz.t} size={pz.size} onPan={pz.panTo} />}
 
       {status && <div class="ma-chrome ma-status" role="status">{status}</div>}
     </div>
@@ -724,6 +741,8 @@ function Finder({ scene, onPick, onClose }: { scene: Scene; onPick: (id: string)
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const closing = useRef<number>();
+  useEffect(() => () => window.clearTimeout(closing.current), []);
   const results = useMemo(() => search(scene, q), [scene, q]);
   const byId = useMemo(() => new Map(scene.nodes.map((n) => [n.id, n])), [scene]);
   useEffect(() => inputRef.current?.focus(), []);
@@ -751,7 +770,9 @@ function Finder({ scene, onPick, onClose }: { scene: Scene; onPick: (id: string)
             onClose();
           }
         }}
-        onBlur={() => window.setTimeout(onClose, 150)}
+        // Close after a click on a result has landed; focusing the input again cancels it.
+        onBlur={() => (closing.current = window.setTimeout(onClose, 150))}
+        onFocus={() => window.clearTimeout(closing.current)}
       />
       {q && (
         <ul role="listbox">
@@ -827,10 +848,11 @@ function Passport({
   const link = safeLink(node.link);
   const Rel = ({ other, text, dir }: { other: string; text?: string; dir: '→' | '←' }) => (
     <li>
-      <button onClick={() => nodeById.has(other) && onPick(other)}>
+      {/* An edge to a subgraph names the group, which is not a node to jump to. */}
+      <button onClick={() => onPick(other)} disabled={!nodeById.has(other)}>
         <span>{dir}</span>
         <span>
-          {label(nodeById.get(other)) || other}
+          {label(nodeById.get(other)) || plainText(scene.groups.find((g) => g.id === other)?.label ?? '') || other}
           {text && <div class="via">{plainText(text).replace(/\n/g, ' ')}</div>}
         </span>
       </button>

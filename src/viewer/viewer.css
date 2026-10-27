@@ -430,7 +430,10 @@
   gap: 8px;
   align-items: baseline;
 }
-.ma-passport li button:hover {
+.ma-passport li button:disabled {
+  cursor: default;
+}
+.ma-passport li button:hover:not(:disabled) {
   background: var(--toolbar-hover);
 }
 .ma-passport li .via {
