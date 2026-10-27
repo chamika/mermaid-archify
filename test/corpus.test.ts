@@ -34,6 +34,13 @@ const fixtures = readdirSync(ROOT, { withFileTypes: true })
 const elk = new ELK();
 const read = (name: string) => readFileSync(`${ROOT}/${name}.mmd`, 'utf8');
 
+/** Author styling and links, which nothing else in the summary would show going missing. */
+const extras = (x: { classes?: string[]; style?: object; link?: string; tooltip?: string }) =>
+  (x.classes?.length ? ` .${x.classes.join('.')}` : '') +
+  (x.style ? ` style${JSON.stringify(x.style)}` : '') +
+  (x.link ? ` link:${x.link}` : '') +
+  (x.tooltip ? ` tip:${JSON.stringify(x.tooltip)}` : '');
+
 function summarize(ir: DiagramIR) {
   const types: Record<string, number> = {};
   for (const n of ir.nodes) types[n.type] = (types[n.type] ?? 0) + 1;
@@ -45,17 +52,24 @@ function summarize(ir: DiagramIR) {
       (n) =>
         `${n.id}[${n.shape}${n.parent ? ` in ${n.parent}` : ''}] ${JSON.stringify(describeIcons(n.label))}` +
         (n.annotation ? ` «${n.annotation}»` : '') +
-        (n.compartments?.length ? ` {${n.compartments.map((c) => c.rows.map((r) => r.cells.join(' ')).join('; ')).join(' | ')}}` : ''),
+        (n.compartments?.length ? ` {${n.compartments.map((c) => c.rows.map((r) => r.cells.join(' ')).join('; ')).join(' | ')}}` : '') +
+        extras(n),
     ),
     edges: ir.edges.map(
       (e) =>
         `${e.from} ${e.invisible ? '~~~' : '->'} ${e.to}${e.marker ? ` (${e.marker})` : ''}${e.label ? ` ${JSON.stringify(describeIcons(e.label))}` : ''}` +
-        (e.ends ? ` [${e.ends.startLabel ?? ''}${e.ends.start ?? '-'} ${e.stroke} ${e.ends.end ?? '-'}${e.ends.endLabel ?? ''}]` : ''),
+        (e.ends ? ` [${e.ends.startLabel ?? ''}${e.ends.start ?? '-'} ${e.stroke} ${e.ends.end ?? '-'}${e.ends.endLabel ?? ''}]` : '') +
+        // Line style and heads: `dotted <>` is a dotted line with arrows at both ends.
+        (e.stroke !== 'solid' || e.arrowStart || !e.arrowEnd ? ` ${e.stroke} ${e.arrowStart ? '<' : ''}${e.arrowEnd ? '>' : ''}` : '') +
+        extras(e),
     ),
-    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}`),
+    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}${extras(g)}`),
     ...(ir.icons && { icons: Object.keys(ir.icons).sort() }),
     types,
-    events: ir.events?.map((e) => e.kind).join(' '),
+    // Sequence messages with their arrow kind and lifeline changes.
+    events: ir.events
+      ?.map((e) => (e.kind === 'message' ? `message:${e.arrow}${e.creates ? `+${e.creates}` : ''}${e.destroys ? `-${e.destroys}` : ''}` : e.kind))
+      .join(' '),
   };
 }
 
