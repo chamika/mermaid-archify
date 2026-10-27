@@ -11,6 +11,8 @@ const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json')
 export default defineConfig({
   plugins: [viewerBundle(), faIcons(), fontFace()],
   define: { __VERSION__: JSON.stringify(pkg.version) },
+  // public/ is the site's (Pages headers, examples), not the package's.
+  publicDir: false,
   build: {
     ssr: true,
     outDir: 'dist-node',

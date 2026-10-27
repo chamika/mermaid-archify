@@ -14,19 +14,23 @@
   "exports": {
     ".": {
       "types": "./dist-node/types/node/index.d.ts",
-      "import": "./dist-node/index.js"
+      "import": "./dist-node/index.js",
+      "default": "./dist-node/index.js"
     },
     "./element": {
       "types": "./dist-node/types/element/element.d.ts",
-      "import": "./dist-element/mermaid-archify.js"
+      "import": "./dist-element/mermaid-archify.js",
+      "default": "./dist-element/mermaid-archify.js"
     },
     "./remark": {
       "types": "./dist-node/types/node/remark.d.ts",
-      "import": "./dist-node/remark.js"
+      "import": "./dist-node/remark.js",
+      "default": "./dist-node/remark.js"
     },
     "./markdown-it": {
       "types": "./dist-node/types/node/markdown-it.d.ts",
-      "import": "./dist-node/markdown-it.js"
+      "import": "./dist-node/markdown-it.js",
+      "default": "./dist-node/markdown-it.js"
     },
     "./package.json": "./package.json"
   },
