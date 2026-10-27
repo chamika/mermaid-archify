@@ -165,7 +165,7 @@
   font-style: italic;
 }
 .ma-node .row .c-keys {
-  fill: var(--u-ink, var(--cloud-stroke));
+  fill: var(--u-ink, var(--cloud-ink));
   font-weight: 700;
 }
 .ma-lifeline {

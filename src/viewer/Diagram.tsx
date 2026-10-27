@@ -226,7 +226,7 @@ function GroupView({ g }: { g: SceneGroup }) {
 }
 
 /** Caption tint: the type colour, or the label ink over an author fill. */
-const typeInk = (n: SceneNode) => (n.style?.color ? 'var(--u-ink)' : stroke(n.type));
+const typeInk = (n: SceneNode) => (n.style?.color ? 'var(--u-ink)' : `var(--${n.type}-ink, ${stroke(n.type)})`);
 
 function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
   const lh = FONT.label * FONT.lineHeight;

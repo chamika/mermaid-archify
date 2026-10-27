@@ -389,7 +389,7 @@
   white-space: nowrap;
 }
 .ma-passport dd.href a {
-  color: var(--arrow-emphasis);
+  color: var(--link);
   text-decoration: none;
 }
 .ma-passport dd.href a:hover,
@@ -458,7 +458,7 @@
   flex-basis: 100%;
 }
 .ma-passport ul.rows .c-keys {
-  color: var(--cloud-stroke);
+  color: var(--cloud-ink);
   font-weight: 700;
 }
 .ma-passport ul.rows li.italic {
@@ -492,7 +492,7 @@
   text-overflow: ellipsis;
 }
 .ma-status b {
-  color: var(--route);
+  color: var(--route-ink);
 }
 .ma-hint {
   color: var(--text-faint);

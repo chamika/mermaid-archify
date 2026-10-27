@@ -873,7 +873,7 @@ function Passport({
         </svg>
         <div>
           <h2>{plainText(node.label) || node.id}</h2>
-          <span class="kind" style={{ color: `var(--${node.type}-stroke)` }}>
+          <span class="kind" style={{ color: `var(--${node.type}-ink)` }}>
             {node.shape === 'start' ? 'start' : node.shape === 'end' ? 'end' : kindLabel}
           </span>
         </div>
