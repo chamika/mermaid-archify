@@ -34,6 +34,10 @@ export function serializeSvg(live: SVGSVGElement, scene: Scene, tokens = resolve
   svg.classList.remove(...VIEW_STATE_CLASSES);
   // Preact sets `tabIndex` as an attribute on SVG elements, where selectors are case-sensitive.
   for (const name of ['tabindex', 'tabIndex']) svg.querySelectorAll(`[${name}]`).forEach((el) => el.removeAttribute(name));
+  // A file is a picture, not the viewer's interactive group of buttons.
+  svg.setAttribute('role', 'img');
+  svg.removeAttribute('aria-roledescription');
+  svg.querySelectorAll('[role="button"]').forEach((el) => el.removeAttribute('role'));
 
   const pad = 24;
   const w = scene.width + pad * 2;
