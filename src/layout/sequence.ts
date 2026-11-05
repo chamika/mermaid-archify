@@ -62,14 +62,15 @@ export function layoutSequence(ir: DiagramIR): Scene {
   /** Where `destroy`ed participants' lifelines end. */
   const destroyedAt = new Map<string, number>();
   /** Participant boxes at `y`; headers (`created`) of created participants sit on their creating row instead. */
-  // A box is at least as wide as its label: widen its last gap, pushing later columns right.
+  // A box is at least as wide as its label: its columns move to the middle of the extra
+  // width, and later columns move past all of it.
   for (const g of boxes) {
     const cols = ir.nodes.flatMap((n, i) => (n.parent === g.id ? [i] : []));
     if (!cols.length) continue;
     const [lo, hi] = [cols[0], cols.at(-1)!];
     const span = cx[hi] + widths[hi] / 2 - (cx[lo] - widths[lo] / 2) + BOX_PAD * 2;
     const extra = groupTitleWidth(g.label) - span;
-    if (extra > 0) for (let i = hi + 1; i < cx.length; i++) cx[i] += extra;
+    if (extra > 0) for (let i = lo; i < cx.length; i++) cx[i] += i > hi ? extra : extra / 2;
   }
 
   const header = (y: number, which: IRNode[], created: boolean): SceneNode[] =>
@@ -286,9 +287,10 @@ export function layoutSequence(ir: DiagramIR): Scene {
   const groups: SceneGroup[] = boxes.flatMap((g) => {
     const cols = ir.nodes.flatMap((n, i) => (n.parent === g.id ? [i] : []));
     if (!cols.length) return [];
-    const x = Math.min(...cols.map((i) => cx[i] - widths[i] / 2)) - BOX_PAD;
-    const right = Math.max(x + groupTitleWidth(g.label), ...cols.map((i) => cx[i] + widths[i] / 2 + BOX_PAD));
-    return [{ id: g.id, label: g.label, depth: 0, x, y: MARGIN, w: right - x, h: footY + HEAD_H + BOX_PAD - MARGIN, ...(g.style && { style: settleInk(g.style) }) }];
+    const left = Math.min(...cols.map((i) => cx[i] - widths[i] / 2)) - BOX_PAD;
+    const right = Math.max(...cols.map((i) => cx[i] + widths[i] / 2)) + BOX_PAD;
+    const w = Math.max(right - left, groupTitleWidth(g.label));
+    return [{ id: g.id, label: g.label, depth: 0, x: (left + right - w) / 2, y: MARGIN, w, h: footY + HEAD_H + BOX_PAD - MARGIN, ...(g.style && { style: settleInk(g.style) }) }];
   });
 
   const extents = [

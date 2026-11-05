@@ -1,6 +1,6 @@
 import type { DiagramIR, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneNode } from '../scene/types';
-import { flattenBeziers, GROUP_PAD, MARGIN, placeEndLabels } from './elkGraph';
+import { flattenBeziers, GROUP_PAD, MARGIN, placeEndLabels, simplify } from './elkGraph';
 import { edgeLabelSize } from './measure';
 import type { Pins, Routing } from './settings';
 
@@ -168,20 +168,6 @@ function orthogonal(pa: Pt, sa: Side, pb: Pt, sb: Side, shape: Shape): Pt[] {
           ? [{ x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: b.y }]
           : [{ x: a.x, y: (a.y + b.y) / 2 }, { x: b.x, y: (a.y + b.y) / 2 }];
   return simplify([pa, a, ...mid, b, pb]);
-}
-
-/** Drop repeated points and interior points on a straight run. */
-function simplify(points: Pt[]): Pt[] {
-  const out: Pt[] = [];
-  for (const p of points) {
-    if (out.length && out.at(-1)!.x === p.x && out.at(-1)!.y === p.y) continue;
-    if (out.length >= 2) {
-      const [a, b] = [out.at(-2)!, out.at(-1)!];
-      if ((a.x === b.x && b.x === p.x) || (a.y === b.y && b.y === p.y)) out.pop();
-    }
-    out.push(p);
-  }
-  return out;
 }
 
 /** Does segment a→b pass through the inside of `box` (edges touching its border are fine)? */
