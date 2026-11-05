@@ -542,3 +542,15 @@ test('flowing dash patterns loop seamlessly (no jump as the animation repeats)',
   expect(periods.length).toBeGreaterThan(1); // solid and dotted messages
   for (const p of periods) expect(28 % p).toBe(0);
 });
+
+test('fast typing never hangs the page or loses a keystroke', async ({ page }) => {
+  test.setTimeout(30_000);
+  await replaceSource(page, 'stateDiagram-v2\n  [*] --> Done\n  Done : second line');
+  await expect(page.locator('.ma-node[data-id="Done"]')).toContainText('second line');
+  await page.keyboard.press('ControlOrMeta+End');
+  // No wait between keys: a held Backspace, then typing, with renders still in flight.
+  for (let i = 0; i < 'second line'.length; i++) await page.keyboard.press('Backspace');
+  await page.keyboard.type('third line');
+  await expect(page.locator('.cm-content')).toContainText('Done : third line');
+  await expect(page.locator('.ma-node[data-id="Done"]')).toContainText('third line');
+});
