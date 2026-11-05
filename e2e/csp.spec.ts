@@ -39,7 +39,7 @@ test('the app works under the site CSP: edit, layout, focus, theme, exports', as
   await page.locator('.ma-node').first().click();
   await expect(page.locator('.ma-passport')).toBeVisible();
   await page.getByRole('button', { name: /theme/i }).first().click();
-  for (const name of [/Interactive HTML/, /SVG/, /PNG/]) {
+  for (const name of [/Interactive HTML/, /SVG \(current theme\)/, /SVG for design tools/, /PNG/]) {
     await page.getByRole('button', { name: 'Export' }).click();
     await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name }).click()]);
   }

@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Direction } from '../ir/types';
 import { DIRECTIONS } from '../layout/settings';
-import { MermaidParseError, type Theme, bakeStyles, render, svgToPng } from './index';
+import { MermaidParseError, type Theme, bakeStyles, embedFonts, render, svgToPng } from './index';
 import { type Input, UsageError, expandInputs, formatFor, planOutputs } from './outputs';
 
 declare const __VERSION__: string;
@@ -21,6 +21,8 @@ Options:
       --scale <n>        PNG pixel ratio (default 2, like the app's export).
       --inline-styles    SVG with styles and palette as plain attributes, for tools
                          without CSS variable support (Illustrator, Figma, Office).
+      --embed-fonts      SVG with JetBrains Mono inside it (about 85 KB), for browsers
+                         that show it through <img>
   -q, --quiet            Don't list written files.
   -h, --help             Show this help.
   -v, --version          Show the version.
@@ -44,6 +46,7 @@ export async function main(argv: string[]): Promise<number> {
         direction: { type: 'string' },
         scale: { type: 'string' },
         'inline-styles': { type: 'boolean' },
+        'embed-fonts': { type: 'boolean' },
         quiet: { type: 'boolean', short: 'q' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
@@ -70,6 +73,8 @@ export async function main(argv: string[]): Promise<number> {
     if (!(scale > 0 && scale <= 16)) throw new UsageError(`Bad --scale "${values.scale}"; use a number from 0 to 16`);
     if (opts.out && opts.outDir) throw new UsageError('Use either -o or --out-dir, not both');
     format = formatFor(opts);
+    if (values['inline-styles'] && values['embed-fonts']) throw new UsageError('--embed-fonts adds CSS, which --inline-styles removes; use one of them');
+    if (values['embed-fonts'] && format !== 'svg') throw new UsageError('--embed-fonts applies to SVG output');
     inputs = await expandInputs(positionals);
     if (opts.out && inputs.length > 1) throw new UsageError(`-o takes a single input (got ${inputs.length}); use --out-dir`);
     targets = planOutputs(inputs, format, opts);
@@ -85,7 +90,7 @@ export async function main(argv: string[]): Promise<number> {
       const source = input.path === '-' ? await readStdin() : await readFile(input.path, 'utf8');
       const result = await render(source, { theme, layout: direction ? { direction } : undefined });
       const output =
-        format === 'png' ? await svgToPng(result.svg, scale) : format === 'svg' && values['inline-styles'] ? bakeStyles(result.svg) : result[format];
+        format === 'png' ? await svgToPng(result.svg, scale) : format === 'svg' && values['inline-styles'] ? bakeStyles(result.svg) : format === 'svg' && values['embed-fonts'] ? embedFonts(result.svg) : result[format];
       const target = targets[i];
       if (target === '-') {
         process.stdout.write(output);

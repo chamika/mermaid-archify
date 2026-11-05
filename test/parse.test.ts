@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, test } from 'vitest';
+import mermaid from 'mermaid';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { describeIcons, iconKeys, plainText } from '../src/icons/fa';
 import { MermaidParseError, parseMermaid } from '../src/parse';
 
@@ -458,6 +459,24 @@ describe('concurrency', () => {
   const arch = (i: number) => `architecture-beta\n  service s${i}(server)[S${i}]\n  service d${i}(database)[D${i}]\n  s${i}:R --> L:d${i}`;
   const sources = [arch(1), 'flowchart LR\n  a1 --> b1', arch(2), 'sequenceDiagram\n  A->>B: hi', arch(3), 'flowchart LR\n  A -->'];
 
+  test('overlapping parses of every diagram kind give the same results as sequential ones', async () => {
+    const kinds = [
+      'flowchart LR\n  a --> b',
+      'sequenceDiagram\n  A->>B: hi',
+      'stateDiagram-v2\n  [*] --> S1\n  S1 --> S2',
+      'classDiagram\n  class K1\n  class K2\n  K1 --> K2',
+      'erDiagram\n  E1 ||--o{ E2 : has',
+      'architecture-beta\n  service s1(server)[S1]\n  service s2(database)[S2]\n  s1:R --> L:s2',
+    ];
+    // Twice over with different ids, so one kind's db has to be cleared between its parses.
+    const sources = [...kinds, ...kinds.map((k) => k.replace(/\b(a|b|A|B|S1|S2|K1|K2|E1|E2|s1|s2)\b/g, '$1x'))];
+    const ids = (ir: { nodes: { id: string }[]; edges: unknown[] }) => `${ir.nodes.map((n) => n.id).join()}|${ir.edges.length}`;
+    const sequential: string[] = [];
+    for (const src of sources) sequential.push(ids(await parseMermaid(src)));
+    expect((await Promise.all(sources.map(parseMermaid))).map(ids)).toEqual(sequential);
+    expect(sequential.every((r) => !r.endsWith('|0'))).toBe(true);
+  });
+
   test('overlapping parses give the same results as sequential ones', async () => {
     const outcome = (p: Promise<unknown>) => p.then((ir) => ({ ir }), (err: Error) => ({ err: err.message }));
     const together = await Promise.all(sources.map((s) => outcome(parseMermaid(s))));
@@ -559,3 +578,116 @@ describe('sequence features', () => {
     expect(ir.nodes.map((n) => n.parent)).toEqual(['box1', undefined, undefined]);
   });
 });
+
+describe('errors that carry no position', () => {
+  // The search for the line has a wall-clock budget. The clock stands still here so these
+  // tests are about which line is found, whatever else the machine is doing.
+  beforeEach(() => {
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Parse `source`, counting how many times Mermaid is asked to read something. */
+  async function counted(source: string) {
+    const api = mermaid.mermaidAPI;
+    let reads = 0;
+    const counting = {
+      ...api,
+      getDiagramFromText: (...args: Parameters<typeof api.getDiagramFromText>) => {
+        reads++;
+        return api.getDiagramFromText(...args);
+      },
+    };
+    mermaid.mermaidAPI = counting;
+    try {
+      const err = await parseMermaid(source).catch((e) => e);
+      return { err, reads };
+    } finally {
+      mermaid.mermaidAPI = api;
+    }
+  }
+
+  test('a crash inside Mermaid names the line behind it', async () => {
+    const err = await parseMermaid('classDiagram\n  class A {\n    +ok()\n    +bar() <!--\n  }\n  A --> B').catch((e) => e);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBe(4);
+    expect(err.message).toBe('Could not read line 4: +bar() <!--');
+  });
+
+  test('blanked front-matter does not shift the line', async () => {
+    const err = await parseMermaid('---\ntitle: T\n---\nclassDiagram\n  class A {\n    +bar() <!--\n  }').catch((e) => e);
+    expect(err.line).toBe(6);
+  });
+
+  test('later parses are not held up by the search', async () => {
+    await parseMermaid('classDiagram\n  class A {\n    +bar() <!--\n  }').catch(() => undefined);
+    expect((await parseMermaid('flowchart LR\n  A --> B')).nodes).toHaveLength(2);
+  });
+
+  test('two bad lines: no single line to blame', async () => {
+    const err = await parseMermaid('classDiagram\n  class Y {\n    +bar() <!--\n  }\n  class Z {\n    +baz() <!--\n  }').catch((e) => e);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBeUndefined();
+    expect(err.message).toMatch(/^Could not read this diagram/);
+  });
+
+  test('the search stops when its time is up', async () => {
+    const source = 'classDiagram\n  class A {\n    +ok()\n  }\n  class B {\n    +bar() <!--\n  }';
+    expect((await counted(source)).err.line).toBe(6);
+
+    let now = 0;
+    vi.mocked(performance.now).mockImplementation(() => (now += 60));
+    const { err, reads } = await counted(source);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBeUndefined();
+    expect(err.message).toMatch(/^Could not read this diagram/);
+    expect(reads).toBeLessThanOrEqual(3);
+  });
+
+  test('a very long diagram is not searched at all', async () => {
+    const body = Array.from({ length: 134 }, (_, i) => `  class C${i} {\n    +m${i}()\n  }`).join('\n');
+    const { err, reads } = await counted(`classDiagram\n${body}\n  class Y {\n    +bar() <!--\n  }`);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBeUndefined();
+    expect(reads).toBe(1);
+  });
+
+  test('ordinary syntax errors keep their own message and line', async () => {
+    const err = await parseMermaid('flowchart LR\n  A -->').catch((e) => e);
+    expect(err.line).toBe(2);
+    expect(err.message).not.toMatch(/Could not read/);
+  });
+});
+
+describe('direction lines inside groups', () => {
+  test('flowchart subgraphs and composite states keep theirs', async () => {
+    const f = await parseMermaid('flowchart TB\n  subgraph S\n    direction LR\n    a --> b\n  end\n  subgraph T\n    c --> d\n  end');
+    expect(f.groups.find((g) => g.id === 'S')!.direction).toBe('LR');
+    expect(f.groups.find((g) => g.id === 'T')!.direction).toBeUndefined();
+    const s = await parseMermaid('stateDiagram-v2\n  direction TB\n  state C {\n    direction LR\n    a --> b\n  }');
+    expect(s.direction).toBe('TB');
+    expect(s.groups.find((g) => g.id === 'C')!.direction).toBe('LR');
+  });
+});
+
+describe('labels that read as actions are not components', () => {
+  const types = async (src: string) => Object.fromEntries((await parseMermaid(src)).nodes.map((n) => [n.id, n.type]));
+
+  test('a process flow stays plain', async () => {
+    expect(await types('flowchart LR\n  A[User signs up] --> B[Send email] --> C[Login page]')).toEqual({ A: 'plain', B: 'plain', C: 'plain' });
+    expect(await types('flowchart LR\n  A[Customer places order] --> B[Update database] --> C[Notify admin]')).toEqual({ A: 'plain', B: 'plain', C: 'plain' });
+  });
+
+  test('a component map keeps its guesses, verbs in its names or not', async () => {
+    expect(await types('flowchart LR\n  A[Web App] --> B[API Gateway] --> C[(Orders)] --> D[Auth Service]')).toEqual({ A: 'frontend', B: 'cloud', C: 'database', D: 'security' });
+    expect(await types('flowchart LR\n  A[Send Service] --> B[Load Balancer] --> C[Update Worker]')).toEqual({ A: 'backend', B: 'cloud', C: 'backend' });
+  });
+
+  test('an action inside a component map is plain, and explicit types always stay', async () => {
+    expect(await types('flowchart LR\n  A[Web App] --> B[Auth Service] --> C[Send email] --> D[(Users)]')).toMatchObject({ A: 'frontend', B: 'security', C: 'plain', D: 'database' });
+    expect(await types('flowchart LR\n  A[Send email]:::queue --> B[Next]')).toMatchObject({ A: 'messagebus' });
+  });
+});
+

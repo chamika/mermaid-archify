@@ -11,6 +11,7 @@ import { Diagram } from '../viewer/Diagram';
 import { withDom } from './dom';
 
 export { MermaidParseError };
+export { embedFonts } from '../export/fonts';
 export { bakeStyles, svgToPng } from './png';
 export type { LayoutSettings, Scene };
 

@@ -68,7 +68,7 @@ for (const file of SAMPLES) {
   });
 
   test(`SVG matches the app: ${file}`, async ({ page }) => {
-    const app = await appExport(page, file, 'dark', /SVG/);
+    const app = await appExport(page, file, 'dark', /SVG \(current theme\)/);
     const out = cli(file, '-f', 'svg', '-o', '-');
     expect(out.status).toBe(0);
     expect(await canonicalSvg(page, out.stdout)).toEqual(await canonicalSvg(page, app));
@@ -77,7 +77,7 @@ for (const file of SAMPLES) {
 
 test('light-theme SVG matches the app', async ({ page }) => {
   const file = 'test/corpus/mermaid-docs/architecture-004.mmd';
-  const app = await appExport(page, file, 'light', /SVG/);
+  const app = await appExport(page, file, 'light', /SVG \(current theme\)/);
   const out = cli(file, '--theme', 'light', '-f', 'svg', '-o', '-');
   expect(out.status).toBe(0);
   expect(out.stdout).toContain('--bg:#f8fafc');
@@ -96,6 +96,21 @@ test('batch: a glob renders into --out-dir, and invalid diagrams fail with file:
   expect(written).toEqual(inputs.filter((f) => !invalid.includes(`mermaid-demos/${f.replace(/\.mmd$/, '')}`)).map((f) => f.replace(/\.mmd$/, '.svg')).sort());
   for (const name of invalid) expect(out.stderr).toMatch(new RegExp(`^test/corpus/${name}\\.mmd:\\d+: .+$`, 'm'));
   expect(out.stderr).toContain(`${invalid.length} of ${inputs.length} diagrams failed`);
+});
+
+test('--embed-fonts adds the faces to an SVG, and refuses what it cannot apply to', () => {
+  const file = 'test/corpus/mermaid-demos/flowchart-001.mmd';
+  const plain = cli(file, '-f', 'svg', '-o', '-');
+  const embedded = cli(file, '-f', 'svg', '--embed-fonts', '-o', '-');
+  expect(embedded.status).toBe(0);
+  expect(embedded.stdout.match(/@font-face/g)).toHaveLength(3);
+  expect(embedded.stdout.length).toBeGreaterThan(plain.stdout.length + 80_000);
+  const png = cli(file, '-f', 'png', '--embed-fonts', '-o', '-');
+  expect(png.status).toBe(2);
+  expect(png.stderr).toContain('--embed-fonts');
+  const both = cli(file, '-f', 'svg', '--embed-fonts', '--inline-styles', '-o', '-');
+  expect(both.status).toBe(2);
+  expect(both.stderr).toContain('--inline-styles');
 });
 
 test('usage errors exit 2', () => {

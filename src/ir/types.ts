@@ -167,6 +167,8 @@ export interface IRGroup {
   classes?: string[];
   /** Author styling (`style G …`, `classDef`), already sanitized. */
   style?: IRStyle;
+  /** Its own `direction` line. Applies only if no edge crosses the group's boundary; see `ownLayout`. */
+  direction?: Direction;
 }
 
 /* ---------- sequence-specific ---------- */

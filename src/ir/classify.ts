@@ -96,13 +96,28 @@ export const STRUCTURAL = new Set(['start', 'end', 'junction', 'fork', 'note', '
 /** Words that mark a failure outcome: state names in state diagrams, edge labels in flowcharts. */
 export const FAILURE_WORDS = /fail|error|err\b|cancel|reject|abort|timeout|timed ?out|dead|crash|denied|invalid|expired/i;
 
+/** Verbs that open a step of a process. Ones that are also common in component names (`Load`, `Store`, `Write DB`, `Request Queue`) are left out. */
+const ACTION = 'send|submit|create|add|remove|delete|update|edit|save|get|fetch|validate|verify|confirm|approve|reject|notify|receive|pay|charge|refund|ship|sign|click|open|close|show|display|render|retry|wait|handle|parse|generate|calculate|place|choose|select|enter|redirect|register|publish|subscribe|consume|forward|redeem|cancel';
+/** "Send email": the imperative, then at least a word more. */
+const IMPERATIVE = new RegExp(`^(?:${ACTION})\\s+\\S`, 'i');
+/** "User signs up": a subject, the third person, then at least a word more (`Web logs` is not a clause, `Admin approves` is too short to tell). */
+const CLAUSE = new RegExp(`^\\S+\\s+(?:${ACTION}|log|click)(?:s|es)\\s+\\S`, 'i');
+/** A last word that makes the whole label a component, whatever the first says: `Send Service`, `Update Worker`. */
+const COMPONENT_HEAD = /\b(api|apis|service|services|server|servers|backend|worker|workers|gateway|balancer|proxy|broker|cluster|agent|daemon|processor|consumer|producer|handler|manager|engine)\s*$/i;
+
+/** Does `label` describe a step rather than name a thing? */
+function readsAsAction(label: string): boolean {
+  const text = label.trim();
+  return (IMPERATIVE.test(text) || CLAUSE.test(text)) && !COMPONENT_HEAD.test(text);
+}
+
 /**
  * Keyword guesses are only trustworthy when the diagram as a whole reads as a
  * component map: more than half of its content nodes are typed by evidence or
  * by keyword. Otherwise (a process flow such as "Christmas → Go shopping") the
  * guesses are dropped and those nodes render plain, as in Mermaid. Decisions
- * (`{Is cache warm?}`) are steps of a process, never components, so a keyword
- * in one is neither kept nor counted.
+ * (`{Is cache warm?}`) and labels that read as actions (`Send email`) are steps
+ * of a process, never components, so a keyword in one is neither kept nor counted.
  */
 export function settleTypes(nodes: IRNode[]): void {
   const plain = (n: IRNode) => {
@@ -110,7 +125,7 @@ export function settleTypes(nodes: IRNode[]): void {
     n.certainty = 'none';
   };
   const content = nodes.filter((n) => !STRUCTURAL.has(n.shape));
-  for (const n of content) if (n.shape === 'diamond' && n.certainty === 'guess') plain(n);
+  for (const n of content) if (n.certainty === 'guess' && (n.shape === 'diamond' || readsAsAction(n.label))) plain(n);
   const typed = content.filter((n) => n.certainty === 'explicit' || n.certainty === 'guess').length;
   const architectural = content.length > 0 && typed * 2 > content.length;
   if (architectural) return;

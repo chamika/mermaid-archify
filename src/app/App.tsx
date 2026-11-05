@@ -5,7 +5,7 @@ import { download, slug } from '../export/download';
 import { buildStandaloneHtml } from '../export/html';
 import { applyPins, layout } from '../layout';
 import { browserElk } from '../layout/elk';
-import { type LayoutSettings, type Pins, readLayoutSettings, writeLayoutSettings } from '../layout/settings';
+import { type LayoutSettings, type Pins, pinMap, readLayoutSettings, writeLayoutSettings } from '../layout/settings';
 import type { DiagramIR } from '../ir/types';
 import { MermaidParseError, parseMermaid } from '../parse';
 import { SAMPLES } from '../samples';
@@ -106,7 +106,7 @@ export function App() {
   // Pins (and a live drag) apply on top of the automatic layout, instantly.
   const pins = useMemo<Pins | undefined>(() => {
     if (!draft) return layoutSettings.pins;
-    const next = { ...layoutSettings.pins };
+    const next = Object.assign(pinMap(), layoutSettings.pins);
     if (draft.offset) next[draft.id] = draft.offset;
     else delete next[draft.id];
     return next;
@@ -168,7 +168,7 @@ export function App() {
       setDraft(undefined);
       // Keep pins for nodes that still exist; drop ids the source no longer has.
       const ids = new Set(base?.scene.nodes.map((n) => n.id));
-      const next: Pins = {};
+      const next = pinMap();
       for (const [k, v] of Object.entries(layoutSettings.pins ?? {})) if (ids.has(k)) next[k] = v;
       if (offset) next[id] = offset;
       else delete next[id];

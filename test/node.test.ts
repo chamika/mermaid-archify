@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { MermaidParseError, render, svgToPng } from '../src/node';
 import { UsageError, expandInputs, formatFor, globBase, outputPath, planOutputs } from '../src/node/outputs';
+import { embedFonts } from '../src/export/fonts';
 import { bakeStyles } from '../src/node/png';
 
 /** The headless library, in plain Node: no DOM until `render` installs one. */
@@ -48,6 +49,24 @@ describe('render()', () => {
     const json = (id: string) => JSON.parse(new RegExp(`<script type="application/json" id="${id}">(.*?)</script>`, 's').exec(html)![1]);
     expect(json('ma-scene')).toEqual(scene);
     expect(json('ma-source')).toBe(src);
+  });
+
+  test('exported HTML keeps line and paragraph separators', async () => {
+    const src = 'sequenceDiagram\n  A->>B: one\u2028two\u2029three\n';
+    const { html, scene } = await render(src);
+    expect(scene.edges[0].label).toContain('\u2028');
+    expect(JSON.parse(/<script type="application\/json" id="ma-scene">(.*?)<\/script>/s.exec(html)![1])).toEqual(scene);
+    expect(/<script type="text\/plain" id="ma-source">(.*?)<\/script>/s.exec(html)![1]).toBe(src);
+  });
+
+  test('embedFonts puts the faces inside the SVG, at about 85 KB', async () => {
+    const { svg } = await render(flow);
+    const out = embedFonts(svg);
+    expect(out.match(/@font-face/g)).toHaveLength(3);
+    expect(out).toContain('data:font/woff2;base64,');
+    expect(out.length - svg.length).toBeGreaterThan(80_000);
+    expect(out.length - svg.length).toBeLessThan(100_000);
+    expect(out.replace(/@font-face\{[^}]*\}/g, '')).toBe(svg);
   });
 
   test('light theme', async () => {

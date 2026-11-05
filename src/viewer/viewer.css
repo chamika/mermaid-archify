@@ -48,6 +48,19 @@
   outline: 2px solid var(--arrow-emphasis);
   outline-offset: 4px;
 }
+.ma-edge:focus-visible,
+.ma-group:focus-visible {
+  outline: none;
+}
+.ma-edge:focus-visible path.line {
+  stroke: var(--arrow-emphasis);
+  stroke-width: 3;
+}
+.ma-group:focus-visible rect {
+  stroke: var(--arrow-emphasis);
+  stroke-width: 2.5;
+  stroke-opacity: 1;
+}
 /* Arranging: nodes are draggable; hand-placed ones get a dashed outline. */
 .ma-viewer.arranging .ma-node {
   cursor: grab;

@@ -1,7 +1,6 @@
 {
   "name": "mermaid-archify",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Archify-style interactive diagrams from Mermaid source.",
   "license": "MIT",

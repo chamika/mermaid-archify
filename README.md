@@ -42,6 +42,7 @@ cat diagram.mmd | npx mermaid-archify - -f svg -o - > out.svg # stdin → stdout
 | `--direction LR\|RL\|TB\|BT` | Override the diagram direction (`TD` means `TB`). |
 | `--scale <n>` | PNG pixel ratio (default `2`). |
 | `--inline-styles` | SVG with its styles and palette as plain attributes (no CSS variables), for Illustrator, Figma, Office and other tools without CSS support. |
+| `--embed-fonts` | SVG with JetBrains Mono inside it, about 85 KB more, so a browser draws the same text anywhere, including through `<img>`. Design tools ignore it. |
 | `-q, --quiet` | Don't list written files. |
 
 Without `-o` or `--out-dir`, each output goes next to its input. Quote globs so
