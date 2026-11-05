@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, test } from 'vitest';
+import mermaid from 'mermaid';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { describeIcons, iconKeys, plainText } from '../src/icons/fa';
 import { MermaidParseError, parseMermaid } from '../src/parse';
 
@@ -579,6 +580,35 @@ describe('sequence features', () => {
 });
 
 describe('errors that carry no position', () => {
+  // The search for the line has a wall-clock budget. The clock stands still here so these
+  // tests are about which line is found, whatever else the machine is doing.
+  beforeEach(() => {
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Parse `source`, counting how many times Mermaid is asked to read something. */
+  async function counted(source: string) {
+    const api = mermaid.mermaidAPI;
+    let reads = 0;
+    const counting = {
+      ...api,
+      getDiagramFromText: (...args: Parameters<typeof api.getDiagramFromText>) => {
+        reads++;
+        return api.getDiagramFromText(...args);
+      },
+    };
+    mermaid.mermaidAPI = counting;
+    try {
+      const err = await parseMermaid(source).catch((e) => e);
+      return { err, reads };
+    } finally {
+      mermaid.mermaidAPI = api;
+    }
+  }
+
   test('a crash inside Mermaid names the line behind it', async () => {
     const err = await parseMermaid('classDiagram\n  class A {\n    +ok()\n    +bar() <!--\n  }\n  A --> B').catch((e) => e);
     expect(err).toBeInstanceOf(MermaidParseError);
@@ -596,15 +626,32 @@ describe('errors that carry no position', () => {
     expect((await parseMermaid('flowchart LR\n  A --> B')).nodes).toHaveLength(2);
   });
 
-  test('two bad lines: no single line to blame, and a search that stays within its budget', async () => {
-    const body = Array.from({ length: 120 }, (_, i) => `  class C${i} {\n    +m${i}()\n  }`).join('\n');
-    const source = `classDiagram\n${body}\n  class Y {\n    +bar() <!--\n  }\n  class Z {\n    +baz() <!--\n  }`;
-    const started = performance.now();
-    const err = await parseMermaid(source).catch((e) => e);
+  test('two bad lines: no single line to blame', async () => {
+    const err = await parseMermaid('classDiagram\n  class Y {\n    +bar() <!--\n  }\n  class Z {\n    +baz() <!--\n  }').catch((e) => e);
     expect(err).toBeInstanceOf(MermaidParseError);
     expect(err.line).toBeUndefined();
     expect(err.message).toMatch(/^Could not read this diagram/);
-    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test('the search stops when its time is up', async () => {
+    const source = 'classDiagram\n  class A {\n    +ok()\n  }\n  class B {\n    +bar() <!--\n  }';
+    expect((await counted(source)).err.line).toBe(6);
+
+    let now = 0;
+    vi.mocked(performance.now).mockImplementation(() => (now += 60));
+    const { err, reads } = await counted(source);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBeUndefined();
+    expect(err.message).toMatch(/^Could not read this diagram/);
+    expect(reads).toBeLessThanOrEqual(3);
+  });
+
+  test('a very long diagram is not searched at all', async () => {
+    const body = Array.from({ length: 134 }, (_, i) => `  class C${i} {\n    +m${i}()\n  }`).join('\n');
+    const { err, reads } = await counted(`classDiagram\n${body}\n  class Y {\n    +bar() <!--\n  }`);
+    expect(err).toBeInstanceOf(MermaidParseError);
+    expect(err.line).toBeUndefined();
+    expect(reads).toBe(1);
   });
 
   test('ordinary syntax errors keep their own message and line', async () => {
