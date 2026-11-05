@@ -1,14 +1,19 @@
 import { FAILURE_WORDS, classify } from '../ir/classify';
+import { mergeStyles, parseStyle } from '../ir/style';
 import type { DiagramIR, IREdge, IRGroup, IRNode, NodeShape, SemanticType } from '../ir/types';
 import { normalizeDirection } from './flowchart';
 import { cleanLabel } from './text';
 
-/** Lifecycle semantics: state names map onto the palette by outcome, not by component kind. */
+/**
+ * Lifecycle semantics: state names map onto the palette by outcome, not by component kind.
+ * Words match at a word start (`Rerun` is not `run`), and a negating prefix cancels a
+ * match (`Incomplete`, `Unhealthy` are not successes).
+ */
 const STATE_TONES: [RegExp, SemanticType][] = [
   [FAILURE_WORDS, 'security'],
-  [/done|success|succeed|complete|finish|approved|paid|delivered|resolved|closed|ready|active|healthy|ok\b/i, 'backend'],
-  [/idle|wait|pending|queued|new|draft|created|init|sleep|paused|hold|blocked|scheduled/i, 'external'],
-  [/run|process|fetch|load|build|deploy|sync|retry|review|progress|execut|work|send|upload|verif|test|check|valid|migrat|install|provision/i, 'frontend'],
+  [/\b(un|in|non|not )?(done|success|succeed|complete|finish|approved|paid|delivered|resolved|closed|ready|active|healthy|ok\b)/gi, 'backend'],
+  [/\b(un|in|non|not )?(idle|wait|pending|queued|new\b|draft|created|init|sleep|paused|hold|blocked|scheduled)/gi, 'external'],
+  [/\b(un|in|non|not )?(run|process|fetch|load|build|deploy|sync|retry|review|progress|execut|work|send|upload|verif|test|check|valid|migrat|install|provision)/gi, 'frontend'],
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,6 +27,17 @@ export function stateToIR(db: Stmt): DiagramIR {
   let direction: string | undefined;
 
   const root = db.getRootDocV2();
+  /** Mermaid's per-state record, accumulated over the whole diagram: `class`/`:::`, `style` lines, descriptions. */
+  const states: Map<string, { classes?: string[]; styles?: string[]; descriptions?: string[] }> = db.getStates?.() ?? new Map();
+  const classDefs: Map<string, { styles?: string[] }> = db.getClasses?.() ?? new Map();
+  const classesFor = (id: string, own: string[] = []) => [...new Set([...own, ...(classesOf.get(id) ?? []), ...(states.get(id)?.classes ?? [])])];
+  // Mermaid's precedence: classDefs in class order, then `style` statements.
+  const styleFor = (id: string, classes: string[]) =>
+    mergeStyles(...classes.map((c) => parseStyle(classDefs.get(c)?.styles)), parseStyle(states.get(id)?.styles));
+  const describe = (s: Stmt) => {
+    const all = states.get(s.id)?.descriptions;
+    return stateText(all?.length ? all : s.descriptions?.length ? s.descriptions : s.description);
+  };
 
   // Composite states are groups; collect them first so relations can target them.
   const collectGroups = (doc: Stmt[], parent?: string) => {
@@ -32,7 +48,11 @@ export function stateToIR(db: Stmt): DiagramIR {
         if (!existing) groups.set(s.id, { id: s.id, label, parent });
         collectGroups(s.doc, s.id);
       }
-      if (s.stmt === 'applyClass') for (const id of String(s.id).split(',')) classesOf.set(id.trim(), [s.styleClass]);
+      if (s.stmt === 'applyClass')
+        for (const raw of String(s.id).split(',')) {
+          const id = raw.trim();
+          classesOf.set(id, [...(classesOf.get(id) ?? []), s.styleClass]);
+        }
       if (s.stmt === 'dir' && !parent) direction = s.value;
     }
   };
@@ -49,7 +69,7 @@ export function stateToIR(db: Stmt): DiagramIR {
     const label = describe(s);
     if (existing) {
       if (label && existing.label === existing.id) existing.label = label;
-      if (s.classes?.length) existing.classes = s.classes;
+      if (s.classes?.length) existing.classes = classesFor(s.id, [...existing.classes, ...s.classes]);
       return;
     }
     let shape: NodeShape = 'rounded';
@@ -57,13 +77,15 @@ export function stateToIR(db: Stmt): DiagramIR {
     else if (s.start === false) shape = 'end';
     else if (s.type === 'fork' || s.type === 'join') shape = 'fork';
     else if (s.type === 'choice') shape = 'diamond';
-    const classes: string[] = s.classes ?? classesOf.get(s.id) ?? [];
-    const text = label || (shape === 'start' || shape === 'end' || shape === 'fork' ? '' : s.id);
+    const classes = classesFor(s.id, s.classes);
+    const pseudo = shape === 'start' || shape === 'end' || shape === 'fork';
+    const text = label || (pseudo ? '' : s.id);
     nodes.set(s.id, {
       id: s.id,
       label: text,
       shape,
-      type: tone(text || s.id, classes),
+      // Pseudo-states have no outcome of their own (`Active_start` is not "active").
+      type: pseudo ? 'plain' : tone(text || s.id, classes),
       parent,
       classes,
       hint: s.type,
@@ -111,12 +133,16 @@ export function stateToIR(db: Stmt): DiagramIR {
   };
   walk(root.doc);
 
-  for (const [id, cls] of classesOf) {
-    const n = nodes.get(id);
-    if (n && !n.classes.length) {
-      n.classes = cls;
-      n.type = tone(n.label || id, cls);
-    }
+  for (const n of nodes.values()) {
+    if (n.shape === 'note') continue;
+    const style = styleFor(n.id, n.classes);
+    if (style) n.style = style;
+  }
+  for (const g of groups.values()) {
+    const classes = classesFor(g.id);
+    const style = styleFor(g.id, classes);
+    if (classes.length) g.classes = classes;
+    if (style) g.style = style;
   }
 
   const regions = renameRegions([...groups.values()], [...nodes.values()], edges);
@@ -174,14 +200,16 @@ function renameRegions(groups: IRGroup[], nodes: IRNode[], edges: IREdge[]): IRG
 /** Mermaid's state syntax (unlike flowcharts) treats a literal `\n` as a line break. */
 const stateText = (raw: unknown) => cleanLabel(Array.isArray(raw) ? raw.map((r) => String(r).replace(/\\n/g, '\n')) : String(raw ?? '').replace(/\\n/g, '\n'));
 
-function describe(s: Stmt): string {
-  return stateText(s.descriptions?.length ? s.descriptions : s.description);
-}
-
 /** Lifecycle tone: an explicit class wins, then outcome words; otherwise a plain state. */
 function tone(label: string, classes: string[]): SemanticType {
   const explicit = classify({ label: '', id: '', classes });
   if (explicit.certainty === 'explicit') return explicit.type;
-  for (const [re, t] of STATE_TONES) if (re.test(label)) return t;
+  // Words split on case changes and separators: `PaymentDone`, `payment_done`.
+  const words = label.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\-.]+/g, ' ');
+  for (const [re, t] of STATE_TONES) {
+    if (re.global) {
+      if ([...words.matchAll(re)].some((m) => !m[1])) return t;
+    } else if (re.test(words)) return t;
+  }
   return 'plain';
 }

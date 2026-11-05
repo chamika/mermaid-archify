@@ -64,12 +64,22 @@ export function flowchartToIR(db: any): DiagramIR {
       if (member !== sg.id && !parentOf.has(member)) parentOf.set(member, sg.id);
     }
   }
-  for (const sg of db.getSubGraphs()) {
-    groups.push({ id: sg.id, label: cleanLabel(sg.title, { icons: true }) || sg.id, parent: parentOf.get(sg.id) });
-  }
-
   const classDefs: Map<string, { styles?: string[] }> = db.getClasses?.() ?? new Map();
   const classStyles = (classes: string[]): (IRStyle | undefined)[] => classes.map((c) => parseStyle(classDefs.get(c)?.styles));
+
+  for (const sg of db.getSubGraphs()) {
+    // `class G c` lands on the subgraph, `style G …` on a vertex record with the subgraph's id.
+    const vertex = db.getVertices().get(sg.id);
+    const classes: string[] = [...new Set<string>([...(sg.classes ?? []), ...(vertex?.classes ?? [])])].filter((c) => c !== 'clickable');
+    const style = mergeStyles(...classStyles(classes), parseStyle(vertex?.styles));
+    groups.push({
+      id: sg.id,
+      label: cleanLabel(sg.title, { icons: true }) || sg.id,
+      parent: parentOf.get(sg.id),
+      ...(classes.length && { classes }),
+      ...(style && { style }),
+    });
+  }
 
   const nodes: IRNode[] = [];
   for (const v of db.getVertices().values()) {

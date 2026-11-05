@@ -58,8 +58,7 @@ export function buildSourceMap(source: string, d: Mappable): SourceMap {
   const known = new Set([...d.nodes.map((n) => n.id), ...d.groups.map((g) => g.id)]);
   const nodeById = new Map(d.nodes.map((n) => [n.id, n]));
   // Strings are labels (they may span lines); quoted ER entity names (`"HOSPITAL" {`) are ids.
-  const lines = prepareSource(source)
-    .replace(/"([^"]*)"/g, (m, q: string) => (d.kind === 'er' && known.has(q) ? ` ${q} ` : m.replace(/[^\n]/g, ' ')))
+  const lines = blankStrings(prepareSource(source), (q) => d.kind === 'er' && known.has(q))
     .split('\n')
     .map((raw) => scan(raw, d.kind, known));
 
@@ -163,6 +162,34 @@ export function buildSourceMap(source: string, d: Mappable): SourceMap {
   for (const [k, t] of atLine) if (!t.nodes.size && !t.edges.size) atLine.delete(k);
 
   return { lineOf, atLine };
+}
+
+/**
+ * Blank every `"…"` string (labels), keeping `isId` ones as words. A string that
+ * spans lines (`A["\`multi\nline\`"] --> B`) is folded onto its first line, so the
+ * statement scans as one; its line breaks come back at the end of that line, so
+ * every later line keeps its number.
+ */
+function blankStrings(text: string, isId: (q: string) => boolean): string {
+  let out = '';
+  let pending = 0;
+  let last = 0;
+  const copy = (chunk: string) => {
+    const nl = chunk.indexOf('\n');
+    if (pending && nl >= 0) {
+      chunk = chunk.slice(0, nl) + '\n'.repeat(pending) + chunk.slice(nl);
+      pending = 0;
+    }
+    out += chunk;
+  };
+  for (const m of text.matchAll(/"([^"]*)"/g)) {
+    copy(text.slice(last, m.index));
+    out += isId(m[1]) ? ` ${m[1]} ` : ' '.repeat(m[0].length);
+    pending += (m[1].match(/\n/g) ?? []).length;
+    last = m.index! + m[0].length;
+  }
+  copy(text.slice(last));
+  return out + '\n'.repeat(pending);
 }
 
 /** Known ids a line mentions, with labels, strings and arrows removed first. */

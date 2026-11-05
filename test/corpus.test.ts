@@ -8,7 +8,7 @@ import { layout } from '../src/layout';
 import { toElkGraph } from '../src/layout/elkGraph';
 import type { Routing } from '../src/layout/settings';
 import { MermaidParseError, parseMermaid } from '../src/parse';
-import { checkScene } from './helpers/invariants';
+import { checkScene, escapedMarkup } from './helpers/invariants';
 
 /**
  * Every diagram from Mermaid's own docs and demo pages (test/corpus, refreshed by
@@ -34,6 +34,13 @@ const fixtures = readdirSync(ROOT, { withFileTypes: true })
 const elk = new ELK();
 const read = (name: string) => readFileSync(`${ROOT}/${name}.mmd`, 'utf8');
 
+/** Author styling and links, which nothing else in the summary would show going missing. */
+const extras = (x: { classes?: string[]; style?: object; link?: string; tooltip?: string }) =>
+  (x.classes?.length ? ` .${x.classes.join('.')}` : '') +
+  (x.style ? ` style${JSON.stringify(x.style)}` : '') +
+  (x.link ? ` link:${x.link}` : '') +
+  (x.tooltip ? ` tip:${JSON.stringify(x.tooltip)}` : '');
+
 function summarize(ir: DiagramIR) {
   const types: Record<string, number> = {};
   for (const n of ir.nodes) types[n.type] = (types[n.type] ?? 0) + 1;
@@ -45,17 +52,24 @@ function summarize(ir: DiagramIR) {
       (n) =>
         `${n.id}[${n.shape}${n.parent ? ` in ${n.parent}` : ''}] ${JSON.stringify(describeIcons(n.label))}` +
         (n.annotation ? ` «${n.annotation}»` : '') +
-        (n.compartments?.length ? ` {${n.compartments.map((c) => c.rows.map((r) => r.cells.join(' ')).join('; ')).join(' | ')}}` : ''),
+        (n.compartments?.length ? ` {${n.compartments.map((c) => c.rows.map((r) => r.cells.join(' ')).join('; ')).join(' | ')}}` : '') +
+        extras(n),
     ),
     edges: ir.edges.map(
       (e) =>
         `${e.from} ${e.invisible ? '~~~' : '->'} ${e.to}${e.marker ? ` (${e.marker})` : ''}${e.label ? ` ${JSON.stringify(describeIcons(e.label))}` : ''}` +
-        (e.ends ? ` [${e.ends.startLabel ?? ''}${e.ends.start ?? '-'} ${e.stroke} ${e.ends.end ?? '-'}${e.ends.endLabel ?? ''}]` : ''),
+        (e.ends ? ` [${e.ends.startLabel ?? ''}${e.ends.start ?? '-'} ${e.stroke} ${e.ends.end ?? '-'}${e.ends.endLabel ?? ''}]` : '') +
+        // Line style and heads: `dotted <>` is a dotted line with arrows at both ends.
+        (e.stroke !== 'solid' || e.arrowStart || !e.arrowEnd ? ` ${e.stroke} ${e.arrowStart ? '<' : ''}${e.arrowEnd ? '>' : ''}` : '') +
+        extras(e),
     ),
-    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}`),
+    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}${extras(g)}`),
     ...(ir.icons && { icons: Object.keys(ir.icons).sort() }),
     types,
-    events: ir.events?.map((e) => e.kind).join(' '),
+    // Sequence messages with their arrow kind and lifeline changes.
+    events: ir.events
+      ?.map((e) => (e.kind === 'message' ? `message:${e.arrow}${e.creates ? `+${e.creates}` : ''}${e.destroys ? `-${e.destroys}` : ''}` : e.kind))
+      .join(' '),
   };
 }
 
@@ -84,7 +98,7 @@ describe.each(fixtures)('%s', (name) => {
     const scene = await layout(ir, elk);
     expect(scene.nodes).toHaveLength(ir.nodes.length);
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
-    checkScene(scene, name);
+    checkScene(scene, name, { escaped: escapedMarkup(src) });
     // Palette tints never reach a diagram with component types; region tints (#26) only group-free flowcharts.
     const tinted = [...scene.groups, ...scene.nodes, ...scene.edges].filter((b) => b.accent).map((b) => b.id);
     if (scene.nodes.some((n) => n.type !== 'plain')) expect(tinted, 'typed diagrams stay neutral').toEqual([]);
@@ -102,10 +116,11 @@ const graphs = fixtures.filter((f) => !INVALID[f] && !f.split('/')[1].startsWith
 
 describe.each(ROUTINGS)('routing: %s', (routing) => {
   test.each(graphs)('%s satisfies scene invariants', async (name) => {
-    const ir = await parseMermaid(read(name));
+    const src = read(name);
+    const ir = await parseMermaid(src);
     const scene = await layout(ir, elk, { routing });
     expect(scene.edges, 'every visible edge is routed').toHaveLength(ir.edges.filter((e) => !e.invisible).length);
-    checkScene(scene, `${name} (${routing})`);
+    checkScene(scene, `${name} (${routing})`, { escaped: escapedMarkup(src) });
   });
 });
 
@@ -139,12 +154,13 @@ test.each(flows)('%s: model order agrees with the layout edges', async (name) =>
  */
 describe.each<Routing>(['orthogonal', 'polyline', 'splines'])('pinned, routing: %s', (routing) => {
   test.each(graphs)('%s satisfies scene invariants', async (name) => {
-    const ir = await parseMermaid(read(name));
+    const src = read(name);
+    const ir = await parseMermaid(src);
     const id = ir.nodes.find((n) => ir.edges.some((e) => !e.invisible && (e.from === n.id || e.to === n.id)))?.id;
     if (!id) return;
     const pins = { [id]: [37, 53] as [number, number] };
     const scene = await layout(ir, elk, { routing, pins });
     expect(scene.nodes).toHaveLength(ir.nodes.length);
-    checkScene(scene, `${name} (${routing}, ${id} pinned)`);
+    checkScene(scene, `${name} (${routing}, ${id} pinned)`, { escaped: escapedMarkup(src) });
   });
 });

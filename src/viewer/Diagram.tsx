@@ -4,7 +4,7 @@ import { useContext } from 'preact/hooks';
 import { ICON_CELLS, type IconSet, hasIcons, plainText, runs } from '../icons/fa';
 import { type IRStyle, isSafeColor } from '../ir/style';
 import type { EndMark } from '../ir/types';
-import { CAPTION_H, FONT, ROW, cells, charWidth, compartmentMetrics, edgeLabelSize, fitCell, textWidth } from '../layout/measure';
+import { CAPTION_H, FONT, ROW, blockTabWidth, cells, charWidth, compartmentMetrics, condLabelWidth, edgeLabelSize, fitCell, fitGroupTitle, textWidth } from '../layout/measure';
 import type { Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
 import { TYPE_ICON, TYPE_LABEL } from './icons';
 
@@ -215,16 +215,18 @@ const accentVars = (accent: string | undefined): Record<string, string> | undefi
   accent ? { '--a-stroke': `var(--${accent}-stroke)`, '--a-fill': `var(--${accent}-fill)`, '--a-ink': `var(--${accent}-ink)` } : undefined;
 
 function GroupView({ g }: { g: SceneGroup }) {
+  const title = g.label && fitGroupTitle(g.label, g.w);
   return (
-    <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={accentVars(g.accent)}>
+    <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={{ ...accentVars(g.accent), ...userVars(g.style) }}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
-      {g.label && <RichText lines={[g.label]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
+      {title && <RichText lines={[title]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
+      {title !== g.label && <title>{plainText(g.label)}</title>}
     </g>
   );
 }
 
 /** Caption tint: the type colour, or the label ink over an author fill. */
-const typeInk = (n: SceneNode) => (n.style?.color ? 'var(--u-ink)' : stroke(n.type));
+const typeInk = (n: SceneNode) => (n.style?.color ? 'var(--u-ink)' : `var(--${n.type}-ink, ${stroke(n.type)})`);
 
 function Label({ n, withCaption }: { n: SceneNode; withCaption: boolean }) {
   const lh = FONT.label * FONT.lineHeight;
@@ -412,18 +414,19 @@ function Shape({ n }: { n: SceneNode }) {
   }
 }
 
-function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers }) {
+function NodeViewImpl({ n, kind, cls, h, tabbable = true }: { n: SceneNode; kind: Scene['kind']; cls: string; h: DiagramHandlers; tabbable?: boolean }) {
   // A caption names the component type, so only typed nodes get one.
   const withCaption =
     kind !== 'state' && n.type !== 'plain' && !['start', 'end', 'junction', 'fork', 'diamond', 'circle', 'text', 'note', 'compartment'].includes(n.shape);
-  const interactive = n.shape !== 'fork';
+  // A sequence participant's footer repeats its header: clickable, but one tab stop is enough.
+  const interactive = n.shape !== 'fork' && tabbable;
   return (
     <g
       class={`ma-node ${cls}`}
       data-id={n.id}
       tabIndex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
-      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type]}${n.link ? ', has link' : ''}` : undefined}
+      aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type] ?? n.type}${n.link ? ', has link' : ''}` : undefined}
       style={userVars(n.style)}
       onClick={(e) => h.onNodeClick?.(n.id, e as unknown as MouseEvent)}
       onKeyDown={(e) => {
@@ -444,7 +447,10 @@ function NodeView({ n, kind, cls, h }: { n: SceneNode; kind: Scene['kind']; cls:
   );
 }
 
-function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers }) {
+/** Re-rendered only when the node, its classes or the handlers change, not on every hover elsewhere. */
+const NodeView = memo(NodeViewImpl);
+
+function EdgeViewImpl({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers }) {
   const d = pathD(e.points);
   const styled: Record<string, string> = { cross: 'url(#ma-cross)', async: 'url(#ma-async)', circle: 'url(#ma-circle)' };
   const marker = (e.arrowStyle && styled[e.arrowStyle]) || 'url(#ma-arrow)';
@@ -494,12 +500,14 @@ function EdgeView({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers
   );
 }
 
+const EdgeView = memo(EdgeViewImpl);
+
 /** Accept only plain CSS colour syntax from diagram source; anything else gets the neutral tint. */
 const safeColor = (c: string): string => (isSafeColor(c) ? c.trim() : 'var(--lane-stroke)');
 
 /** Block condition text on a mask so lifelines never cross it. */
 function CondLabel({ x, y, text }: { x: number; y: number; text: string }) {
-  const w = textWidth(`[${text}]`, FONT.edge) + 8;
+  const w = condLabelWidth(text);
   return (
     <>
       <rect class="cond-bg" x={x - 4} y={y - 11} width={w} height={15} rx={3} />
@@ -517,6 +525,11 @@ function SequenceBackdrop({ scene }: { scene: Scene }) {
       {seq.lifelines.map((l) => (
         <line class="ma-lifeline" key={l.actor} data-actor={l.actor} x1={l.x} x2={l.x} y1={l.y1} y2={l.y2} />
       ))}
+      {seq.lifelines
+        .filter((l) => l.destroyed)
+        .map((l) => (
+          <path class="ma-destroyed" key={`x-${l.actor}`} d={`M${l.x - 8},${l.y2 - 8}L${l.x + 8},${l.y2 + 8}M${l.x + 8},${l.y2 - 8}L${l.x - 8},${l.y2 + 8}`} />
+        ))}
       {seq.activations.map((a, i) => (
         <rect class="ma-activation" key={i} x={a.x} y={a.y} width={a.w} height={Math.max(a.h, 8)} rx={2} />
       ))}
@@ -530,7 +543,7 @@ function SequenceBackdrop({ scene }: { scene: Scene }) {
           );
         }
         const kw = b.type;
-        const tabW = kw.length * 6.6 + 16;
+        const tabW = blockTabWidth(kw);
         return (
           <g class="ma-block" key={b.id}>
             <rect class="frame" x={b.x} y={b.y} width={b.w} height={b.h} rx={6} />
@@ -582,7 +595,10 @@ export interface DiagramProps {
   svgRef?: (el: SVGSVGElement | null) => void;
 }
 
-function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: DiagramProps) {
+const NO_HANDLERS: DiagramHandlers = Object.freeze({});
+
+function DiagramImpl({ scene, highlight = {}, handlers: given, overlay, svgRef }: DiagramProps) {
+  const handlers = given ?? NO_HANDLERS;
   const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep, animating, pinnedNodes } = highlight;
   const nodeCls = (id: string) =>
     [lit?.nodes.has(id) && 'lit', focused === id && 'focused', routeEnds?.includes(id) && 'route-end', pinnedNodes?.has(id) && 'pinned']
@@ -608,7 +624,9 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
       viewBox={`0 0 ${scene.width} ${scene.height}`}
       width={scene.width}
       height={scene.height}
-      role="img"
+      // Interactive, its nodes are buttons, which an `img` would hide from assistive tech.
+      role={given ? 'group' : 'img'}
+      aria-roledescription={given ? 'diagram' : undefined}
       aria-label={scene.title ?? `${scene.kind} diagram`}
     >
       <IconContext.Provider value={scene.icons ?? {}}>
@@ -628,7 +646,7 @@ function DiagramImpl({ scene, highlight = {}, handlers = {}, overlay, svgRef }: 
           <NodeView key={n.id} n={n} kind={scene.kind} cls={nodeCls(n.id)} h={handlers} />
         ))}
         {scene.seq?.footers.map((n) => (
-          <NodeView key={`${n.id}__foot`} n={n} kind={scene.kind} cls={nodeCls(n.id)} h={handlers} />
+          <NodeView key={`${n.id}__foot`} n={n} kind={scene.kind} cls={nodeCls(n.id)} h={handlers} tabbable={false} />
         ))}
       </g>
       {overlay && <g class="ma-overlay">{overlay}</g>}

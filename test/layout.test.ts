@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import { describe, expect, test } from 'vitest';
 import { layout } from '../src/layout';
-import { textWidth } from '../src/layout/measure';
-import { flattenBeziers, toElkGraph } from '../src/layout/elkGraph';
+import { fitGroupTitle, textWidth } from '../src/layout/measure';
+import { flattenBeziers, straighten, toElkGraph } from '../src/layout/elkGraph';
 import type { LayoutSettings } from '../src/layout/settings';
 import { parseMermaid } from '../src/parse';
 import type { Scene } from '../src/scene/types';
@@ -447,5 +447,175 @@ describe('region palette', () => {
     for (const src of ['stateDiagram-v2\n  [*] --> A\n  A --> B\n  B --> A\n  B --> Failed', sample('class'), 'sequenceDiagram\n  A->>B: error']) {
       expect(tinted(await scene(src, { palette: 'regions' }))).toBe(false);
     }
+  });
+});
+
+describe('sequence: create, destroy and boxes', () => {
+  test('a created participant heads its lifeline on the creating row; a destroyed one ends with no footer', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  A->>B: hi\n  create participant C\n  B->>C: make\n  C->>B: ok\n  destroy C\n  B-xC: bye\n  B->>A: done');
+    const s = await layout(ir, elk);
+    checkInvariants(s);
+    const head = (id: string) => s.nodes.find((n) => n.id === id)!;
+    const line = (id: string) => s.seq!.lifelines.find((l) => l.actor === id)!;
+    const make = s.edges[1];
+    // The creating message ends on C's header, which sits on that row, below A's and B's.
+    expect(head('C').y).toBeGreaterThan(head('A').y + head('A').h);
+    expect(make.points[1].y).toBeGreaterThan(head('C').y);
+    expect(make.points[1].y).toBeLessThan(head('C').y + head('C').h);
+    expect(make.points[1].x).toBeCloseTo(head('C').x);
+    expect(line('C').y1).toBe(head('C').y + head('C').h);
+    // The destroying message ends C's lifeline; no footer for C.
+    expect(line('C')).toMatchObject({ destroyed: true, y2: s.edges[3].points[0].y });
+    expect(s.seq!.footers.map((f) => f.id)).toEqual(['A', 'B']);
+  });
+
+  test('boxes enclose their participants, with room for the label, and keep neighbours apart', async () => {
+    const ir = await parseMermaid('sequenceDiagram\n  box Aqua Front\n    participant A\n    participant B\n  end\n  box rgb(200 10 10) Back\n    participant C\n  end\n  A->>B: x\n  B->>C: y');
+    const s = await layout(ir, elk);
+    checkInvariants(s);
+    expect(s.groups.map((g) => [g.id, g.label, g.style?.fill])).toEqual([
+      ['box1', 'Front', 'aqua'],
+      ['box2', 'Back', '#c80a0a'],
+    ]);
+    const [front, back] = s.groups;
+    expect(front.x + front.w).toBeLessThan(back.x);
+    for (const n of s.nodes) expect(n.y).toBeGreaterThanOrEqual(front.y + 28);
+  });
+});
+
+describe('edge cases in sizing', () => {
+  test('settings passed in code are clamped like front-matter', async () => {
+    const ir = await parseMermaid('flowchart LR\n  A --> B --> C');
+    const huge = await layout(ir, elk, { nodeSpacing: 1e7, rankSpacing: 1e7, routing: 'bogus' as never, direction: 'XX' as never });
+    const max = await layout(ir, elk, { nodeSpacing: 160, rankSpacing: 240 });
+    expect([huge.width, huge.height]).toEqual([max.width, max.height]);
+    expect((await layout(ir, elk, { nodeSpacing: Number.NaN })).width).toBe((await layout(ir, elk)).width);
+  });
+
+  test('an empty sequence note has a finite size', async () => {
+    for (const note of ['Note over A: <br>', 'Note right of A: #nbsp;', 'Note over A,B: <br>']) {
+      const s = await layout(await parseMermaid(`sequenceDiagram\n  A->>B: x\n  ${note}`), elk);
+      checkInvariants(s);
+      expect(Number.isFinite(s.width)).toBe(true);
+    }
+  });
+
+  test('empty groups keep a size, and group titles fit (or are shortened to fit)', async () => {
+    const s = await layout(await parseMermaid('flowchart LR\n  subgraph E [Empty]\n  end\n  subgraph G [Payments and settlement infrastructure cluster]\n    a\n  end\n  A --> E\n  E --> B'), elk);
+    checkInvariants(s);
+    const E = s.groups.find((g) => g.id === 'E')!;
+    expect(E.w).toBeGreaterThan(40);
+    expect(E.h).toBeGreaterThan(40);
+    expect(s.groups.find((g) => g.id === 'G')!.w).toBeGreaterThanOrEqual(textWidth('Payments and settlement infrastructure cluster', 11));
+  });
+
+  test('sequence blocks and boxes are as wide as their titles', async () => {
+    const long = 'x'.repeat(80);
+    const s = await layout(await parseMermaid(`sequenceDiagram\n  box Aqua ${long}\n    participant A\n  end\n  participant B\n  loop ${long}\n    A->>B: hi\n  end\n  alt ok\n    A->>B: a\n  else ${long}\n    B->>A: b\n  end`), elk);
+    checkInvariants(s);
+  });
+});
+
+describe('text measurement', () => {
+  test('cells are counted per grapheme: combining and zero-width take none, emoji take two', async () => {
+    const { cells } = await import('../src/layout/measure');
+    expect(cells('Café')).toBe(4);
+    expect(cells('a​b')).toBe(2);
+    expect(cells('☕✅⭐')).toBe(6);
+    expect(cells('👨‍👩‍👧')).toBe(2);
+    expect(cells('©')).toBe(1);
+    expect(cells('❤️')).toBe(2);
+    expect(cells('负责')).toBe(4);
+  });
+});
+
+test('a group is as wide as its title in every direction, without growing taller', async () => {
+  for (const dir of ['TB', 'BT', 'LR', 'RL']) {
+    const s = await layout(await parseMermaid(`flowchart ${dir}\n  subgraph G [Payments and settlement infrastructure cluster]\n    a[Ledger] --> b[Settlement]\n  end`), elk);
+    const g = s.groups[0];
+    expect(g.w, dir).toBeGreaterThanOrEqual(textWidth('Payments and settlement infrastructure cluster', 11));
+    const kids = s.nodes.filter((n) => n.parent === 'G');
+    const content = Math.max(...kids.map((n) => n.y + n.h)) - Math.min(...kids.map((n) => n.y));
+    expect(g.h, dir).toBeLessThan(content + 120);
+    // An empty group is wide enough for its own title too.
+    const empty = await layout(await parseMermaid(`flowchart ${dir}\n  subgraph E [Empty]\n  end\n  A --> E`), elk);
+    expect(fitGroupTitle('Empty', empty.groups[0].w), dir).toBe('Empty');
+  }
+});
+
+describe('a group wider than its contents keeps them centred', () => {
+  const TITLE = 'Payments and settlement infrastructure cluster';
+  const offCentre = (s: Scene, id: string) => {
+    const g = s.groups.find((x) => x.id === id)!;
+    const kids = [...s.nodes, ...s.groups].filter((n) => n.parent === id);
+    const left = Math.min(...kids.map((n) => n.x));
+    const right = Math.max(...kids.map((n) => n.x + n.w));
+    return Math.abs(left - g.x - (g.x + g.w - right));
+  };
+
+  for (const dir of ['TB', 'BT', 'LR', 'RL']) {
+    test(`flowchart ${dir}`, async () => {
+      const s = await scene(`flowchart ${dir}\n  subgraph G [${TITLE}]\n    a[Ledger] -->|posts| b[Settlement]\n  end\n  subgraph E [Empty]\n  end\n  b --> E\n  b --> c[Bank]`);
+      checkInvariants(s);
+      const g = s.groups.find((x) => x.id === 'G')!;
+      expect(g.w).toBeGreaterThanOrEqual(textWidth(TITLE, 11));
+      expect(offCentre(s, 'G')).toBeLessThanOrEqual(1);
+    });
+
+    test(`a single node, ${dir}`, async () => {
+      const s = await scene(`flowchart ${dir}\n  subgraph G [${TITLE}]\n    a[Ledger]\n  end\n  a -->|posts| c[Bank]`);
+      checkInvariants(s);
+      expect(offCentre(s, 'G')).toBeLessThanOrEqual(1);
+    });
+
+    test(`nested groups, ${dir}`, async () => {
+      const s = await scene(`flowchart ${dir}\n  subgraph O [${TITLE} and then some more]\n    subgraph I [${TITLE}]\n      a[Ledger] --> b[Settlement]\n    end\n  end\n  b --> c[Bank]`);
+      checkInvariants(s);
+      // ELK keeps 5px where an edge leaves a nested group, so the inner group sits 2.5px off.
+      expect(offCentre(s, 'O')).toBeLessThanOrEqual(5);
+      expect(offCentre(s, 'I')).toBeLessThanOrEqual(1);
+    });
+  }
+
+  test('edges leaving a centred group stay straight', async () => {
+    for (const dir of ['TB', 'BT', 'LR', 'RL']) {
+      // 373 wide around a 128-wide node: the node lands on a half pixel.
+      const s = await scene(`flowchart ${dir}\n  subgraph G [${TITLE}]\n    a[Ledger] --> b[Settlement]\n  end\n  subgraph E [Empty]\n  end\n  b --> E\n  b --> c[Bank]`);
+      checkInvariants(s);
+      for (const e of s.edges) {
+        for (let i = 1; i < e.points.length; i++) {
+          const [dx, dy] = [Math.abs(e.points[i].x - e.points[i - 1].x), Math.abs(e.points[i].y - e.points[i - 1].y)];
+          expect(dx === 0 || dx > 1, `${dir} ${e.id} ${JSON.stringify(e.points)}`).toBe(true);
+          expect(dy === 0 || dy > 1, `${dir} ${e.id} ${JSON.stringify(e.points)}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  test('straighten removes jogs of a pixel or less, and only those', () => {
+    const pts = (...xy: number[][]) => xy.map(([x, y]) => ({ x, y }));
+    // The run after the jog moves with it, and the bend after that run survives.
+    expect(straighten(pts([218.5, 198], [219, 225], [219, 297], [400, 297]))).toEqual(pts([218.5, 198], [218.5, 225], [218.5, 297], [400, 297]));
+    expect(straighten(pts([10, 5.5], [60, 6], [90, 6], [90, 80]))).toEqual(pts([10, 5.5], [60, 5.5], [90, 5.5], [90, 80]));
+    // A real offset, and a short real corner, stay.
+    const offset = pts([10, 0], [12, 40], [12, 90]);
+    expect(straighten(offset)).toEqual(offset);
+    const corner = pts([10, 0], [10.5, 0.5], [40, 0.5]);
+    expect(straighten(corner)).toEqual(corner);
+    const input = pts([0, 0], [0.5, 10]);
+    straighten(input);
+    expect(input).toEqual(pts([0, 0], [0.5, 10]));
+  });
+
+  test('a sequence box, with later participants clear of it', async () => {
+    const s = await scene(`sequenceDiagram\n  box Aqua ${TITLE}\n    participant A\n    participant B\n  end\n  box ${TITLE}\n    participant C\n  end\n  participant D\n  A->>B: hi\n  B->>C: hi\n  C->>D: hi`);
+    checkInvariants(s);
+    const [first, second] = s.groups;
+    expect(offCentre(s, first.id)).toBeLessThanOrEqual(1);
+    expect(offCentre(s, second.id)).toBeLessThanOrEqual(1);
+    expect(second.x).toBeGreaterThanOrEqual(first.x + first.w);
+    const d = s.nodes.find((n) => n.id === 'D')!;
+    expect(d.x).toBeGreaterThanOrEqual(second.x + second.w);
+    expect(first.x).toBeGreaterThanOrEqual(0);
   });
 });

@@ -65,6 +65,10 @@ Behaviour on a page:
   the page provides it and the system monospace font otherwise.
 - `mermaid-archify:not(:defined) { visibility: hidden }` hides inline source until the
   script has loaded.
+- **Content-Security-Policy**: the element styles itself with a constructed stylesheet, so a
+  strict `style-src` is fine. Diagrams from Mermaid source lay out in a Web Worker started
+  from a `blob:` URL; allow it with `worker-src 'self' blob:`, or the layout runs on the
+  page's main thread instead (it still works, but a large diagram can stall the page).
 
 ## Markdown plugins
 

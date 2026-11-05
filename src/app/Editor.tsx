@@ -3,7 +3,7 @@ import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { type Diagnostic, lintGutter, setDiagnostics } from '@codemirror/lint';
 import { Annotation, EditorState, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { mermaidHighlight, mermaidLanguage } from './mermaidLanguage';
 
 const theme = EditorView.theme({
@@ -92,12 +92,16 @@ export function Editor({ value, onChange, errorLine, errorMessage, onCursorLine,
     return () => view.current?.destroy();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // External value changes (sample picker, share link).
-  useEffect(() => {
+  // External value changes (sample picker, share link, layout controls, pins). Only the
+  // span that differs is replaced, so the cursor stays on the text it was on when, say,
+  // a layout control rewrites the front-matter above it.
+  // A layout effect, so no keystroke can land between this render and the check: after
+  // paint, a fast second edit makes `value` look external, and undoing that edit reports
+  // a change of its own, which never ends and hangs the page.
+  useLayoutEffect(() => {
     const v = view.current;
-    if (v && v.state.doc.toString() !== value) {
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value } });
-    }
+    const doc = v?.state.doc.toString();
+    if (v && doc !== undefined && doc !== value) v.dispatch({ changes: minimalChange(doc, value) });
   }, [value]);
 
   useEffect(() => {
@@ -127,4 +131,13 @@ export function Editor({ value, onChange, errorLine, errorMessage, onCursorLine,
   }, [reveal]);
 
   return <div ref={host} class="editor-host" />;
+}
+
+/** The single replacement turning `a` into `b`: everything between their common prefix and suffix. */
+export function minimalChange(a: string, b: string): { from: number; to: number; insert: string } {
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let end = 0;
+  while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
+  return { from: start, to: a.length - end, insert: b.slice(start, b.length - end) };
 }

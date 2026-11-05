@@ -67,7 +67,8 @@
       </mermaid-archify>
     </section>
 
-    <script>
+    <!-- A module script: Vite bundles it, so the built page has no inline script (CSP script-src 'self'). -->
+    <script type="module">
       document.getElementById('theme').addEventListener('change', (e) => {
         if (e.target.value) document.documentElement.dataset.theme = e.target.value;
         else delete document.documentElement.dataset.theme;

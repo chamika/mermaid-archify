@@ -10,6 +10,11 @@ declare module '*.mmd?raw' {
   export default src;
 }
 
+declare module 'virtual:font-face' {
+  const css: string;
+  export default css;
+}
+
 declare module 'virtual:fa-icons' {
   const table: Record<string, unknown>;
   export default table;

@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import { faIcons } from './vite-plugin-fa-icons';
+import { fontFace } from './vite-plugin-font-face';
 import { viewerBundle } from './vite-plugin-viewer-bundle';
 
 export default defineConfig({
-  plugins: [faIcons(), viewerBundle()],
+  plugins: [faIcons(), viewerBundle(), fontFace()],
   test: {
     environment: 'happy-dom',
     include: ['test/**/*.test.ts'],

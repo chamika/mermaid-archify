@@ -47,14 +47,16 @@ export function App() {
     [source, layoutSettings],
   );
 
-  // parse → layout, debounced; stale results are dropped.
+  // parse → layout, debounced; stale results are dropped, and a layout still running
+  // when the source changes again is stopped rather than left to finish.
   useEffect(() => {
     const ticket = ++run.current;
+    const superseded = new AbortController();
     const timer = window.setTimeout(async () => {
       setBusy(true);
       try {
         const ir = await parseMermaid(source);
-        const next = await layout(ir, browserElk(), { ...readLayoutSettings(source), pins: undefined });
+        const next = await layout(ir, browserElk(superseded.signal), { ...readLayoutSettings(source), pins: undefined });
         if (ticket !== run.current) return;
         setBase({ scene: next, ir, key: layoutKey });
         setProblem(undefined);
@@ -69,7 +71,10 @@ export function App() {
         if (ticket === run.current) setBusy(false);
       }
     }, 300);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      superseded.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the pin-free source on purpose
   }, [layoutKey]);
 

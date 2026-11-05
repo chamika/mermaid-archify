@@ -63,12 +63,25 @@ export async function parseMermaid(text: string): Promise<DiagramIR> {
       throw e;
     }
     // Read the db before releasing it to the next parse.
-    return toIR(diagram.type, diagram.db);
+    return adapt(() => toIR(diagram.type, diagram.db));
   });
   if (ir.kind !== 'state') settleTypes(ir.nodes);
-  await attachIcons(ir);
+  await adapt(() => attachIcons(ir));
   ir.title ??= frontmatterTitle(text);
   return ir;
+}
+
+/**
+ * Mermaid accepted the text but reading its db failed (an input this adapter does
+ * not expect). Still a problem with the diagram, so callers get a MermaidParseError.
+ */
+async function adapt<T>(read: () => T | Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (err) {
+    if (err instanceof MermaidParseError) throw err;
+    throw new MermaidParseError(`Could not read this diagram: ${(err as Error)?.message ?? String(err)}`);
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

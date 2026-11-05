@@ -1,8 +1,8 @@
 import type { ElkExtendedEdge, ElkNode, ElkPort, LayoutOptions } from 'elkjs/lib/elk-api.js';
 import { settleInk } from '../ir/style';
-import type { DiagramIR, Direction, Side } from '../ir/types';
+import type { DiagramIR, Direction, IRGroup, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneGroup, SceneNode } from '../scene/types';
-import { edgeLabelSize, nodeSize } from './measure';
+import { edgeLabelSize, groupTitleWidth, nodeSize } from './measure';
 import { DEFAULTS, type LayoutSettings } from './settings';
 
 export interface ElkLike {
@@ -76,13 +76,29 @@ export function toElkGraph(
   const elkNodes = new Map<string, ElkNode>();
   const usesPorts = ir.kind === 'architecture';
 
+  // ELK applies the minimum size of a group with children transposed under vertical
+  // layouts (elkjs 0.12: a TB group asked for (373, 64) came out 172×373), so swap it
+  // there; an empty group, laid out as a plain node, takes it as given.
+  const vertical = direction === 'TB' || direction === 'BT';
+  const filled = new Set([...ir.nodes, ...ir.groups].flatMap((x) => (x.parent ? [x.parent] : [])));
+  const minimum = (g: IRGroup, w: number, h: number) => (vertical && filled.has(g.id) ? `(${h}, ${w})` : `(${w}, ${h})`);
   for (const g of ir.groups) {
     elkNodes.set(g.id, {
       id: g.id,
       children: [],
       // With INCLUDE_CHILDREN the root's options apply inside groups too; repeating
       // considerModelOrder on nested compounds crashes ELK, so set padding only.
-      layoutOptions: { 'elk.padding': `[top=${GROUP_PAD.top},left=${GROUP_PAD.left},bottom=${GROUP_PAD.bottom},right=${GROUP_PAD.right}]`, ...groupSpacing(settings) },
+      layoutOptions: {
+        'elk.padding': `[top=${GROUP_PAD.top},left=${GROUP_PAD.left},bottom=${GROUP_PAD.bottom},right=${GROUP_PAD.right}]`,
+        ...groupSpacing(settings),
+        // Wide enough for its title, and never collapsed when empty. The viewer still
+        // shortens a title that does not fit, should ELK not honour this.
+        'elk.nodeSize.constraints': 'MINIMUM_SIZE',
+        'elk.nodeSize.minimum': minimum(g, groupTitleWidth(g.label), GROUP_PAD.top + GROUP_PAD.bottom),
+        // A group wider than its contents would otherwise leave them at its start. ELK
+        // transposes this under vertical layouts too, so ask for both axes.
+        'elk.contentAlignment': 'H_CENTER V_CENTER',
+      },
     });
   }
 
@@ -317,6 +333,7 @@ export function fromElk(
     label: g.label,
     parent: g.parent,
     depth: depthOf(g.parent),
+    ...(g.style && { style: settleInk(g.style) }),
     ...boxes.get(g.id)!,
   }));
 
@@ -328,6 +345,7 @@ export function fromElk(
   };
   collect(laid);
 
+  const routed = (points: Pt[]) => (splines ? dedupe(points) : simplify(straighten(points)));
   const edges: SceneEdge[] = [];
   for (const e of ir.edges) {
     if (e.invisible) continue;
@@ -345,7 +363,7 @@ export function fromElk(
       from: e.from,
       to: e.to,
       label: e.label,
-      points: dedupe(flipped.has(e.id) ? points.reverse() : points),
+      points: routed(flipped.has(e.id) ? points.reverse() : points),
       labelBox: lab ? { x: lab.x ?? 0, y: lab.y ?? 0, w: lab.width ?? 0, h: lab.height ?? 0 } : undefined,
       stroke: e.stroke,
       arrowEnd: e.arrowEnd,
@@ -514,6 +532,38 @@ export function flattenBeziers(ctrl: Pt[], steps = 8): Pt[] {
 
 function dedupe(points: Pt[]): Pt[] {
   return points.filter((p, i) => i === 0 || p.x !== points[i - 1].x || p.y !== points[i - 1].y);
+}
+
+/** Drop repeated points and interior points on a straight run. */
+export function simplify(points: Pt[]): Pt[] {
+  const out: Pt[] = [];
+  for (const p of points) {
+    if (out.length && out.at(-1)!.x === p.x && out.at(-1)!.y === p.y) continue;
+    if (out.length >= 2) {
+      const [a, b] = [out.at(-2)!, out.at(-1)!];
+      if ((a.x === b.x && b.x === p.x) || (a.y === b.y && b.y === p.y)) out.pop();
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+/**
+ * ELK rounds where an edge crosses a group's border, but a node centred in its group
+ * can sit on a half pixel, so a straight edge picks up a visible jog of a pixel or
+ * less. Line the rest of such a run up with where it started.
+ */
+export function straighten(points: Pt[]): Pt[] {
+  const out = points.map((p) => ({ ...p }));
+  for (let i = 1; i < out.length; i++) {
+    for (const [along, across] of [['x', 'y'], ['y', 'x']] as const) {
+      const jog = Math.abs(out[i][along] - out[i - 1][along]);
+      if (jog === 0 || jog > 1 || Math.abs(out[i][across] - out[i - 1][across]) <= jog) continue;
+      const was = out[i][along];
+      for (let j = i; j < out.length && out[j][along] === was; j++) out[j][along] = out[i - 1][along];
+    }
+  }
+  return out;
 }
 
 /** Edge order for trace playback: BFS depth of the source node from the graph's sources. */

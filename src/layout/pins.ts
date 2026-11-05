@@ -1,6 +1,6 @@
 import type { DiagramIR, Side } from '../ir/types';
 import type { Box, Pt, Scene, SceneEdge, SceneNode } from '../scene/types';
-import { flattenBeziers, GROUP_PAD, MARGIN, placeEndLabels } from './elkGraph';
+import { flattenBeziers, GROUP_PAD, MARGIN, placeEndLabels, simplify } from './elkGraph';
 import { edgeLabelSize } from './measure';
 import type { Pins, Routing } from './settings';
 
@@ -57,11 +57,21 @@ function tryPin(s: Scene, id: string, [dx, dy]: [number, number], opts: PinOptio
   node.y += dy;
   const grown = growGroups(s, node);
   const changed = new Set([id, ...grown]);
+  // A self-loop moves with its node, keeping ELK's loop and label; re-routing one between
+  // two sides of the same box would leave a stub with its label on the node.
+  const loops = s.edges.filter((e) => e.from === id && e.to === id);
+  for (const e of loops) translateEdge(e, dx, dy);
   const reroute = s.edges.filter(
-    (e) => changed.has(e.from) || changed.has(e.to) || (e.from !== id && e.to !== id && pathHits(e.points, node)),
+    (e) => !loops.includes(e) && (changed.has(e.from) || changed.has(e.to) || (e.from !== id && e.to !== id && pathHits(e.points, node))),
   );
   route(s, reroute, opts);
-  return valid(s, node, grown, reroute);
+  return valid(s, node, grown, [...reroute, ...loops]);
+}
+
+function translateEdge(e: SceneEdge, dx: number, dy: number) {
+  e.points = e.points.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+  if (e.labelBox) e.labelBox = { ...e.labelBox, x: e.labelBox.x + dx, y: e.labelBox.y + dy };
+  e.endLabels = e.endLabels?.map((l) => ({ ...l, x: l.x + dx, y: l.y + dy }));
 }
 
 /* ---------- groups ---------- */
@@ -158,20 +168,6 @@ function orthogonal(pa: Pt, sa: Side, pb: Pt, sb: Side, shape: Shape): Pt[] {
           ? [{ x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: b.y }]
           : [{ x: a.x, y: (a.y + b.y) / 2 }, { x: b.x, y: (a.y + b.y) / 2 }];
   return simplify([pa, a, ...mid, b, pb]);
-}
-
-/** Drop repeated points and interior points on a straight run. */
-function simplify(points: Pt[]): Pt[] {
-  const out: Pt[] = [];
-  for (const p of points) {
-    if (out.length && out.at(-1)!.x === p.x && out.at(-1)!.y === p.y) continue;
-    if (out.length >= 2) {
-      const [a, b] = [out.at(-2)!, out.at(-1)!];
-      if ((a.x === b.x && b.x === p.x) || (a.y === b.y && b.y === p.y)) out.pop();
-    }
-    out.push(p);
-  }
-  return out;
 }
 
 /** Does segment a→b pass through the inside of `box` (edges touching its border are fine)? */

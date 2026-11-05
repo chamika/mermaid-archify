@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { MermaidParseError, render, svgToPng } from '../src/node';
-import { UsageError, expandInputs, formatFor, globBase, outputPath } from '../src/node/outputs';
+import { UsageError, expandInputs, formatFor, globBase, outputPath, planOutputs } from '../src/node/outputs';
 import { bakeStyles } from '../src/node/png';
 
 /** The headless library, in plain Node: no DOM until `render` installs one. */
@@ -22,6 +22,24 @@ describe('render()', () => {
     expect(html).toContain('<html lang="en" data-theme="dark">');
     expect(html).toContain(JSON.stringify(scene).slice(0, 200));
     expect(html).toContain('<script type="text/plain" id="ma-source">flowchart LR');
+  });
+
+  test('leaves no DOM behind for the rest of the process, even after overlapping renders', async () => {
+    const browserish = () => typeof window !== 'undefined' || typeof document !== 'undefined';
+    await render(flow);
+    expect(browserish()).toBe(false);
+    const [a, b] = await Promise.all([render(flow), render('sequenceDiagram\n  A->>B: hi')]);
+    expect(a.scene.nodes).toHaveLength(3);
+    expect(b.scene.kind).toBe('sequence');
+    expect(browserish()).toBe(false);
+  });
+
+  test('bakeStyles gives an SVG without CSS variables, for tools that lack them', async () => {
+    const { svg } = await render(flow);
+    expect(svg).toContain('var(--');
+    const flat = bakeStyles(svg);
+    expect(flat).not.toContain('var(--');
+    expect(flat).not.toContain('context-stroke');
   });
 
   test('exported HTML keeps text that could end its scripts', async () => {
@@ -101,10 +119,12 @@ describe('svgToPng()', () => {
 });
 
 describe('CLI outputs', () => {
-  test('format comes from -o, else --format, else html', () => {
+  test('format comes from -o, else --format, else html; the two must agree', () => {
     expect(formatFor({})).toBe('html');
     expect(formatFor({ format: 'SVG' })).toBe('svg');
-    expect(formatFor({ out: 'a.svg', format: 'html' })).toBe('svg');
+    expect(formatFor({ out: 'a.svg', format: 'svg' })).toBe('svg');
+    expect(() => formatFor({ out: 'a.svg', format: 'html' })).toThrow(/is svg, but --format says html/);
+    expect(formatFor({ out: 'diagram.txt', format: 'svg' })).toBe('svg');
     expect(formatFor({ out: '-', format: 'svg' })).toBe('svg');
     expect(formatFor({ out: 'a.png' })).toBe('png');
     expect(formatFor({ format: 'PNG' })).toBe('png');
@@ -139,5 +159,17 @@ describe('CLI outputs', () => {
     expect(outputPath(inputs[0], 'html', { outDir: 'out' })).toBe('out/a/x.html');
     await expect(expandInputs(['docs/*.nope'], dir)).rejects.toThrow(/No files match/);
     await expect(expandInputs(['missing.mmd'], dir)).rejects.toThrow(/No such file/);
+    await expect(expandInputs(['docs'], dir)).rejects.toThrow(/docs is a directory; pass a quoted glob such as "docs\/\*\*\/\*\.mmd"/);
+  });
+
+  test('outputs are planned up front: no two inputs on one file, no input replaced by its output', () => {
+    const cwd = '/work';
+    const a = { path: 'a/x.mmd', base: 'a' };
+    const b = { path: 'b/x.mmd', base: 'b' };
+    expect(planOutputs([a, b], 'html', {}, cwd)).toEqual(['a/x.html', 'b/x.html']);
+    expect(() => planOutputs([a, b], 'html', { outDir: 'out' }, cwd)).toThrow(/a\/x.mmd and b\/x.mmd would both be written to out\/x.html/);
+    expect(() => planOutputs([{ path: 'x.mmd', base: '.' }, { path: 'x.mermaid', base: '.' }], 'html', {}, cwd)).toThrow(/both be written to x.html/);
+    expect(() => planOutputs([{ path: 'ok.svg', base: '.' }], 'svg', {}, cwd)).toThrow(/would replace its own input/);
+    expect(planOutputs([{ path: '-', base: '.' }], 'svg', {}, cwd)).toEqual(['-']);
   });
 });

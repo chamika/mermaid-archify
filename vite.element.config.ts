@@ -10,6 +10,8 @@ import { faIcons } from './vite-plugin-fa-icons';
  */
 export default defineConfig({
   plugins: [preact(), faIcons()],
+  // public/ is the site's (Pages headers, examples), not the package's.
+  publicDir: false,
   build: {
     outDir: 'dist-element',
     emptyOutDir: true,

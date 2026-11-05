@@ -98,19 +98,21 @@ export const FAILURE_WORDS = /fail|error|err\b|cancel|reject|abort|timeout|timed
 
 /**
  * Keyword guesses are only trustworthy when the diagram as a whole reads as a
- * component map: at least half of its content nodes are typed by evidence or
+ * component map: more than half of its content nodes are typed by evidence or
  * by keyword. Otherwise (a process flow such as "Christmas → Go shopping") the
- * guesses are dropped and those nodes render plain, as in Mermaid.
+ * guesses are dropped and those nodes render plain, as in Mermaid. Decisions
+ * (`{Is cache warm?}`) are steps of a process, never components, so a keyword
+ * in one is neither kept nor counted.
  */
 export function settleTypes(nodes: IRNode[]): void {
+  const plain = (n: IRNode) => {
+    n.type = 'plain';
+    n.certainty = 'none';
+  };
   const content = nodes.filter((n) => !STRUCTURAL.has(n.shape));
+  for (const n of content) if (n.shape === 'diamond' && n.certainty === 'guess') plain(n);
   const typed = content.filter((n) => n.certainty === 'explicit' || n.certainty === 'guess').length;
-  const architectural = content.length > 0 && typed * 2 >= content.length;
+  const architectural = content.length > 0 && typed * 2 > content.length;
   if (architectural) return;
-  for (const n of content) {
-    if (n.certainty === 'guess') {
-      n.type = 'plain';
-      n.certainty = 'none';
-    }
-  }
+  for (const n of content) if (n.certainty === 'guess') plain(n);
 }

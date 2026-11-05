@@ -63,7 +63,31 @@ describe('writeLayoutSettings', () => {
 
   test('replaces only the archify block', () => {
     const src = `---\ntitle: Shop\nconfig:\n  archify:\n    direction: TB\n    routing: splines\n  theme: dark\n---\n${BODY}`;
-    expect(roundTrip(src)).toBe(`---\ntitle: Shop\nconfig:\n  archify:\n    rankSpacing: 100\n    routing: polyline\n  theme: dark\n---\n${BODY}`);
+    // Keys keep their place; new ones go at the end of the block.
+    expect(roundTrip(src)).toBe(`---\ntitle: Shop\nconfig:\n  archify:\n    routing: polyline\n    rankSpacing: 100\n  theme: dark\n---\n${BODY}`);
+  });
+
+  test('keeps comments, blank lines and keys it does not know inside the archify block', () => {
+    const src = `---\nconfig:\n  archify:\n    # keep me\n    nodeSpacing: 80 # wide\n    future: 1\n    nested:\n      deep: true\n\n    routing: splines\n---\n${BODY}`;
+    expect(writeLayoutSettings(src, { nodeSpacing: 90 })).toBe(
+      `---\nconfig:\n  archify:\n    # keep me\n    nodeSpacing: 90 # wide\n    future: 1\n    nested:\n      deep: true\n\n---\n${BODY}`,
+    );
+    // Unknown keys keep the block alive when every setting is cleared.
+    expect(writeLayoutSettings(src, {})).toBe(`---\nconfig:\n  archify:\n    # keep me\n    future: 1\n    nested:\n      deep: true\n\n---\n${BODY}`);
+  });
+
+  test('clearing the last setting removes comments that were only under config', () => {
+    expect(writeLayoutSettings(`---\ntitle: T\nconfig:\n  # layout tweaks\n  archify:\n    routing: splines\n---\n${BODY}`, {})).toBe(`---\ntitle: T\n---\n${BODY}`);
+  });
+
+  test('a comment after config: or archify: is not a flow-style value', () => {
+    const src = `---\nconfig: # layout\n  archify: # mine\n    nodeSpacing: 80\n---\n${BODY}`;
+    expect(readLayoutSettings(src)).toEqual({ nodeSpacing: 80 });
+    expect(writeLayoutSettings(src, { nodeSpacing: 100 })).toBe(`---\nconfig: # layout\n  archify: # mine\n    nodeSpacing: 100\n---\n${BODY}`);
+  });
+
+  test('TD is top-down', () => {
+    expect(readLayoutSettings(`---\nconfig:\n  archify:\n    direction: TD\n---\n${BODY}`)).toEqual({ direction: 'TB' });
   });
 
   test('empty settings remove the block, then empty config, then empty front-matter', () => {

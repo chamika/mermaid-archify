@@ -60,12 +60,22 @@ type Theme = 'light' | 'dark';
 /** Everything the viewer needs to look right; the element puts it in its shadow root. */
 export const VIEWER_CSS = tokensCss + diagramCss + viewerCss;
 
+let cssInjected = false;
+
+/** Page-level viewer styles: a constructed sheet where supported (allowed by a strict CSP), else a `<style>`. */
 function injectCss() {
-  if (typeof document === 'undefined' || document.getElementById('ma-viewer-css')) return;
-  const style = document.createElement('style');
-  style.id = 'ma-viewer-css';
-  style.textContent = VIEWER_CSS;
-  document.head.appendChild(style);
+  if (typeof document === 'undefined' || cssInjected || document.getElementById('ma-viewer-css')) return;
+  cssInjected = true;
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(VIEWER_CSS);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  } catch {
+    const style = document.createElement('style');
+    style.id = 'ma-viewer-css';
+    style.textContent = VIEWER_CSS;
+    document.head.appendChild(style);
+  }
 }
 
 function currentTheme(): Theme {
@@ -104,6 +114,21 @@ export function Viewer({
   const viewportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pz = usePanZoom(viewportRef, embedded ? { wheelPans: () => hasFocusWithin(viewportRef.current) } : undefined);
+  // Callbacks read pan/zoom through a ref: depending on `pz` (new on every pan tick) would
+  // re-create them, and with them every node's handlers, while panning.
+  const pzRef = useRef(pz);
+  pzRef.current = pz;
+  /** Timeouts cleared on unmount. */
+  const timers = useRef(new Set<number>());
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  const later = useCallback((fn: () => void, ms: number) => {
+    const t = window.setTimeout(() => {
+      timers.current.delete(t);
+      fn();
+    }, ms);
+    timers.current.add(t);
+    return t;
+  }, []);
   const adj = useMemo(() => adjacency(scene), [scene]);
   const nodeById = useMemo(() => new Map(scene.nodes.map((n) => [n.id, n])), [scene]);
 
@@ -119,6 +144,16 @@ export function Viewer({
   const [showMap, setShowMap] = useState(true);
   const [ownTheme, setTheme] = useState<Theme>(() => themeProp ?? currentTheme());
   const theme = themeProp ?? ownTheme;
+  // Until a theme is chosen (toggle, saved, or set by the page), follow the OS as it changes.
+  useEffect(() => {
+    if (themeProp) return;
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const onChange = () => {
+      if (!document.documentElement.dataset.theme) setTheme(mq!.matches ? 'light' : 'dark');
+    };
+    mq?.addEventListener?.('change', onChange);
+    return () => mq?.removeEventListener?.('change', onChange);
+  }, [themeProp]);
   const [toast, setToast] = useState<string>();
   const [linkedLit, setLinkedLit] = useState<Lit>();
   const [arranging, setArranging] = useState(false);
@@ -147,7 +182,7 @@ export function Viewer({
       pz.fit({ w: scene.width, h: scene.height });
       if (initialFocus && nodeById.has(initialFocus)) {
         const n = nodeById.get(initialFocus)!;
-        window.setTimeout(() => pz.centerOn(n, { minK: 1, offsetX: 320 }), 50);
+        later(() => pzRef.current.centerOn(n, { minK: 1, offsetX: 320 }), 50);
       }
     }
   }, [scene, pz.size.w]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -234,9 +269,9 @@ export function Viewer({
       setLinkedLit(undefined);
       setFocus(id);
       const n = nodeById.get(id);
-      if (center && n) pz.centerOn(n, { minK: 0.9, offsetX: pz.size.w > 700 ? 320 : 0 });
+      if (center && n) pzRef.current.centerOn(n, { minK: 0.9, offsetX: pzRef.current.size.w > 700 ? 320 : 0 });
     },
-    [nodeById, pz, setFocus],
+    [nodeById, setFocus],
   );
 
   // --- arranging: drag nodes to pin them ---
@@ -248,9 +283,12 @@ export function Viewer({
       e.stopPropagation(); // not a pan
       const start = { x: e.clientX, y: e.clientY };
       const [bx, by] = pinOf(id);
-      const k = pz.t.k;
+      const k = pzRef.current.t.k;
       let moved = false;
       let last: [number, number] = [bx, by];
+      // Re-applying pins (re-routing edges) on every pointermove is costly on large
+      // diagrams: preview at most once per frame.
+      let frame = 0;
       const move = (ev: PointerEvent) => {
         const dx = ev.clientX - start.x;
         const dy = ev.clientY - start.y;
@@ -258,9 +296,13 @@ export function Viewer({
         if (!moved) setDragging(id);
         moved = true;
         last = [Math.round(bx + dx / k), Math.round(by + dy / k)];
-        arrange!.onPin(id, last, false);
+        frame ||= requestAnimationFrame(() => {
+          frame = 0;
+          arrange!.onPin(id, last, false);
+        });
       };
       const up = () => {
+        cancelAnimationFrame(frame);
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
         window.removeEventListener('pointercancel', up);
@@ -276,7 +318,7 @@ export function Viewer({
       window.addEventListener('pointercancel', up);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [arrangeOn, arrange, pz.t.k],
+    [arrangeOn, arrange],
   );
   const onNodeDoubleClick = useCallback(
     (id: string) => {
@@ -311,7 +353,7 @@ export function Viewer({
   const onNodeClick = useCallback(
     (id: string, e: MouseEvent) => {
       if (dragged.current) return e.stopPropagation(); // keep focus through a drag
-      if (pz.didPan()) return;
+      if (pzRef.current.didPan()) return;
       e.stopPropagation();
       setMenuOpen(false);
       setLinkedLit(undefined);
@@ -336,12 +378,12 @@ export function Viewer({
       setPinnedEdge(undefined);
       setFocus(focus === id ? undefined : id);
     },
-    [focus, nodeById, pz, routeEnds, setFocus],
+    [focus, nodeById, routeEnds, setFocus],
   );
 
   const onEdgeClick = useCallback(
     (id: string, e: MouseEvent) => {
-      if (pz.didPan()) return;
+      if (pzRef.current.didPan()) return;
       e.stopPropagation();
       setFocus(undefined);
       setRouteEnds([]);
@@ -349,7 +391,7 @@ export function Viewer({
       if (pinnedEdge !== id) onEdgePin?.(id);
       setPinnedEdge(pinnedEdge === id ? undefined : id);
     },
-    [pz, pinnedEdge, setFocus, onEdgePin],
+    [pinnedEdge, setFocus, onEdgePin],
   );
 
   const handlers = useMemo(
@@ -392,47 +434,51 @@ export function Viewer({
 
   const flash = (msg: string) => {
     setToast(msg);
-    window.setTimeout(() => setToast((m) => (m === msg ? undefined : m)), 2200);
+    later(() => setToast((m) => (m === msg ? undefined : m)), 2200);
   };
 
-  // --- keyboard ---
+  // --- keyboard: one listener per target, calling the latest handler ---
+  const onKeyRef = useRef<(e: KeyboardEvent) => void>();
+  onKeyRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      clearAll();
+      setTraceStep(undefined);
+      setAnimating(false);
+      return;
+    }
+    if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isTyping(e.target))) {
+      e.preventDefault();
+      setFinderOpen(true);
+      return;
+    }
+    if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+    const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (nudge && arrangeOn && focus && nodeById.has(focus)) {
+      e.preventDefault();
+      const step = e.shiftKey ? 32 : 8;
+      const [x, y] = pinOf(focus);
+      const next: [number, number] = [x + nudge[0] * step, y + nudge[1] * step];
+      arrange!.onPin(focus, next[0] || next[1] ? next : undefined, true);
+      return;
+    }
+    if (e.key === '+' || e.key === '=') pz.zoomBy(1.25);
+    else if (e.key === '-') pz.zoomBy(0.8);
+    else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
+    else if (e.key === 't') toggleTrace();
+    else if (e.key === ' ') {
+      // A focused button, link or menu item keeps Space for itself (activation).
+      if ((e.target as Element | null)?.closest?.('button, a[href], [role="menuitem"], summary, select')) return;
+      e.preventDefault(); // no page scroll
+      toggleAnimate();
+    }
+  };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        clearAll();
-        setTraceStep(undefined);
-        setAnimating(false);
-        return;
-      }
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !isTyping(e.target))) {
-        e.preventDefault();
-        setFinderOpen(true);
-        return;
-      }
-      if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-      const nudge = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-      if (nudge && arrangeOn && focus && nodeById.has(focus)) {
-        e.preventDefault();
-        const step = e.shiftKey ? 32 : 8;
-        const [x, y] = pinOf(focus);
-        const next: [number, number] = [x + nudge[0] * step, y + nudge[1] * step];
-        arrange!.onPin(focus, next[0] || next[1] ? next : undefined, true);
-        return;
-      }
-      if (e.key === '+' || e.key === '=') pz.zoomBy(1.25);
-      else if (e.key === '-') pz.zoomBy(0.8);
-      else if (e.key === '0') pz.fit({ w: scene.width, h: scene.height }, true);
-      else if (e.key === 't') toggleTrace();
-      else if (e.key === ' ') {
-        e.preventDefault(); // no page scroll, and a focused button is not clicked as well
-        toggleAnimate();
-      }
-    };
     // Embedded, several viewers share a page: each only hears keys while it has focus.
     const target: HTMLElement | Window | null = embedded ? viewportRef.current : window;
-    target?.addEventListener('keydown', onKey as EventListener);
-    return () => target?.removeEventListener('keydown', onKey as EventListener);
-  });
+    const onKey = (e: Event) => onKeyRef.current?.(e as KeyboardEvent);
+    target?.addEventListener('keydown', onKey);
+    return () => target?.removeEventListener('keydown', onKey);
+  }, [embedded]);
 
   const types = useMemo(() => {
     const seen = new Set<SemanticType>();
@@ -440,14 +486,21 @@ export function Viewer({
     return [...seen];
   }, [scene]);
 
-  const pulse =
-    traceStep !== undefined
-      ? scene.edges
-          .filter((e) => e.order === traceStep)
-          .map((e) => (
-            <TracePulse key={`${e.id}-${traceStep}`} path={pathD(e.points)} />
-          ))
-      : null;
+  // Stable between trace steps, so the memoised Diagram is not re-rendered by a pan.
+  const overlay = useMemo(
+    () =>
+      traceStep === undefined ? null : (
+        <g>
+          {scene.edges
+            .filter((e) => e.order === traceStep)
+            .map((e) => (
+              <TracePulse key={`${e.id}-${traceStep}`} path={pathD(e.points)} />
+            ))}
+        </g>
+      ),
+    [scene, traceStep],
+  );
+  const setSvg = useCallback((el: SVGSVGElement | null) => (svgRef.current = el), []);
 
   const status = (() => {
     if (routeEnds.length === 1 && !routeEnds[0]) return <>Route probe: click the start node</>;
@@ -496,7 +549,7 @@ export function Viewer({
           transition: pz.animating ? 'transform 300ms cubic-bezier(.2,.8,.2,1)' : undefined,
         }}
       >
-        <Diagram scene={scene} highlight={highlight} handlers={handlers} overlay={pulse && <g>{pulse}</g>} svgRef={(el) => (svgRef.current = el)} />
+        <Diagram scene={scene} highlight={highlight} handlers={handlers} overlay={overlay} svgRef={setSvg} />
       </div>
 
       {showTitle && scene.title && (
@@ -654,7 +707,7 @@ export function Viewer({
         </div>
       )}
 
-      {showMap && pz.size.w > 0 && <Minimap scene={scene} t={pz.t} size={pz.size} onPan={pz.panTo} />}
+      {showMap && pz.size.w > 0 && scene.width > 0 && scene.height > 0 && <Minimap scene={scene} t={pz.t} size={pz.size} onPan={pz.panTo} />}
 
       {status && <div class="ma-chrome ma-status" role="status">{status}</div>}
     </div>
@@ -695,6 +748,8 @@ function Finder({ scene, onPick, onClose }: { scene: Scene; onPick: (id: string)
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const closing = useRef<number>();
+  useEffect(() => () => window.clearTimeout(closing.current), []);
   const results = useMemo(() => search(scene, q), [scene, q]);
   const byId = useMemo(() => new Map(scene.nodes.map((n) => [n.id, n])), [scene]);
   useEffect(() => inputRef.current?.focus(), []);
@@ -722,7 +777,9 @@ function Finder({ scene, onPick, onClose }: { scene: Scene; onPick: (id: string)
             onClose();
           }
         }}
-        onBlur={() => window.setTimeout(onClose, 150)}
+        // Close after a click on a result has landed; focusing the input again cancels it.
+        onBlur={() => (closing.current = window.setTimeout(onClose, 150))}
+        onFocus={() => window.clearTimeout(closing.current)}
       />
       {q && (
         <ul role="listbox">
@@ -798,10 +855,11 @@ function Passport({
   const link = safeLink(node.link);
   const Rel = ({ other, text, dir }: { other: string; text?: string; dir: '→' | '←' }) => (
     <li>
-      <button onClick={() => nodeById.has(other) && onPick(other)}>
+      {/* An edge to a subgraph names the group, which is not a node to jump to. */}
+      <button onClick={() => onPick(other)} disabled={!nodeById.has(other)}>
         <span>{dir}</span>
         <span>
-          {label(nodeById.get(other)) || other}
+          {label(nodeById.get(other)) || plainText(scene.groups.find((g) => g.id === other)?.label ?? '') || other}
           {text && <div class="via">{plainText(text).replace(/\n/g, ' ')}</div>}
         </span>
       </button>
@@ -815,7 +873,7 @@ function Passport({
         </svg>
         <div>
           <h2>{plainText(node.label) || node.id}</h2>
-          <span class="kind" style={{ color: `var(--${node.type}-stroke)` }}>
+          <span class="kind" style={{ color: `var(--${node.type}-ink)` }}>
             {node.shape === 'start' ? 'start' : node.shape === 'end' ? 'end' : kindLabel}
           </span>
         </div>

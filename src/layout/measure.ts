@@ -23,10 +23,24 @@ export const charWidth = (size: number) => size * 0.6;
  */
 const WIDE =
   /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]|[\u{1F300}-\u{1FAFF}\u{20000}-\u{3FFFD}]/u;
+/** Drawn as an emoji (\u2615 \u2705 \u2B50, or any pictograph with VS16), so as wide as CJK. */
+const EMOJI = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/u;
+/** Combining marks and format characters (ZWSP, ZWJ, variation selectors) take no cell. */
+const ZERO = /^[\p{Mn}\p{Me}\p{Cf}\uFE00-\uFE0F]+$/u;
+const ASCII = /^[\x20-\x7e]*$/;
 
+const segmenter = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter() : undefined;
+const graphemes = (s: string): Iterable<string> => (segmenter ? [...segmenter.segment(s)].map((g) => g.segment) : s);
+
+/** Monospace cells `text` takes, counted per grapheme (`\u00E9` as one, a ZWJ family emoji as one wide one). */
 export function cells(text: string): number {
+  const s = iconsAsCells(text);
+  if (ASCII.test(s)) return s.length;
   let n = 0;
-  for (const ch of iconsAsCells(text)) n += WIDE.test(ch) ? 2 : 1;
+  for (const g of graphemes(s)) {
+    if (ZERO.test(g)) continue;
+    n += WIDE.test(g) || EMOJI.test(g) ? 2 : 1;
+  }
   return n;
 }
 
@@ -116,10 +130,31 @@ export function nodeSize(node: IRNode, direction: Direction, withCaption: boolea
   }
 }
 
+/** A group's title cell (11px, uppercase, 0.08em tracking; see diagram.css), and its 14px insets. */
+const GROUP_CELL = 11 * (0.6 + 0.08);
+const GROUP_INSET = 28;
+/** Width a group needs to show its whole title. */
+export const groupTitleWidth = (label: string) => Math.ceil(GROUP_INSET + cells(label) * GROUP_CELL);
+/** The title as drawn in a group `width` wide: whole, or cut with an ellipsis (ELK does not always honour a minimum width). */
+export function fitGroupTitle(label: string, width: number): string {
+  const max = Math.floor((width - GROUP_INSET) / GROUP_CELL);
+  if (cells(label) <= max) return label;
+  return max < 2 ? '' : `${chunk(label, max - 1)[0]}…`;
+}
+
+/** Sequence block geometry shared by layout and renderer: the keyword tab, and a `[condition]` label. */
+export const blockTabWidth = (keyword: string) => keyword.length * 6.6 + 16;
+export const condLabelWidth = (text: string) => textWidth(`[${text}]`, FONT.edge) + 8;
+/** Width a block needs for its title row (tab + condition) and each section's label, from its left edge. */
+export function blockTitleWidth(keyword: string, label: string, sections: string[]): number {
+  const tab = blockTabWidth(keyword);
+  return Math.ceil(Math.max(tab + 8, label ? tab + 2 + condLabelWidth(label) + 8 : 0, ...sections.map((s) => (s ? 4 + condLabelWidth(s) + 8 : 0))));
+}
+
 export function edgeLabelSize(label: string): { w: number; h: number; lines: string[] } {
   const lines = wrap(label, 26);
   return {
-    w: Math.ceil(Math.max(...lines.map((l) => textWidth(l, FONT.edge))) + 12),
+    w: Math.ceil(Math.max(0, ...lines.map((l) => textWidth(l, FONT.edge))) + 12),
     h: Math.ceil(lines.length * FONT.edge * FONT.lineHeight + 6),
     lines,
   };

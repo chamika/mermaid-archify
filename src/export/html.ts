@@ -1,8 +1,5 @@
+import fontFaceCss from 'virtual:font-face';
 import type { Scene } from '../scene/types';
-
-const FONT_LINK =
-  '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
-  '<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">';
 
 export const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 /** JavaScript safe inside <script>: no `</script`, no `<!--`. Not for JSON or plain text, which it would alter. */
@@ -36,8 +33,9 @@ export function buildStandaloneHtml(scene: Scene, source: string, viewerJs: stri
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="mermaid-archify">${scene.icons ? '\n<!-- Icons: Font Awesome Free by Fonticons, Inc., CC BY 4.0, https://fontawesome.com/license/free -->' : ''}
+<!-- JetBrains Mono, SIL Open Font License 1.1, https://github.com/JetBrains/JetBrainsMono -->
 <title>${title}</title>
-${FONT_LINK}
+<style>${fontFaceCss}</style>
 <style>html,body{margin:0;height:100%;background:var(--bg,#020617)}#app{position:fixed;inset:0}</style>
 </head>
 <body>

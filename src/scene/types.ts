@@ -41,6 +41,8 @@ export interface SceneGroup extends Box {
   depth: number;
   /** Palette tint: a token prefix in tokens.css (`tone-3`, `depth-2`), read as `--<accent>-stroke` etc. */
   accent?: string;
+  /** Author styling; over a palette tint, author colours win. */
+  style?: IRStyle;
 }
 
 export interface SceneEdge {
@@ -71,6 +73,8 @@ export interface SceneLifeline {
   x: number;
   y1: number;
   y2: number;
+  /** Ended by `destroy`: drawn with a cross at y2. */
+  destroyed?: boolean;
 }
 
 export interface SceneActivation extends Box {

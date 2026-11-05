@@ -51,3 +51,11 @@ test('class relations read from each end', async () => {
   expect(phrase('Item', 'Order')).toBe('composed of · has · 1 to many');
   expect(phrase('A', 'B')).toBe('dependency of');
 });
+
+test('plain lines (---) are walkable both ways; arrows only forwards', async () => {
+  const s = await scene('flowchart LR\n  C --- A\n  A --> B');
+  const adj = adjacency(s);
+  expect(route(adj, 'A', 'C')).toBeDefined();
+  expect(route(adj, 'C', 'B')).toBeDefined();
+  expect(route(adj, 'B', 'A')).toBeUndefined();
+});

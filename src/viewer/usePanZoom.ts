@@ -7,7 +7,8 @@ export interface Transform {
   k: number;
 }
 
-const MIN_K = 0.1;
+/** Low enough to fit a very wide diagram (a long chain is tens of thousands of px) on screen. */
+const MIN_K = 0.02;
 const MAX_K = 4;
 const clampK = (k: number) => Math.min(MAX_K, Math.max(MIN_K, k));
 
@@ -34,6 +35,7 @@ export function usePanZoom(viewport: { current: HTMLElement | null }, opts?: { w
   tRef.current = t;
   const panned = useRef(false);
   const animTimer = useRef<number>();
+  useEffect(() => () => window.clearTimeout(animTimer.current), []);
 
   const apply = useCallback((next: Transform, animate = false) => {
     window.clearTimeout(animTimer.current);
@@ -121,7 +123,8 @@ export function usePanZoom(viewport: { current: HTMLElement | null }, opts?: { w
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const at = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      const scale = e.deltaMode === 1 ? 16 : 1;
+      // deltaMode: 0 pixels, 1 lines, 2 pages.
+      const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientHeight : 1;
       if (e.ctrlKey || e.metaKey) {
         zoomBy(Math.exp((-e.deltaY * scale) / 300), at);
       } else {
@@ -136,9 +139,10 @@ export function usePanZoom(viewport: { current: HTMLElement | null }, opts?: { w
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0 || (e.target as Element).closest('.ma-chrome')) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      panned.current = false;
-      start = { x: e.clientX, y: e.clientY, t: tRef.current };
-      if (pointers.size === 2) {
+      if (pointers.size === 1) {
+        panned.current = false;
+        start = { x: e.clientX, y: e.clientY, t: tRef.current };
+      } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: tRef.current.k };
       }
@@ -167,7 +171,12 @@ export function usePanZoom(viewport: { current: HTMLElement | null }, opts?: { w
     };
     const onUp = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
-      if (pointers.size < 2) pinch = undefined;
+      if (pointers.size < 2 && pinch) {
+        pinch = undefined;
+        // One finger left after a pinch: it pans on from the pinched view, without a jump.
+        const [rest] = [...pointers.values()];
+        if (rest) start = { x: rest.x, y: rest.y, t: tRef.current };
+      }
       if (!pointers.size) start = undefined;
       el.classList.remove('is-panning');
       // Leave `panned` set until after the click event fires.

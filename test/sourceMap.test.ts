@@ -107,3 +107,25 @@ describe('source map', () => {
     expect(lineText('A')).toBe('A --> B');
   });
 });
+
+test('an external edit replaces only what changed, so the cursor keeps its text', async () => {
+  const { minimalChange } = await import('../src/app/Editor');
+  const before = 'flowchart LR\n  A --> B\n';
+  const after = '---\nconfig:\n  archify:\n    routing: splines\n---\nflowchart LR\n  A --> B\n';
+  const c = minimalChange(before, after);
+  expect(c).toEqual({ from: 0, to: 0, insert: '---\nconfig:\n  archify:\n    routing: splines\n---\n' });
+  expect(before.slice(0, c.from) + c.insert + before.slice(c.to)).toBe(after);
+  for (const [a, b] of [['abc', 'abc'], ['', 'x'], ['x', ''], ['aXb', 'aYYb'], ['aaa', 'aa']]) {
+    const m = minimalChange(a, b);
+    expect(a.slice(0, m.from) + m.insert + a.slice(m.to)).toBe(b);
+  }
+});
+
+test('a label spanning lines keeps its edge on the statement, and later lines keep their numbers', async () => {
+  const src = 'flowchart LR\n  A["`multi\n  line`"] --> C\n  C --> D';
+  const { ir, map } = await mapOf(src);
+  const [ac, cd] = ir.edges;
+  expect(map.lineOf.get(ac.id)).toBe(2);
+  expect(map.lineOf.get(cd.id)).toBe(4);
+  expect(map.lineOf.get('A')).toBe(2);
+});

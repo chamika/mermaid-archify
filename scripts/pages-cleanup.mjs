@@ -42,7 +42,8 @@ async function targets() {
       const branch = d.deployment_trigger?.metadata?.branch ?? '';
       if (isTarget(branch)) found.push({ id: d.id, branch, url: d.url });
     }
-    if (result.length === 0 || page >= (info?.total_pages ?? page)) return found;
+    // Without result_info, a short page is the last one (never assume one page: "clean" must mean it).
+    if (result.length === 0 || (info?.total_pages ? page >= info.total_pages : result.length < 25)) return found;
   }
 }
 

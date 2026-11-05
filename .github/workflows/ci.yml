@@ -5,13 +5,21 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to a PR cancels that PR's older run; runs on main all finish (the deploy job checks it is still the newest).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -25,12 +33,12 @@ jobs:
         env:
           CI: true
       # The site exactly as the browser tests exercised it; the deploy job ships this.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: site
           path: dist/
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report
@@ -56,29 +64,42 @@ jobs:
     env:
       BRANCH: ${{ github.event_name == 'push' && 'main' || format('pr-{0}', github.event.pull_request.number) }}
     steps:
-      # The PR may have closed (and been cleaned up) while the tests ran; don't resurrect its preview.
-      - name: Check PR is still open
+      # Deploy only the newest commit: an older run finishing last must not roll the site back,
+      # and a PR that closed (and was cleaned up) while the tests ran must not get its preview back.
+      - name: Check this is still the commit to deploy
         id: open
-        if: github.event_name == 'pull_request'
-        run: echo "state=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json state -q .state)" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            read -r state head < <(gh pr view "$PR" --repo "$REPO" --json state,headRefOid -q '.state + " " + .headRefOid')
+            [ "$head" = "$SHA" ] || state=STALE
+          else
+            head=$(gh api "repos/$REPO/commits/main" -q .sha)
+            state=$([ "$head" = "$SHA" ] && echo CURRENT || echo STALE)
+          fi
+          echo "commit $SHA, newest $head: $state"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: actions/download-artifact@v4
-        if: steps.open.outputs.state != 'CLOSED' && steps.open.outputs.state != 'MERGED'
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: steps.open.outputs.state == 'OPEN' || steps.open.outputs.state == 'CURRENT'
         with:
           name: site
           path: dist
       - name: Deploy to Cloudflare Pages
         id: deploy
-        if: steps.open.outputs.state != 'CLOSED' && steps.open.outputs.state != 'MERGED'
-        uses: cloudflare/wrangler-action@v3
+        if: steps.open.outputs.state == 'OPEN' || steps.open.outputs.state == 'CURRENT'
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=mermaid-archify --branch=${{ env.BRANCH }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }} --commit-dirty=true
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request' && steps.deploy.outcome == 'success'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           ALIAS_URL: https://${{ env.BRANCH }}.mermaid-archify.pages.dev
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
