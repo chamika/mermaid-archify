@@ -71,10 +71,16 @@ export function normalize(raw: Record<string, unknown>): LayoutSettings {
   return out;
 }
 
+/** A pin table: no prototype, since node ids can be `constructor` or `__proto__`. */
+export const pinMap = (): Pins => Object.create(null);
+
+/** The pin of node `id`, whichever kind of table `pins` is. */
+export const pinOf = (pins: Pins | undefined, id: string): [number, number] | undefined => (pins && Object.hasOwn(pins, id) ? pins[id] : undefined);
+
 /** Finite, rounded, clamped offsets in id order; [0, 0] means "not pinned" and is dropped. */
 function normalizePins(raw: unknown): Pins | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
-  const out: Pins = {};
+  const out = pinMap();
   for (const id of Object.keys(raw).sort()) {
     const v = (raw as Record<string, unknown>)[id];
     if (!id || !Array.isArray(v) || v.length !== 2) continue;
@@ -237,8 +243,8 @@ export function readLayoutSettings(source: string): LayoutSettings {
 }
 
 /** `pins:` children, each `id: [dx, dy]`. */
-function readPins(lines: Line[], at: number): Record<string, [number, number]> {
-  const out: Record<string, [number, number]> = {};
+function readPins(lines: Line[], at: number): Pins {
+  const out = pinMap();
   for (let i = at + 1; i < blockEnd(lines, at); i++) {
     const l = lines[i];
     const m = l.key && /^\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\]$/.exec(unquote(l.value ?? ''));

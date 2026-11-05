@@ -78,6 +78,7 @@ export function flowchartToIR(db: any): DiagramIR {
       parent: parentOf.get(sg.id),
       ...(classes.length && { classes }),
       ...(style && { style }),
+      ...(sg.dir && { direction: normalizeDirection(sg.dir) }),
     });
   }
 

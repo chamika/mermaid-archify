@@ -619,3 +619,83 @@ describe('a group wider than its contents keeps them centred', () => {
     expect(first.x).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe('a group with its own direction', () => {
+  const axis = (s: Scene, a: string, b: string) => {
+    const [p, q] = [s.nodes.find((n) => n.id === a)!, s.nodes.find((n) => n.id === b)!];
+    return Math.abs(p.x - q.x) > Math.abs(p.y - q.y) ? (p.x < q.x ? 'LR' : 'RL') : p.y < q.y ? 'TB' : 'BT';
+  };
+  const inner = (outer: string, dir: string, rest = '') => `flowchart ${outer}\n  subgraph G [Group]\n    direction ${dir}\n    a --> b\n    b --> c\n  end\n  x --> G\n  G --> y${rest}`;
+
+  for (const [outer, dir] of [['TB', 'LR'], ['TB', 'RL'], ['LR', 'TB'], ['LR', 'BT'], ['BT', 'LR'], ['RL', 'TB']]) {
+    test(`${dir} inside ${outer}`, async () => {
+      const s = await scene(inner(outer, dir));
+      checkInvariants(s);
+      expect(axis(s, 'a', 'b')).toBe(dir);
+      expect(axis(s, 'x', 'y')).toBe(outer);
+      // Its edges are routed, in the same coordinates as everything else.
+      expect(s.edges).toHaveLength(4);
+      const a = s.nodes.find((n) => n.id === 'a')!;
+      const ab = s.edges.find((e) => e.from === 'a' && e.to === 'b')!;
+      const [x, y] = [ab.points[0].x, ab.points[0].y];
+      expect(x >= a.x - 1 && x <= a.x + a.w + 1 && y >= a.y - 1 && y <= a.y + a.h + 1).toBe(true);
+    });
+  }
+
+  test('an edge from outside to a node inside makes it follow its parent, as in Mermaid', async () => {
+    for (const edge of ['x --> a', 'c --> y']) {
+      const s = await scene(`flowchart TB\n  subgraph G [Group]\n    direction LR\n    a --> b\n    b --> c\n  end\n  ${edge}`);
+      checkInvariants(s);
+      expect(axis(s, 'a', 'b'), edge).toBe('TB');
+    }
+  });
+
+  test('a nested group without a direction follows the enclosing one', async () => {
+    const s = await scene('flowchart TB\n  subgraph G [Group]\n    direction LR\n    p --> H\n    subgraph H [Inner]\n      a --> b\n    end\n  end');
+    checkInvariants(s);
+    expect(axis(s, 'a', 'b')).toBe('LR');
+    expect(axis(s, 'p', 'a')).toBe('LR');
+  });
+
+  test('a nested group can set its own, and an edge across it cancels the outer one', async () => {
+    const own = await scene('flowchart LR\n  subgraph G [Group]\n    direction TB\n    p --> H\n    subgraph H [Inner]\n      direction LR\n      a --> b\n    end\n  end');
+    checkInvariants(own);
+    expect(axis(own, 'a', 'b')).toBe('LR');
+    expect(axis(own, 'p', 'a')).toBe('TB');
+    const across = await scene('flowchart TB\n  subgraph G [Group]\n    direction LR\n    p --> a\n    subgraph H [Inner]\n      a --> b\n    end\n  end');
+    checkInvariants(across);
+    expect(across.edges).toHaveLength(2);
+    expect(axis(across, 'a', 'b')).toBe('TB');
+  });
+
+  test('its title fits, without the group growing tall, whichever direction', async () => {
+    for (const [outer, dir] of [['TB', 'TB'], ['TB', 'LR'], ['LR', 'TB'], ['LR', 'LR']]) {
+      const s = await scene(`flowchart ${outer}\n  subgraph G [Payments and settlement infrastructure cluster]\n    direction ${dir}\n    a\n  end`);
+      checkInvariants(s);
+      const g = s.groups[0];
+      expect(fitGroupTitle('Payments and settlement infrastructure cluster', g.w), `${outer}/${dir}`).not.toContain('…');
+      expect(g.h, `${outer}/${dir}`).toBeLessThan(130);
+      const n = s.nodes[0];
+      expect(Math.abs(n.x - g.x - (g.x + g.w - n.x - n.w)), `${outer}/${dir}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('edge labels inside land on their edge, and options reach the group', async () => {
+    const s = await scene('---\nconfig:\n  archify:\n    rankSpacing: 200\n---\nflowchart TB\n  subgraph G [Group]\n    direction LR\n    a -->|posts| b\n  end');
+    checkInvariants(s);
+    const e = s.edges[0];
+    const [a, b] = [s.nodes.find((n) => n.id === 'a')!, s.nodes.find((n) => n.id === 'b')!];
+    expect(b.x - (a.x + a.w)).toBeGreaterThan(150); // ELK's own default is 20
+    expect(e.labelBox!.x).toBeGreaterThanOrEqual(a.x + a.w - 1);
+    expect(e.labelBox!.x + e.labelBox!.w).toBeLessThanOrEqual(b.x + 1);
+  });
+
+  test('state composites, and layout runs stay deterministic', async () => {
+    const src = 'stateDiagram-v2\n  direction TB\n  state C {\n    direction LR\n    a --> b\n    b --> d\n  }\n  [*] --> C';
+    const s = await scene(src);
+    checkInvariants(s);
+    expect(axis(s, 'a', 'b')).toBe('LR');
+    expect(await scene(src)).toEqual(s);
+  });
+});
+

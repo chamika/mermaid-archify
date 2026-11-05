@@ -63,7 +63,7 @@ function summarize(ir: DiagramIR) {
         (e.stroke !== 'solid' || e.arrowStart || !e.arrowEnd ? ` ${e.stroke} ${e.arrowStart ? '<' : ''}${e.arrowEnd ? '>' : ''}` : '') +
         extras(e),
     ),
-    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''} ${JSON.stringify(describeIcons(g.label))}${extras(g)}`),
+    groups: ir.groups.map((g) => `${g.id}${g.parent ? ` in ${g.parent}` : ''}${g.direction ? ` dir:${g.direction}` : ''} ${JSON.stringify(describeIcons(g.label))}${extras(g)}`),
     ...(ir.icons && { icons: Object.keys(ir.icons).sort() }),
     types,
     // Sequence messages with their arrow kind and lifeline changes.

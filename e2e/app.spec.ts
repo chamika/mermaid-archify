@@ -197,7 +197,7 @@ test('exported HTML works offline with focus and exports', async ({ page, contex
   expect(offline.url()).toContain('#focus=A');
 
   await offline.getByRole('button', { name: 'Export' }).click();
-  const [svg] = await Promise.all([offline.waitForEvent('download'), offline.getByRole('menuitem', { name: /SVG/ }).click()]);
+  const [svg] = await Promise.all([offline.waitForEvent('download'), offline.getByRole('menuitem', { name: /SVG \(current theme\)/ }).click()]);
   const svgText = readFileSync((await svg.path())!, 'utf8');
   expect(svgText).toContain('<svg');
   expect(svgText).not.toMatch(/class="[^"]*\b(lit|dimmed|focused)\b/);
@@ -280,7 +280,7 @@ test('author styles render; click links and tooltips appear in the details panel
 
   // Exports carry the styles and never the unsafe link.
   await page.getByRole('button', { name: 'Export' }).click();
-  const [svgDl] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: /SVG/ }).click()]);
+  const [svgDl] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: /SVG \(current theme\)/ }).click()]);
   const svg = readFileSync((await svgDl.path())!, 'utf8');
   expect(svg).toContain('--u-fill: #f96');
   expect(svg.toLowerCase()).not.toContain('javascript:');
@@ -554,3 +554,167 @@ test('fast typing never hangs the page or loses a keystroke', async ({ page }) =
   await expect(page.locator('.cm-content')).toContainText('Done : third line');
   await expect(page.locator('.ma-node[data-id="Done"]')).toContainText('third line');
 });
+
+test.describe('keyboard', () => {
+  const active = (page: Page) => page.evaluate(() => { const a = document.activeElement!; return `${(a.getAttribute('class') ?? a.tagName).split(' ')[0]}:${a.getAttribute('data-id') ?? ''}`; });
+  /** From the diagram's own focus, Tab until `want` (a class prefix) has focus. */
+  async function tabTo(page: Page, want: string, id?: string) {
+    await page.locator('.ma-viewer').focus();
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press('Tab');
+      const now = await active(page);
+      if (now.startsWith(want) && (!id || now.endsWith(`:${id}`))) return;
+    }
+    throw new Error(`Tab never reached ${want} ${id ?? ''}`);
+  }
+  const source = 'flowchart LR\n  subgraph G [Pay]\n    A[One] -->|first| B[Two]\n  end\n  subgraph H [Ship]\n    C[Three]\n  end\n  B --> C';
+
+  test('Tab reaches a node, and Enter opens it; Space does not start the animation', async ({ page }) => {
+    await replaceSource(page, source);
+    await expect(page.locator('.ma-node')).toHaveCount(3);
+    await tabTo(page, 'ma-node', 'A');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.ma-node[data-id="A"]')).toHaveClass(/focused/);
+    await page.keyboard.press(' ');
+    await expect(page.locator('.ma-node[data-id="A"]')).not.toHaveClass(/focused/);
+    await expect(page.getByRole('button', { name: 'Animate flow' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('edges are one tab stop: arrows move along them, Enter pins', async ({ page }) => {
+    await replaceSource(page, source);
+    await expect(page.locator('.ma-edge')).toHaveCount(2);
+    await tabTo(page, 'ma-edge');
+    const first = await active(page);
+    await expect(page.locator('.ma-edge[tabindex="0"]')).toHaveCount(1);
+    const view = await page.locator('.ma-stage').getAttribute('style');
+    await page.keyboard.press('ArrowRight');
+    expect(await active(page)).not.toBe(first);
+    expect(await page.locator('.ma-stage').getAttribute('style')).toBe(view); // moved focus, did not pan
+    await expect(page.locator('.ma-edge[tabindex="0"]')).toHaveCount(1);
+    await page.keyboard.press('ArrowRight');
+    expect(await active(page)).toBe(first); // wraps
+    await page.keyboard.press('Enter');
+    await expect(page.locator(`.ma-edge[data-id="${first.split(':')[1]}"]`)).toHaveClass(/pinned/);
+    await expect(page.locator('.ma-edge[data-id]').first().getAttribute('aria-label')).resolves.toMatch(/ to /);
+  });
+
+  test('the tab stop survives an edit that removes the edge or group holding it', async ({ page }) => {
+    await replaceSource(page, 'flowchart LR\n  subgraph G [Pay]\n    A --> B\n  end\n  subgraph H [Ship]\n    B --> C\n  end\n  C --> D');
+    await expect(page.locator('.ma-edge')).toHaveCount(3);
+    await tabTo(page, 'ma-edge');
+    await page.keyboard.press('ArrowLeft'); // wraps to the last edge, C --> D
+    expect(await active(page)).toMatch(/_C_D_/);
+    await expect(page.locator('.ma-edge[tabindex="0"]')).toHaveCount(1);
+    await tabTo(page, 'ma-group', 'G');
+    await page.keyboard.press('ArrowRight');
+    expect(await active(page)).toBe('ma-group:H');
+
+    // Both holders go; a new edge also takes first place, which must not make a second stop.
+    await replaceSource(page, 'flowchart LR\n  subgraph G [Pay]\n    Z --> A\n    A --> B\n  end');
+    await expect(page.locator('.ma-edge')).toHaveCount(2);
+    await expect(page.locator('.ma-edge[tabindex="0"]')).toHaveCount(1);
+    await expect(page.locator('.ma-group[tabindex="0"]')).toHaveCount(1);
+    await tabTo(page, 'ma-edge');
+    await tabTo(page, 'ma-group', 'G');
+  });
+
+  test('groups are one tab stop: Enter highlights the contents, then clears them', async ({ page }) => {
+    await replaceSource(page, source);
+    await expect(page.locator('.ma-group')).toHaveCount(2);
+    await tabTo(page, 'ma-group', 'G');
+    await page.keyboard.press('ArrowDown');
+    expect(await active(page)).toBe('ma-group:H');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.ma-node[data-id="A"]')).toHaveClass(/lit/);
+    await expect(page.locator('.ma-node[data-id="B"]')).toHaveClass(/lit/);
+    await expect(page.locator('.ma-node[data-id="C"]')).not.toHaveClass(/lit/);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.ma-node[data-id="A"]')).not.toHaveClass(/lit/);
+    // Another selection is replaced rather than cleared.
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.ma-node[data-id="C"]')).toHaveClass(/lit/);
+    await expect(page.locator('.ma-node[data-id="A"]')).not.toHaveClass(/lit/);
+  });
+
+  test('focusing something off-screen pans to it instead of scrolling the viewport', async ({ page }) => {
+    await replaceSource(page, `flowchart LR\n${Array.from({ length: 24 }, (_, i) => `  N${i}[Node number ${i}] --> N${i + 1}[Node number ${i + 1}]`).join('\n')}`);
+    await expect(page.locator('.ma-node')).toHaveCount(25);
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    for (let i = 0; i < 6; i++) await page.keyboard.press('+');
+    await page.waitForTimeout(400);
+    await tabTo(page, 'ma-node', 'N24');
+    await page.waitForTimeout(500);
+    const vp = await page.locator('.ma-viewer').boundingBox();
+    const box = await page.locator('.ma-node[data-id="N24"]').boundingBox();
+    expect(await page.locator('.ma-viewer').evaluate((el) => [el.scrollLeft, el.scrollTop])).toEqual([0, 0]);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.x + vp!.width);
+    expect(box!.x).toBeGreaterThanOrEqual(vp!.x);
+  });
+
+  test('a mouse click on a group selects it the same way, and exports carry no tab stops', async ({ page }) => {
+    await replaceSource(page, source);
+    await expect(page.locator('.ma-group')).toHaveCount(2);
+    await page.locator('.ma-group[data-id="H"] rect').click({ position: { x: 6, y: 6 } });
+    await expect(page.locator('.ma-node[data-id="C"]')).toHaveClass(/lit/);
+    await page.getByRole('button', { name: 'Export' }).click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: /SVG \(current theme\)/ }).click()]);
+    const svg = readFileSync((await download.path())!, 'utf8');
+    expect(svg).not.toMatch(/tabindex|role="button"/i);
+  });
+});
+
+test.describe('SVG for design tools', () => {
+  async function exported(page: Page, name: RegExp) {
+    await page.getByRole('button', { name: 'Export' }).click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name }).click()]);
+    return readFileSync((await download.path())!, 'utf8');
+  }
+  /** Share of pixels differing visibly between the two SVGs drawn as images, in the page. */
+  const difference = (page: Page, a: string, b: string) =>
+    page.evaluate(async ([x, y]) => {
+      const draw = async (text: string) => {
+        const url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        return ctx.getImageData(0, 0, img.width, img.height);
+      };
+      const [p, q] = [await draw(x), await draw(y)];
+      if (p.width !== q.width || p.height !== q.height) return 1;
+      let off = 0;
+      for (let i = 0; i < p.data.length; i += 4) {
+        if (Math.abs(p.data[i] - q.data[i]) + Math.abs(p.data[i + 1] - q.data[i + 1]) + Math.abs(p.data[i + 2] - q.data[i + 2]) > 48) off++;
+      }
+      return off / (p.width * p.height);
+    }, [a, b]);
+
+  for (const [id, source] of [
+    ['flowchart', 'flowchart LR\n  classDef hot fill:#f00,color:#fff\n  subgraph G [Payments]\n    A[Web App]:::hot -->|calls| B[(Orders DB)]\n  end\n  B -.-> C{Ok?}\n  C ==> D((Done))'],
+    ['sequence', 'sequenceDiagram\n  autonumber\n  A->>B: hello\n  B-->>A: hi\n  Note over A,B: both\n  loop every day\n    A-xB: check\n  end'],
+    ['class', 'classDiagram\n  class A {\n    +int id\n    +go() void\n  }\n  A <|-- B\n  A *-- C : has'],
+    ['er', 'erDiagram\n  A ||--o{ B : has\n  A {\n    string id PK\n  }'],
+    ['state', 'stateDiagram-v2\n  [*] --> Run\n  Run --> Done : ok\n  Done --> [*]'],
+  ]) {
+    test(`${id}: draws the same as the regular SVG, with nothing but attributes`, async ({ page }) => {
+      await replaceSource(page, source);
+      await expect(page.locator('.ma-node').first()).toBeVisible();
+      await page.waitForTimeout(600);
+      const regular = await exported(page, /SVG \(current theme\)/);
+      const baked = await exported(page, /SVG for design tools/);
+      expect(baked).not.toMatch(/var\(|context-stroke|context-fill|auto-start-reverse|<style|\sclass=|\sstyle=|tabindex/);
+      expect(await difference(page, regular, baked)).toBeLessThan(0.002);
+      // The page itself is left as it was.
+      await expect(page.locator('body > div[style*="-99999px"]')).toHaveCount(0);
+    });
+  }
+});
+

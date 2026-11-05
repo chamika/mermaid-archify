@@ -1,6 +1,6 @@
 import { h, options, render as mount } from 'preact';
 import { act } from 'preact/test-utils';
-import { afterEach, beforeAll, expect, test } from 'vitest';
+import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { render } from '../src/node';
 import { Viewer } from '../src/viewer/Viewer';
 
@@ -57,7 +57,7 @@ test('panning does not re-render the diagram nodes', async () => {
   let nodeViews = 0;
   const prev = options.diffed;
   options.diffed = (v) => {
-    if ((v.type as { name?: string })?.name?.startsWith('NodeView')) nodeViews++;
+    if (/^(NodeView|EdgeView)/.test((v.type as { name?: string })?.name ?? '')) nodeViews++;
     prev?.(v);
   };
   try {
@@ -71,4 +71,59 @@ test('panning does not re-render the diagram nodes', async () => {
 test('an empty scene draws no NaN', async () => {
   const host = await open('flowchart LR');
   expect(host.innerHTML).not.toContain('NaN');
+});
+
+describe('editing the scene under pinned state', () => {
+  const two = 'flowchart LR\n  A --> B\n  B --> C';
+  const one = 'flowchart LR\n  B --> C';
+  const click = (host: HTMLElement, id: string, shiftKey = false) =>
+    act(() => void host.querySelector(`.ma-node[data-id="${id}"]`)!.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey })));
+  const swap = async (host: HTMLElement, source: string) => {
+    const { scene } = await render(source);
+    await act(() => mount(h(Viewer, { scene }), host));
+    await act(() => undefined);
+  };
+
+  test('removing the focused node closes its panel', async () => {
+    const host = await open(two);
+    await click(host, 'A');
+    expect(host.querySelector('.ma-node[data-id="A"]')!.getAttribute('class')).toMatch(/focused/);
+    await swap(host, one);
+    expect(host.querySelector('.ma-node[data-id="A"]')).toBeNull();
+    expect(host.querySelector('.focused')).toBeNull();
+  });
+
+  test('removing either end of a route clears it', async () => {
+    for (const gone of ['A', 'C']) {
+      const host = await open(two);
+      await click(host, 'A');
+      await click(host, 'C', true);
+      expect(host.querySelector('.on-route, .route-end')).not.toBeNull();
+      await swap(host, gone === 'A' ? one : 'flowchart LR\n  A --> B');
+      expect(host.querySelector(`.ma-node[data-id="${gone}"]`)).toBeNull();
+      expect(host.querySelector('.on-route, .route-end')).toBeNull();
+    }
+  });
+
+  test('a half-picked route loses its start when that node goes', async () => {
+    const host = await open(two);
+    await click(host, 'A', true);
+    await swap(host, one);
+    await click(host, 'B');
+    expect(host.querySelector('.ma-node[data-id="B"]')!.getAttribute('class')).toMatch(/focused/);
+  });
+});
+
+test('a node named after an Object.prototype member can be focused, and arranged without a pin', async () => {
+  const { scene } = await render('flowchart LR\n  constructor --> __proto__\n  __proto__ --> toString');
+  const host = document.createElement('div');
+  document.body.append(host);
+  hosts.push(host);
+  await act(() => mount(h(Viewer, { scene, arrange: { pins: {}, onPin: () => undefined } }), host));
+  for (const id of ['constructor', '__proto__', 'toString']) {
+    await act(() => void host.querySelector(`.ma-node[data-id="${id}"]`)!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(host.querySelector(`.ma-node[data-id="${id}"]`)!.getAttribute('class')).not.toMatch(/pinned/);
+    // Without an own pin, the panel offers nothing to undo.
+    expect(host.textContent).not.toMatch(/unpin/i);
+  }
 });

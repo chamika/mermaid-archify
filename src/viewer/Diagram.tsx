@@ -1,6 +1,6 @@
 import { type JSX, createContext } from 'preact';
 import { memo } from 'preact/compat';
-import { useContext } from 'preact/hooks';
+import { useContext, useMemo, useState } from 'preact/hooks';
 import { ICON_CELLS, type IconSet, hasIcons, plainText, runs } from '../icons/fa';
 import { type IRStyle, isSafeColor } from '../ir/style';
 import type { EndMark } from '../ir/types';
@@ -32,7 +32,31 @@ export interface DiagramHandlers {
   onEdgeClick?: (id: string, e: MouseEvent) => void;
   onEdgeEnter?: (id: string) => void;
   onEdgeLeave?: (id: string) => void;
+  onGroupClick?: (id: string, e: MouseEvent) => void;
 }
+
+const ROVE: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
+/**
+ * Keys for edges and groups. A diagram has too many of them for a tab stop each, so
+ * each kind is one stop: the arrow keys move along it, and Enter or Space activates.
+ */
+const rovingKeys = (selector: string, activate: (e: MouseEvent) => void, moved: (id: string) => void) => (e: KeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    activate(e as unknown as MouseEvent);
+    return;
+  }
+  const step = ROVE[e.key];
+  if (!step) return;
+  e.preventDefault();
+  e.stopPropagation(); // not a pan
+  const here = e.currentTarget as SVGGElement;
+  const all = [...here.ownerSVGElement!.querySelectorAll<SVGGElement>(selector)];
+  const next = all[(all.indexOf(here) + step + all.length) % all.length];
+  moved(next.getAttribute('data-id')!);
+  next.focus();
+};
 
 const stroke = (t: string) => `var(--${t}-stroke)`;
 const fill = (t: string) => `var(--${t}-fill)`;
@@ -214,10 +238,18 @@ function RichText({
 const accentVars = (accent: string | undefined): Record<string, string> | undefined =>
   accent ? { '--a-stroke': `var(--${accent}-stroke)`, '--a-fill': `var(--${accent}-fill)`, '--a-ink': `var(--${accent}-ink)` } : undefined;
 
-function GroupView({ g }: { g: SceneGroup }) {
+function GroupView({ g, stop, moved, h }: { g: SceneGroup; stop: boolean; moved: (id: string) => void; h: DiagramHandlers }) {
   const title = g.label && fitGroupTitle(g.label, g.w);
   return (
-    <g class={g.accent ? 'ma-group tinted' : 'ma-group'} data-id={g.id} style={{ ...accentVars(g.accent), ...userVars(g.style) }}>
+    <g
+      class={g.accent ? 'ma-group tinted' : 'ma-group'}
+      data-id={g.id}
+      tabindex={stop ? 0 : -1}
+      role="button"
+      aria-label={`${plainText(g.label) || g.id}, group`}
+      onClick={(e) => h.onGroupClick?.(g.id, e as unknown as MouseEvent)}
+      onKeyDown={rovingKeys('.ma-group', (e) => h.onGroupClick?.(g.id, e), moved)}
+      style={{ ...accentVars(g.accent), ...userVars(g.style) }}>
       <rect x={g.x} y={g.y} width={g.w} height={g.h} rx={10} />
       {title && <RichText lines={[title]} x={g.x + 14} y0={g.y + 22} lh={0} size={11} align="start" track={11 * 0.08} />}
       {title !== g.label && <title>{plainText(g.label)}</title>}
@@ -424,7 +456,7 @@ function NodeViewImpl({ n, kind, cls, h, tabbable = true }: { n: SceneNode; kind
     <g
       class={`ma-node ${cls}`}
       data-id={n.id}
-      tabIndex={interactive ? 0 : undefined}
+      tabindex={interactive ? 0 : undefined}
       role={interactive ? 'button' : undefined}
       aria-label={interactive ? `${plainText(n.label) || n.id}, ${TYPE_LABEL[n.type] ?? n.type}${n.link ? ', has link' : ''}` : undefined}
       style={userVars(n.style)}
@@ -450,7 +482,7 @@ function NodeViewImpl({ n, kind, cls, h, tabbable = true }: { n: SceneNode; kind
 /** Re-rendered only when the node, its classes or the handlers change, not on every hover elsewhere. */
 const NodeView = memo(NodeViewImpl);
 
-function EdgeViewImpl({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHandlers }) {
+function EdgeViewImpl({ e, cls, h, stop, moved, name }: { e: SceneEdge; cls: string; h: DiagramHandlers; stop: boolean; moved: (id: string) => void; name: string }) {
   const d = pathD(e.points);
   const styled: Record<string, string> = { cross: 'url(#ma-cross)', async: 'url(#ma-async)', circle: 'url(#ma-circle)' };
   const marker = (e.arrowStyle && styled[e.arrowStyle]) || 'url(#ma-arrow)';
@@ -471,8 +503,12 @@ function EdgeViewImpl({ e, cls, h }: { e: SceneEdge; cls: string; h: DiagramHand
     <g
       class={`ma-edge ${e.stroke} ${cls}`}
       data-id={e.id}
+      tabindex={stop ? 0 : -1}
+      role="button"
+      aria-label={name}
       style={{ ...accentVars(e.accent), ...userVars(e.style) }}
       onClick={(ev) => h.onEdgeClick?.(e.id, ev as unknown as MouseEvent)}
+      onKeyDown={rovingKeys('.ma-edge', (ev) => h.onEdgeClick?.(e.id, ev), moved)}
       onPointerEnter={() => h.onEdgeEnter?.(e.id)}
       onPointerLeave={() => h.onEdgeLeave?.(e.id)}
     >
@@ -599,6 +635,16 @@ const NO_HANDLERS: DiagramHandlers = Object.freeze({});
 
 function DiagramImpl({ scene, highlight = {}, handlers: given, overlay, svgRef }: DiagramProps) {
   const handlers = given ?? NO_HANDLERS;
+  // Which edge and which group hold the tab stop: the last moved to, while the scene still has it.
+  const [edgeStop, setEdgeStop] = useState<string>();
+  const [groupStop, setGroupStop] = useState<string>();
+  const edgeAt = scene.edges.some((e) => e.id === edgeStop) ? edgeStop : scene.edges[0]?.id;
+  const groupAt = scene.groups.some((g) => g.id === groupStop) ? groupStop : scene.groups[0]?.id;
+  const names = useMemo(() => new Map([...scene.nodes, ...scene.groups].map((b) => [b.id, plainText(b.label) || b.id])), [scene]);
+  const edgeName = (e: SceneEdge) => {
+    const [from, to] = [names.get(e.from) ?? e.from, names.get(e.to) ?? e.to];
+    return `${from} to ${to}${e.label ? `: ${plainText(e.label)}` : ''}`;
+  };
   const { lit, mode, focused, routeEnds, routeEdges, pinnedEdge, traceStep, animating, pinnedNodes } = highlight;
   const nodeCls = (id: string) =>
     [lit?.nodes.has(id) && 'lit', focused === id && 'focused', routeEnds?.includes(id) && 'route-end', pinnedNodes?.has(id) && 'pinned']
@@ -632,12 +678,12 @@ function DiagramImpl({ scene, highlight = {}, handlers: given, overlay, svgRef }
       <IconContext.Provider value={scene.icons ?? {}}>
       <Markers />
       {groups.map((g) => (
-        <GroupView key={g.id} g={g} />
+        <GroupView key={g.id} g={g} stop={g.id === groupAt} moved={setGroupStop} h={handlers} />
       ))}
       {scene.seq && <SequenceBackdrop scene={scene} />}
       <g class="ma-edges">
         {scene.edges.map((e) => (
-          <EdgeView key={e.id} e={e} cls={edgeCls(e)} h={handlers} />
+          <EdgeView key={e.id} e={e} cls={edgeCls(e)} h={handlers} stop={e.id === edgeAt} moved={setEdgeStop} name={edgeName(e)} />
         ))}
       </g>
       {scene.seq && <Notes scene={scene} />}

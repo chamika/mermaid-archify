@@ -58,6 +58,8 @@ Behaviour on a page:
 
 - **Keyboard**: click or tab into a diagram, then `/`, `+`, `-`, `0`, `T` and `Esc` work
   on that diagram only.
+  Tab reaches the diagram's parts: its groups and its edges are one stop each (the arrow
+  keys move along them), then each node. Enter or Space activates what has focus.
 - **Scrolling**: the mouse wheel scrolls the page until the diagram has focus; then it
   pans. Ctrl/⌘ + wheel and pinch always zoom.
 - **Theme toggle** in the toolbar changes that diagram only, never the page.

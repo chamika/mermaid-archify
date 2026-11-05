@@ -53,7 +53,10 @@ export function stateToIR(db: Stmt): DiagramIR {
           const id = raw.trim();
           classesOf.set(id, [...(classesOf.get(id) ?? []), s.styleClass]);
         }
-      if (s.stmt === 'dir' && !parent) direction = s.value;
+      if (s.stmt === 'dir') {
+        if (!parent) direction = s.value;
+        else groups.get(parent)!.direction = normalizeDirection(s.value);
+      }
     }
   };
   collectGroups(root.doc);

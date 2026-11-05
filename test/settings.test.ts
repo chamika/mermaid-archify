@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { parseMermaid } from '../src/parse';
-import { normalize, readLayoutSettings, writeLayoutSettings } from '../src/layout/settings';
+import { type Pins, normalize, readLayoutSettings, writeLayoutSettings } from '../src/layout/settings';
 
 const BODY = 'flowchart LR\n  A --> B\n';
 
@@ -150,5 +150,29 @@ describe('pins', () => {
   test('pins nested one level deeper are not mistaken for settings', () => {
     const src = `---\nconfig:\n  archify:\n    pins:\n      routing: [4, 4]\n---\n${BODY}`;
     expect(readLayoutSettings(src)).toEqual({ pins: { routing: [4, 4] } });
+  });
+});
+
+describe('node ids that name Object.prototype members', () => {
+  const src = 'flowchart LR\n  __proto__ --> constructor\n  constructor --> toString';
+  const pins = () => JSON.parse('{"__proto__":[1,2],"constructor":[3,4],"toString":[5,6]}') as Pins;
+
+  test('pins round-trip through the front-matter', () => {
+    const read = readLayoutSettings(writeLayoutSettings(src, { pins: pins() })!);
+    expect(Object.keys(read.pins!).sort()).toEqual(['__proto__', 'constructor', 'toString']);
+    expect(Object.getOwnPropertyDescriptor(read.pins!, '__proto__')?.value).toEqual([1, 2]);
+    expect(read.pins!.constructor).toEqual([3, 4]);
+  });
+
+  test('a diagram without pins does not find one under a prototype name', () => {
+    const read = readLayoutSettings(writeLayoutSettings(src, { pins: JSON.parse('{"toString":[5,6]}') as Pins })!);
+    expect(Object.keys(read.pins!)).toEqual(['toString']);
+    expect(read.pins!.constructor).toBeUndefined();
+    expect(read.pins!.valueOf).toBeUndefined();
+  });
+
+  test('normalising options keeps them too', () => {
+    const out = normalize({ pins: pins() });
+    expect(Object.keys(out.pins!).sort()).toEqual(['__proto__', 'constructor', 'toString']);
   });
 });

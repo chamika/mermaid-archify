@@ -52,18 +52,22 @@ export async function parseMermaid(text: string): Promise<DiagramIR> {
   const mermaid = await loadMermaid();
   const prepared = prepareSource(text);
   const ir = await exclusive(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let diagram: any;
+    const read = async (source: string) => {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(source);
+      // Read the db before releasing it to the next parse.
+      return toIR(diagram.type, diagram.db);
+    };
     try {
-      diagram = await mermaid.mermaidAPI.getDiagramFromText(prepared);
+      return await read(prepared);
     } catch (err) {
+      if (err instanceof MermaidParseError) throw err;
       const e = toParseError(err);
       // Mermaid trims leading blank lines (including our blanked frontmatter).
       if (e.line !== undefined) throw new MermaidParseError(e.message, e.line + leadingBlankLines(prepared));
-      throw e;
+      const at = await culprit(read, prepared);
+      if (at) throw new MermaidParseError(`Could not read line ${at.line}: ${at.text}`, at.line);
+      throw new MermaidParseError(`Could not read this diagram: ${e.message}`);
     }
-    // Read the db before releasing it to the next parse.
-    return adapt(() => toIR(diagram.type, diagram.db));
   });
   if (ir.kind !== 'state') settleTypes(ir.nodes);
   await adapt(() => attachIcons(ir));
@@ -72,8 +76,39 @@ export async function parseMermaid(text: string): Promise<DiagramIR> {
 }
 
 /**
- * Mermaid accepted the text but reading its db failed (an input this adapter does
- * not expect). Still a problem with the diagram, so callers get a MermaidParseError.
+ * Longest diagram searched for the line behind an error that names none, and how long
+ * the search may take. It repeats on every edit while the error stays, on the page's
+ * main thread, so past this the error simply names no line.
+ */
+const MAX_SEARCHED_LINES = 400;
+const MAX_SEARCH_MS = 100;
+
+/**
+ * Some failures carry no position: a crash inside Mermaid (`+bar() <!--` in a class
+ * body is a TypeError) or in reading its db. The line to blame is the one whose
+ * removal lets the diagram through. Runs inside the caller's `exclusive` slot.
+ */
+async function culprit(read: (source: string) => Promise<unknown>, source: string): Promise<{ line: number; text: string } | undefined> {
+  const lines = source.split('\n');
+  if (lines.length > MAX_SEARCHED_LINES) return undefined;
+  const deadline = performance.now() + MAX_SEARCH_MS;
+  for (const [i, text] of lines.entries()) {
+    if (performance.now() > deadline) return undefined;
+    if (!text.trim()) continue;
+    const without = lines.map((l, k) => (k === i ? '' : l)).join('\n');
+    try {
+      await read(without);
+      return { line: i + 1, text: text.trim().slice(0, 80) };
+    } catch {
+      // This line was not it.
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Attaching icons failed on an input this adapter does not expect. Still a problem
+ * with the diagram, so callers get a MermaidParseError.
  */
 async function adapt<T>(read: () => T | Promise<T>): Promise<T> {
   try {

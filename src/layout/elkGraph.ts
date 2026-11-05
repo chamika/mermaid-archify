@@ -18,6 +18,35 @@ export const GROUP_PAD = { top: 42, left: 22, bottom: 22, right: 22 };
 /** ELK constant for a settings value: `brandes-koepf` → `BRANDES_KOEPF`. */
 const elkConst = (v: string) => v.toUpperCase().replace(/-/g, '_');
 
+/**
+ * Groups laid out on their own, so that a `direction` line can apply. ELK cannot route
+ * an edge across the boundary of a group laid out on its own, so a group qualifies only
+ * if every edge touching its contents joins two siblings; otherwise it follows its
+ * parent (Mermaid, too, ignores `direction` on a subgraph with edges leaving it).
+ * Edges attached to a group itself are fine. Returns each such group's direction, with
+ * groups nested inside inheriting it, since they share its layout run.
+ */
+export function ownLayout(ir: DiagramIR): Map<string, Direction> {
+  const parent = new Map<string, string | undefined>([...ir.nodes, ...ir.groups].map((x) => [x.id, x.parent]));
+  const inside = (id: string, g: string) => {
+    for (let at = parent.get(id); at; at = parent.get(at)) if (at === g) return true;
+    return false;
+  };
+  const filled = new Set([...parent.values()]);
+  const out = new Map<string, Direction>();
+  const groups = new Map(ir.groups.map((g) => [g.id, g]));
+  const depth = (g: IRGroup): number => (g.parent && groups.has(g.parent) ? 1 + depth(groups.get(g.parent)!) : 0);
+  // Outermost first: an inner group inherits from a qualifying outer one.
+  for (const g of [...ir.groups].sort((a, b) => depth(a) - depth(b))) {
+    const inherited = g.parent ? out.get(g.parent) : undefined;
+    const qualifies =
+      filled.has(g.id) && (g.direction || inherited) &&
+      ir.edges.every((e) => (!inside(e.from, g.id) && !inside(e.to, g.id)) || parent.get(e.from) === parent.get(e.to));
+    if (qualifies) out.set(g.id, g.direction ?? inherited!);
+  }
+  return out;
+}
+
 function baseOptions(direction: Direction, settings: LayoutSettings): LayoutOptions {
   const nodeNode = settings.nodeSpacing ?? DEFAULTS.nodeSpacing;
   const ranks = settings.rankSpacing ?? DEFAULTS.rankSpacing;
@@ -75,13 +104,15 @@ export function toElkGraph(
   const lines = new Map<string, string[]>();
   const elkNodes = new Map<string, ElkNode>();
   const usesPorts = ir.kind === 'architecture';
+  const own = ownLayout(ir);
 
   // ELK applies the minimum size of a group with children transposed under vertical
   // layouts (elkjs 0.12: a TB group asked for (373, 64) came out 172×373), so swap it
   // there; an empty group, laid out as a plain node, takes it as given.
   const vertical = direction === 'TB' || direction === 'BT';
   const filled = new Set([...ir.nodes, ...ir.groups].flatMap((x) => (x.parent ? [x.parent] : [])));
-  const minimum = (g: IRGroup, w: number, h: number) => (vertical && filled.has(g.id) ? `(${h}, ${w})` : `(${w}, ${h})`);
+  // (A group laid out on its own takes it as given too.)
+  const minimum = (g: IRGroup, w: number, h: number) => (vertical && filled.has(g.id) && !own.has(g.id) ? `(${h}, ${w})` : `(${w}, ${h})`);
   for (const g of ir.groups) {
     elkNodes.set(g.id, {
       id: g.id,
@@ -98,12 +129,14 @@ export function toElkGraph(
         // A group wider than its contents would otherwise leave them at its start. ELK
         // transposes this under vertical layouts too, so ask for both axes.
         'elk.contentAlignment': 'H_CENTER V_CENTER',
+        // Its own run: it needs the root's options, which do not reach it otherwise.
+        ...(own.has(g.id) && { ...baseOptions(own.get(g.id)!, settings), ...groupSpacing(settings), 'elk.hierarchyHandling': 'SEPARATE_CHILDREN' }),
       },
     });
   }
 
   for (const n of ir.nodes) {
-    const size = nodeSize(n, direction, withCaption);
+    const size = nodeSize(n, (n.parent && own.get(n.parent)) || direction, withCaption);
     lines.set(n.id, size.lines);
     const layoutOptions: LayoutOptions = {};
     if (n.shape === 'start') layoutOptions['elk.layered.layering.layerConstraint'] = 'FIRST';
@@ -172,7 +205,10 @@ export function toElkGraph(
       const s = edgeLabelSize(e.label);
       edge.labels = [{ id: `${e.id}:label`, text: e.label, width: s.w, height: s.h }];
     }
-    edges.push(edge);
+    // An edge inside a group laid out on its own belongs to that group's run.
+    const run = own.has(parentOf(e.from) ?? '') ? elkNodes.get(parentOf(e.from)!)! : root;
+    if (run === root) edges.push(edge);
+    else (run.edges ??= []).push(edge);
   }
   root.edges = edges;
   return { graph: root, lines, flipped };

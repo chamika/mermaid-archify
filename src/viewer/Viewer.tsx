@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { plainText } from '../icons/fa';
 import { safeLink } from '../ir/style';
 import type { SemanticType } from '../ir/types';
+import { pinOf } from '../layout/settings';
 import type { Scene, SceneNode } from '../scene/types';
 import { Diagram, type Highlight, pathD } from './Diagram';
 import { type Lit, adjacency, neighbourhood, relationPhrase, route, search } from './graph';
@@ -192,8 +193,17 @@ export function Viewer({
     if (focus && !nodeById.has(focus)) setFocus(undefined);
     if (pinnedEdge && !scene.edges.some((e) => e.id === pinnedEdge)) setPinnedEdge(undefined);
     if (routeEnds.some((id) => !nodeById.has(id))) setRouteEnds([]);
+    if (linkedLit && ![...linkedLit.nodes].some((id) => nodeById.has(id))) setLinkedLit(undefined);
     setTraceStep(undefined);
   }, [scene]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Pan to `box` if any of it is off-screen. */
+  const reveal = (box: { x: number; y: number; w: number; h: number } | undefined) => {
+    const { t, size, centerOn } = pzRef.current;
+    if (!box || !size.w) return;
+    const [x0, y0, x1, y1] = [box.x * t.k + t.x, box.y * t.k + t.y, (box.x + box.w) * t.k + t.x, (box.y + box.h) * t.k + t.y];
+    if (x0 < 0 || y0 < 0 || x1 > size.w || y1 > size.h) centerOn(box);
+  };
 
   // --- linked highlight: replaces any selection, pans only when it is off-screen ---
   useEffect(() => {
@@ -206,11 +216,7 @@ export function Viewer({
     setPinnedEdge(undefined);
     setRouteEnds([]);
     setTraceStep(undefined);
-    const box = litBounds(scene, linked);
-    const { t, size } = pz;
-    if (!box || !size.w) return;
-    const [x0, y0, x1, y1] = [box.x * t.k + t.x, box.y * t.k + t.y, (box.x + box.w) * t.k + t.x, (box.y + box.h) * t.k + t.y];
-    if (x0 < 0 || y0 < 0 || x1 > size.w || y1 > size.h) pz.centerOn(box);
+    reveal(litBounds(scene, linked));
   }, [linked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- route probe ---
@@ -276,13 +282,13 @@ export function Viewer({
 
   // --- arranging: drag nodes to pin them ---
   const dragged = useRef(false);
-  const pinOf = (id: string): [number, number] => arrange?.pins[id] ?? [0, 0];
+  const pinAt = (id: string) => pinOf(arrange?.pins, id);
   const onNodePointerDown = useCallback(
     (id: string, e: PointerEvent) => {
       if (!arrangeOn || e.button !== 0) return;
       e.stopPropagation(); // not a pan
       const start = { x: e.clientX, y: e.clientY };
-      const [bx, by] = pinOf(id);
+      const [bx, by] = pinAt(id) ?? [0, 0];
       const k = pzRef.current.t.k;
       let moved = false;
       let last: [number, number] = [bx, by];
@@ -322,7 +328,7 @@ export function Viewer({
   );
   const onNodeDoubleClick = useCallback(
     (id: string) => {
-      if (arrangeOn && arrange!.pins[id]) arrange!.onPin(id, undefined, true);
+      if (arrangeOn && pinAt(id)) arrange!.onPin(id, undefined, true);
     },
     [arrangeOn, arrange],
   );
@@ -336,7 +342,7 @@ export function Viewer({
     if (!arrangeOn || prev.scene === scene) return;
     // Only nodes pinned neither before nor after can reveal a canvas shift.
     const before = new Map(prev.scene.nodes.map((n) => [n.id, n]));
-    const moved = (id: string) => !!(arrange!.pins[id] || prev.pins?.[id]);
+    const moved = (id: string) => !!(pinAt(id) || pinOf(prev.pins, id));
     const shifts = scene.nodes
       .filter((n) => before.has(n.id) && !moved(n.id))
       .map((n) => `${n.x - before.get(n.id)!.x},${n.y - before.get(n.id)!.y}`);
@@ -394,17 +400,34 @@ export function Viewer({
     [pinnedEdge, setFocus, onEdgePin],
   );
 
+  /** Highlights the group's contents, replacing any selection; a second time, clears them. */
+  const litGroup = useRef<{ id: string; lit: Lit }>();
+  const onGroupClick = useCallback(
+    (id: string, e: MouseEvent) => {
+      if (pzRef.current.didPan()) return;
+      e.stopPropagation();
+      const again = litGroup.current?.id === id && litGroup.current.lit === linkedLit;
+      clearAll();
+      const lit = groupLit(scene, id);
+      if (again || !lit.nodes.size) return;
+      litGroup.current = { id, lit };
+      setLinkedLit(lit);
+    },
+    [linkedLit, clearAll, scene],
+  );
+
   const handlers = useMemo(
     () => ({
       onNodeClick,
       onEdgeClick,
+      onGroupClick,
       onNodeEnter: setHoverNode,
       onNodeLeave: () => setHoverNode(undefined),
       ...(arrangeOn && { onNodePointerDown, onNodeDoubleClick }),
       onEdgeEnter: setHoverEdge,
       onEdgeLeave: () => setHoverEdge(undefined),
     }),
-    [onNodeClick, onEdgeClick, arrangeOn, onNodePointerDown, onNodeDoubleClick],
+    [onNodeClick, onEdgeClick, onGroupClick, arrangeOn, onNodePointerDown, onNodeDoubleClick],
   );
 
   const toggleTheme = () => {
@@ -456,7 +479,7 @@ export function Viewer({
     if (nudge && arrangeOn && focus && nodeById.has(focus)) {
       e.preventDefault();
       const step = e.shiftKey ? 32 : 8;
-      const [x, y] = pinOf(focus);
+      const [x, y] = pinAt(focus) ?? [0, 0];
       const next: [number, number] = [x + nudge[0] * step, y + nudge[1] * step];
       arrange!.onPin(focus, next[0] || next[1] ? next : undefined, true);
       return;
@@ -467,7 +490,7 @@ export function Viewer({
     else if (e.key === 't') toggleTrace();
     else if (e.key === ' ') {
       // A focused button, link or menu item keeps Space for itself (activation).
-      if ((e.target as Element | null)?.closest?.('button, a[href], [role="menuitem"], summary, select')) return;
+      if ((e.target as Element | null)?.closest?.('button, a[href], [role="button"], [role="menuitem"], summary, select')) return;
       e.preventDefault(); // no page scroll
       toggleAnimate();
     }
@@ -540,6 +563,14 @@ export function Viewer({
       onClick={(e) => {
         if (pz.didPan() || (e.target as Element).closest('.ma-chrome')) return;
         clearAll();
+      }}
+      onFocusIn={(e) => {
+        // Focus scrolls an off-screen element into view, which the pan transform knows nothing
+        // about: undo that, and pan there instead. Only for the keyboard; a click needs no help.
+        const el = (e.target as Element).closest('.ma-node, .ma-edge, .ma-group');
+        if (!el) return;
+        viewportRef.current?.scrollTo(0, 0);
+        if (el.matches(':focus-visible')) reveal(partBounds(scene, el.getAttribute('data-id')!));
       }}
     >
       <div
@@ -686,7 +717,7 @@ export function Viewer({
             setRouteEnds([focus]);
             setFocus(undefined);
           }}
-          onUnpin={arrange?.pins[focus] ? () => arrange.onPin(focus, undefined, true) : undefined}
+          onUnpin={arrange && pinAt(focus) ? () => arrange.onPin(focus, undefined, true) : undefined}
         />
       )}
 
@@ -727,6 +758,20 @@ function TracePulse({ path }: { path: string }) {
       <animateMotion ref={ref} begin="indefinite" dur="0.8s" fill="freeze" {...({ path } as object)} />
     </circle>
   );
+}
+
+/** A group's nodes (nested groups included) and the edges among them. */
+function groupLit(scene: Scene, id: string): Lit {
+  const parent = new Map(scene.groups.map((g) => [g.id, g.parent]));
+  const within = (at: string | undefined): boolean => !!at && (at === id || within(parent.get(at)));
+  const nodes = new Set(scene.nodes.filter((n) => within(n.parent)).map((n) => n.id));
+  return { nodes, edges: new Set(scene.edges.filter((e) => nodes.has(e.from) && nodes.has(e.to)).map((e) => e.id)) };
+}
+
+/** Where the node, edge or group `id` is drawn. */
+function partBounds(scene: Scene, id: string) {
+  const box = scene.nodes.find((n) => n.id === id) ?? scene.groups.find((g) => g.id === id);
+  return box ?? litBounds(scene, { nodes: new Set(), edges: new Set([id]) });
 }
 
 /** Scene-space bounds of the lit nodes and edges. */

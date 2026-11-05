@@ -121,3 +121,13 @@ describe('markdown-it plugin', () => {
     expect(() => md.render(doc(), { relativePath: 'guide/a.md' })).toThrow('mermaid-archify: guide/a.md:5: Unexpected end of input');
   });
 });
+
+test('U+2028 and U+2029 survive every embedded payload', async () => {
+  const text = 'one\u2028two\u2029three';
+  const source = `sequenceDiagram\n  A->>B: ${text}\n`;
+  const html = await remarkHtml(doc('mermaid', source));
+  const scene = sceneIn(html);
+  expect(scene.edges[0].label).toBe(text);
+  // JSON keeps them literal, which is valid in JSON and in a <script type="application/json">.
+  expect(() => JSON.parse(/<script type="application\/json">(.*?)<\/script>/s.exec(html)![1])).not.toThrow();
+});

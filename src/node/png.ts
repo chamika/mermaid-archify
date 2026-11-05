@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
+import { bakeStyles as bake } from '../export/bake';
 import { withDomSync } from './dom';
 
 /**
@@ -13,166 +14,17 @@ import { withDomSync } from './dom';
  * first resolved (by happy-dom's cascade) into plain attributes on every element.
  */
 
-const BAKED = [
-  'fill',
-  'fill-opacity',
-  'stroke',
-  'stroke-width',
-  'stroke-dasharray',
-  'stroke-linecap',
-  'stroke-linejoin',
-  'stroke-opacity',
-  'opacity',
-  'paint-order',
-  'font-family',
-  'font-size',
-  'font-weight',
-  'font-style',
-  'letter-spacing',
-  'text-decoration',
-  'text-anchor',
-  'dominant-baseline',
-  'display',
-  'visibility',
-] as const;
-
-/** Inherited properties are written only where they change, so SVG inheritance carries corrected values down. */
-const INHERITED = new Set(['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'stroke-opacity', 'paint-order', 'font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing', 'text-anchor', 'visibility']);
-
-const VAR = /var\(\s*(--[\w-]+)\s*(?:,\s*((?:[^()]|\([^()]*\))*))?\)/;
-
-/** A custom property in effect at `el`. happy-dom does not inherit them, so walk up. */
-function customProperty(el: Element, name: string): string {
-  for (let at: Element | null = el; at; at = at.parentElement) {
-    const v = getComputedStyle(at).getPropertyValue(name).trim();
-    if (v) return v;
-  }
-  return '';
-}
-
-function resolveVars(value: string, el: Element): string {
-  for (let i = 0; i < 10 && VAR.test(value); i++) {
-    value = value.replace(VAR, (_, name: string, fallback?: string) => customProperty(el, name) || fallback?.trim() || '');
-  }
-  return value;
-}
-
-/** Every text node below `node`. */
-function textNodes(node: Node): Node[] {
-  return node.nodeType === 3 ? [node] : [...node.childNodes].flatMap(textNodes);
-}
-
-/**
- * Declared `letter-spacing` in em, scaled by the element's own font size. happy-dom
- * resolves em against the root font size instead.
- */
-function letterSpacing(el: Element, rules: CSSStyleRule[], fontSize: string): string | undefined {
-  let declared: string | undefined;
-  for (const rule of rules) if (rule.style.getPropertyValue('letter-spacing') && el.matches(rule.selectorText)) declared = rule.style.getPropertyValue('letter-spacing');
-  const em = declared && /^(-?[\d.]+)em$/.exec(declared.trim());
-  return em ? `${+em[1] * parseFloat(fontSize)}px` : undefined;
-}
-
 /**
  * The SVG export with its stylesheet and palette resolved into presentation
  * attributes: no CSS variables or `context-stroke`, for tools that lack them.
  */
 export function bakeStyles(svgText: string): string {
-  return withDomSync(() => bake(svgText));
-}
-
-function bake(svgText: string): string {
-  const parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml');
-  const svg = document.importNode(parsed.documentElement, true) as unknown as SVGSVGElement;
-  document.body.appendChild(svg);
-  try {
-    const els = [svg, ...svg.querySelectorAll('*')];
-    const rules = [...svg.querySelectorAll('style')].flatMap((st) => [...(st.sheet?.cssRules ?? [])]).filter((r): r is CSSStyleRule => 'selectorText' in r);
-    // Compute everything before changing anything, so the cascade sees the original document.
-    const raw = new Map<Element, Map<string, string>>();
-    const computed = els.map((el) => {
-      const cs = getComputedStyle(el);
-      const own = new Map<string, string>();
-      for (const p of BAKED) own.set(p, cs.getPropertyValue(p).trim());
-      raw.set(el, own);
-      const parent = el.parentElement && raw.get(el.parentElement);
-      const props = new Map<string, string>();
-      for (const p of BAKED) {
-        if (parent && INHERITED.has(p) && parent.get(p) === own.get(p)) continue;
-        const v = resolveVars(own.get(p)!, el);
-        if (v) props.set(p, v);
-      }
-      const spacing = letterSpacing(el, rules, cs.getPropertyValue('font-size'));
-      if (spacing) props.set('letter-spacing', spacing);
-      const attrs = new Map<string, string>();
-      for (const a of el.getAttributeNames()) {
-        const v = el.getAttribute(a)!;
-        if (a !== 'style' && v.includes('var(')) attrs.set(a, resolveVars(v, el));
-      }
-      return { el, props, attrs, upper: cs.getPropertyValue('text-transform').trim() === 'uppercase' };
-    });
-    for (const { el, props, attrs, upper } of computed) {
-      for (const [a, v] of attrs) el.setAttribute(a, v);
-      for (const [p, v] of props) {
-        // A presentation attribute the stylesheet did not override keeps its own value.
-        if (!el.hasAttribute(p) || attrs.has(p)) el.setAttribute(p, v);
-      }
-      el.removeAttribute('style');
-      el.removeAttribute('class');
-      if (upper) for (const n of textNodes(el)) n.textContent = n.textContent!.toUpperCase();
-    }
-    svg.querySelectorAll('style').forEach((s) => s.remove());
-    resolveContextPaint(svg);
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
-  } finally {
-    svg.remove();
-  }
-}
-
-/**
- * Markers are shared and take the edge's colour through `context-stroke`/`context-fill`,
- * and point back along the edge at its start with `orient="auto-start-reverse"`. resvg
- * supports neither, so each colour and end gets its own copy: concrete paint, and
- * `auto` with the shape turned around its reference point at a start.
- */
-function resolveContextPaint(svg: SVGSVGElement): void {
-  const copies = new Map<string, string>();
-  for (const el of svg.querySelectorAll('[marker-start], [marker-mid], [marker-end]')) {
-    const stroke = el.getAttribute('stroke') ?? 'none';
-    const fill = el.getAttribute('fill') ?? 'none';
-    for (const attr of ['marker-start', 'marker-mid', 'marker-end']) {
-      const id = /^url\(["']?#([^"')]+)["']?\)$/.exec(el.getAttribute(attr) ?? '')?.[1];
-      const marker = id && svg.querySelector(`marker[id="${id}"]`);
-      if (!marker) continue;
-      const reverse = attr === 'marker-start' && marker.getAttribute('orient') === 'auto-start-reverse';
-      const key = `${id}|${stroke}|${fill}|${reverse}`;
-      let copyId = copies.get(key);
-      if (!copyId) {
-        copyId = `${id}-${copies.size}`;
-        const copy = marker.cloneNode(true) as Element;
-        copy.setAttribute('id', copyId);
-        for (const part of [copy, ...copy.querySelectorAll('*')]) {
-          for (const a of ['fill', 'stroke']) {
-            const v = part.getAttribute(a);
-            if (v === 'context-stroke') part.setAttribute(a, stroke);
-            else if (v === 'context-fill') part.setAttribute(a, fill);
-          }
-        }
-        if (copy.getAttribute('orient') === 'auto-start-reverse') copy.setAttribute('orient', 'auto');
-        if (reverse) {
-          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          g.setAttribute('transform', `rotate(180 ${copy.getAttribute('refX') ?? 0} ${copy.getAttribute('refY') ?? 0})`);
-          g.append(...copy.childNodes);
-          copy.appendChild(g);
-        }
-        marker.parentNode!.appendChild(copy);
-        copies.set(key, copyId);
-      }
-      el.setAttribute(attr, `url(#${copyId})`);
-    }
-  }
-  const used = new Set(copies.values());
-  for (const marker of svg.querySelectorAll('marker')) if (!used.has(marker.id)) marker.remove();
+  return withDomSync(() =>
+    bake(svgText, (svg) => {
+      document.body.appendChild(svg);
+      return () => svg.remove();
+    }),
+  );
 }
 
 /** WOFF 1.0 → TrueType/OpenType: the same tables, zlib-inflated, behind an sfnt header. */

@@ -2886,8 +2886,8 @@ exports[`mermaid-demos/flowchart-055 > parses, lays out, and satisfies scene inv
   ],
   "events": undefined,
   "groups": [
-    "X "X"",
-    "Y "Y"",
+    "X dir:LR "X"",
+    "Y dir:LR "Y"",
   ],
   "kind": "flowchart",
   "nodes": [
@@ -6859,9 +6859,9 @@ exports[`mermaid-docs/flowchart-100 > parses, lays out, and satisfies scene inva
   ],
   "events": undefined,
   "groups": [
-    "B1 in TOP "B1"",
-    "B2 in TOP "B2"",
-    "TOP "TOP"",
+    "B1 in TOP dir:RL "B1"",
+    "B2 in TOP dir:BT "B2"",
+    "TOP dir:TB "TOP"",
   ],
   "kind": "flowchart",
   "nodes": [
@@ -6890,8 +6890,8 @@ exports[`mermaid-docs/flowchart-101 > parses, lays out, and satisfies scene inva
   ],
   "events": undefined,
   "groups": [
-    "subgraph1 "subgraph1"",
-    "subgraph2 "subgraph2"",
+    "subgraph1 dir:TB "subgraph1"",
+    "subgraph2 dir:TB "subgraph2"",
   ],
   "kind": "flowchart",
   "nodes": [
@@ -8566,7 +8566,7 @@ exports[`mermaid-docs/state-018 > parses, lays out, and satisfies scene invarian
   ],
   "events": undefined,
   "groups": [
-    "B "B"",
+    "B dir:LR "B"",
   ],
   "kind": "state",
   "nodes": [
